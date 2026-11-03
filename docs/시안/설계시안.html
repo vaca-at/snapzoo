@@ -1,0 +1,433 @@
+<title>동물 왕국 설계 시안</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<style>
+/* 레이아웃: 한 줄로 읽는 설계서 — 맨 위 한눈에 보기, 그 아래 순서도 · 지도 · 휴대폰 시안 · 파일 · 만드는 순서 · 정할 것. 게임과 같은 초원 색 하나로(밝은 화면만) */
+:root{
+  --bg:#f3f8ef; --paper:#fffdf6; --ink:#24342b; --soft:#5d6d62; --line:#d6e4d6;
+  --leaf:#3f8f5a; --leaf-s:#e3f1e2; --sun:#ffc93c; --sun-s:#fff3cc; --sun-ink:#6b4a00; --coral:#ff6b4a; --sky:#cfeee6; --sea:#5bbbe0;
+  --display:"Jua","Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --body:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  color-scheme:light;
+}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65}
+.wrap{max-width:1000px;margin:0 auto;padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:44px}
+h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
+h1{font-size:clamp(30px,6vw,46px);line-height:1.15}
+h2{font-size:clamp(23px,4vw,29px);display:flex;align-items:baseline;gap:10px}
+h2 small{font-family:var(--body);font-size:14px;color:var(--soft)}
+h3{font-size:19px}
+p{margin:0;max-width:68ch}
+.lead{font-size:17.5px;color:var(--soft);margin-top:10px}
+section{display:grid;gap:16px}
+.tag{display:inline-block;font-family:var(--display);font-size:13px;letter-spacing:.04em;padding:3px 10px;border-radius:999px;background:var(--leaf-s);color:var(--leaf)}
+.panel{background:var(--paper);border:2px solid var(--ink);border-radius:18px;box-shadow:0 4px 0 var(--ink);padding:18px 20px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:15px}
+th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1.5px solid var(--line)}
+th{font-family:var(--display);font-weight:400;font-size:15px;color:var(--soft);background:var(--leaf-s)}
+td b{font-family:var(--display);font-weight:400}
+.was{color:var(--soft)}
+.now{color:var(--ink)}
+/* 한눈에 */
+.hero{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:24px;align-items:center}
+.facts{display:grid;gap:10px}
+.fact{display:grid;grid-template-columns:86px minmax(0,1fr);gap:10px;align-items:baseline;padding-bottom:10px;border-bottom:1.5px dashed var(--line)}
+.fact:last-child{border-bottom:0;padding-bottom:0}
+.fact b{font-family:var(--display);font-weight:400;color:var(--leaf)}
+@media (max-width:760px){.hero{grid-template-columns:1fr}}
+/* 순서도 · 지도 */
+.mermaid{margin:0;background:transparent;font-size:15px;overflow-x:auto}
+.map{display:block;width:100%;max-width:100%;height:auto}
+/* 휴대폰 시안 */
+.phones{display:flex;gap:22px;flex-wrap:wrap;justify-content:center}
+.ph{display:grid;gap:10px;justify-items:center;width:250px;max-width:100%}
+.ph figcaption{text-align:center;font-size:14px;color:var(--soft)}
+.ph figcaption b{display:block;font-family:var(--display);font-weight:400;font-size:17px;color:var(--ink)}
+.dev{position:relative;width:250px;max-width:100%;aspect-ratio:9/18.5;border-radius:34px;border:9px solid #1d2420;background:var(--sky);overflow:hidden;box-shadow:0 8px 20px rgba(36,52,43,.25)}
+.scene{position:absolute;inset:0;background:linear-gradient(180deg,#bfe8f7 0 34%,#a3d36b 34% 72%,#8fc75e 72%)}
+.scene .path{position:absolute;left:38%;top:34%;width:24%;height:66%;background:#dcc79e;clip-path:polygon(40% 0,60% 0,100% 100%,0 100%)}
+.tree{position:absolute;width:30px;height:44px}
+.tree::before{content:"";position:absolute;left:11px;bottom:0;width:8px;height:14px;background:#7a5532}
+.tree::after{content:"";position:absolute;left:0;top:0;width:30px;height:32px;border-radius:6px;background:#2f7a3e;box-shadow:inset -6px -6px 0 #286b35}
+.blk{position:absolute;display:grid;justify-items:center}
+.blk i{display:block;width:16px;height:16px;border-radius:3px;background:#ffd9b3;border:2px solid var(--ink)}
+.blk i+i{width:20px;height:20px;background:#3aa7a0;margin-top:-2px}
+.blk em{font-style:normal;font-family:var(--display);font-size:10px;background:var(--paper);border-radius:8px;padding:0 6px;margin-bottom:3px}
+.ani{position:absolute;font-size:28px;line-height:1}
+.ani.spark::after{content:"✦";position:absolute;right:-10px;top:-8px;font-size:13px;color:#fff;text-shadow:0 0 4px var(--sun)}
+.top{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;padding:10px 10px 0}
+.chip{font-family:var(--display);font-size:12px;background:var(--paper);border:2px solid var(--ink);border-radius:999px;padding:2px 8px;box-shadow:0 2px 0 var(--ink)}
+.chip.place{background:var(--leaf);color:#fff;border-color:var(--leaf);box-shadow:none}
+.joy{position:absolute;left:14px;bottom:18px;width:84px;height:84px;border-radius:50%;background:rgba(255,253,246,.55);border:2px solid rgba(36,52,43,.4)}
+.joy::after{content:"";position:absolute;left:24px;top:24px;width:36px;height:36px;border-radius:50%;background:var(--paper);border:2px solid var(--ink)}
+.bigbtn{position:absolute;right:14px;bottom:22px;width:76px;height:76px;border-radius:50%;background:var(--coral);border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);display:grid;place-items:center;color:#fff;font-family:var(--display);font-size:14px;text-align:center;line-height:1.15}
+.smallbtns{position:absolute;right:16px;bottom:112px;display:grid;gap:8px}
+.smallbtns span{width:44px;height:44px;border-radius:14px;background:var(--paper);border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);display:grid;place-items:center;font-size:18px}
+.bubble{position:absolute;left:50%;transform:translateX(-50%);top:46px;width:86%;text-align:center;font-family:var(--display);font-size:13px;background:var(--sun);color:var(--sun-ink);border:2px solid var(--ink);border-radius:12px;padding:5px 8px}
+.shade{position:absolute;inset:0;background:rgba(15,25,20,.55)}
+.frame{position:absolute;left:9%;right:9%;top:28%;height:31%;border:3px solid #fff;border-radius:6px;box-shadow:0 0 0 999px rgba(15,25,20,.55)}
+.frame::after{content:"";position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;border:2px solid #fff;border-radius:50%}
+.meter{position:absolute;left:9%;right:9%;top:62%;display:grid;gap:4px}
+.meter div{display:grid;grid-template-columns:52px 1fr;gap:6px;align-items:center;font-family:var(--display);font-size:11px;color:#fff}
+.meter s{display:block;height:8px;border-radius:9px;background:rgba(255,255,255,.3);text-decoration:none;overflow:hidden}
+.meter s i{display:block;height:100%;background:var(--sun)}
+.zoom{position:absolute;left:14px;bottom:30px;display:grid;gap:8px}
+.zoom span{width:46px;height:46px;border-radius:50%;background:var(--paper);border:2px solid var(--ink);display:grid;place-items:center;font-family:var(--display);font-size:22px}
+.shutter{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:80px;height:80px;border-radius:50%;background:#fff;border:6px solid var(--coral);box-shadow:0 0 0 3px #fff}
+.back{position:absolute;right:14px;bottom:36px;font-family:var(--display);font-size:13px;background:var(--paper);border:2px solid var(--ink);border-radius:12px;padding:8px 10px}
+.card{position:absolute;left:8%;right:8%;top:14%;bottom:12%;background:var(--paper);border:3px solid var(--ink);border-radius:18px;box-shadow:0 5px 0 var(--ink);display:grid;align-content:start;justify-items:center;gap:8px;padding:12px}
+.card .new{font-family:var(--display);font-size:13px;background:var(--sun);color:var(--sun-ink);border:2px solid var(--ink);border-radius:999px;padding:2px 10px}
+.card .pol{width:86%;aspect-ratio:4/3;background:linear-gradient(180deg,#bfe8f7 0 45%,#a3d36b 45%);border:3px solid var(--ink);border-radius:4px;display:grid;place-items:center;font-size:44px;transform:rotate(-2deg);box-shadow:0 3px 0 var(--ink)}
+.card .st{font-size:24px;letter-spacing:3px;color:#e8a500}
+.card .pt{font-family:var(--display);font-size:15px}
+.card .go{font-family:var(--display);font-size:14px;background:var(--coral);color:#fff;border:2px solid var(--ink);border-radius:12px;padding:6px 14px;box-shadow:0 3px 0 var(--ink)}
+/* 파일 · 순서 */
+.files{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.file{border:2px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--paper)}
+.file code{font-family:ui-monospace,Consolas,monospace;font-size:13.5px;background:var(--leaf-s);color:var(--leaf);border-radius:6px;padding:1px 6px}
+.file p{font-size:14.5px;color:var(--soft);margin-top:6px}
+.file .src{display:inline-block;margin-top:8px;font-size:12px;font-family:var(--display);color:var(--sun-ink);background:var(--sun-s);border-radius:999px;padding:1px 9px}
+.file .src.new{color:var(--coral);background:#ffe4dc}
+.steps{display:grid;gap:0;counter-reset:s}
+.step{display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;padding:14px 0;border-bottom:1.5px dashed var(--line)}
+.step:last-child{border-bottom:0}
+.step .n{width:40px;height:40px;border-radius:50%;background:var(--leaf);color:#fff;display:grid;place-items:center;font-family:var(--display);font-size:19px}
+.step h3{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.step p{color:var(--soft);font-size:15px;margin-top:4px}
+.check{font-family:var(--display);font-size:12.5px;background:var(--sun);color:var(--sun-ink);border:1.5px solid var(--ink);border-radius:999px;padding:1px 9px}
+.qs{display:grid;gap:12px}
+.q{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;align-items:start}
+.q span{width:28px;height:28px;border-radius:9px;background:var(--coral);color:#fff;display:grid;place-items:center;font-family:var(--display)}
+.q b{font-family:var(--display);font-weight:400;font-size:17px;display:block}
+.q p{font-size:15px;color:var(--soft)}
+.note{font-size:14px;color:var(--soft)}
+/* 단추 · 메뉴 시안 A · B · C */
+.opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+@media (max-width:860px){.opts{grid-template-columns:1fr;justify-items:center}}
+.opt{display:grid;gap:10px;justify-items:center;text-align:center}
+.opt h3 i{font-style:normal;background:var(--sun);color:var(--sun-ink);border:1.5px solid var(--ink);border-radius:8px;padding:0 8px;margin-right:6px}
+.opt p{font-size:14px;color:var(--soft);max-width:250px}
+.gl{background:rgba(255,253,246,.82);border:1px solid rgba(255,255,255,.7);box-shadow:0 4px 14px rgba(30,20,10,.18)}
+.a-top{position:absolute;right:8px;top:8px;display:flex;gap:5px}
+.a-top span{width:34px;height:38px;border-radius:11px;display:grid;justify-items:center;align-content:center;font-size:14px;line-height:1}
+.a-top span small{font-size:8px;font-family:var(--display);color:var(--soft);margin-top:2px}
+.a-side{position:absolute;left:8px;top:34%;display:grid;gap:6px}
+.a-side span{width:38px;height:38px;border-radius:11px;background:rgba(36,52,43,.55);color:#fff;display:grid;place-items:center;font-size:17px}
+.a-cam{position:absolute;right:14px;bottom:20px;width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,.28);border:2px solid rgba(255,255,255,.75);display:grid;place-items:center;font-size:28px}
+.a-left{position:absolute;left:8px;top:8px;display:grid;gap:4px}
+.a-menu{position:absolute;right:8px;top:52px;width:58%;border-radius:12px;padding:5px;display:grid;gap:1px;text-align:left}
+.a-menu span{font-family:var(--display);font-size:11.5px;padding:5px 8px;border-radius:7px}
+.a-menu span small{display:block;font-family:var(--body);font-size:8.5px;color:var(--soft);line-height:1.2}
+.a-menu span.on{background:rgba(63,143,90,.12)}
+.b-bar{position:absolute;left:8px;right:8px;bottom:10px;display:grid;grid-template-columns:repeat(5,1fr);gap:4px;background:var(--paper);border:2.5px solid var(--ink);border-radius:18px;box-shadow:0 3px 0 var(--ink);padding:6px 4px}
+.b-bar span{display:grid;justify-items:center;font-size:18px;line-height:1.1}
+.b-bar span small{font-family:var(--display);font-size:9.5px;color:var(--ink);margin-top:2px}
+.b-bar span.cam{margin-top:-24px}
+.b-bar span.cam b{width:54px;height:54px;border-radius:50%;background:var(--coral);border:2.5px solid var(--ink);box-shadow:0 3px 0 var(--ink);display:grid;place-items:center;font-size:24px}
+.b-joy{position:absolute;left:14px;bottom:86px;width:70px;height:70px;border-radius:50%;background:rgba(255,253,246,.5);border:2px solid rgba(36,52,43,.4)}
+.b-jump{position:absolute;right:14px;bottom:86px;width:70px;height:70px;border-radius:50%;background:rgba(255,253,246,.55);border:2px solid rgba(36,52,43,.4);display:grid;place-items:center;font-family:var(--display);font-size:12px;color:var(--ink);line-height:1.05;text-align:center}
+.b-jump b{display:block;font-size:24px;font-weight:400}
+.b-joy::after{content:"";position:absolute;left:20px;top:20px;width:30px;height:30px;border-radius:50%;background:var(--paper);border:2px solid var(--ink)}
+.c-strip{position:absolute;left:0;right:0;bottom:0;height:120px;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.55) 40%)}
+.c-modes{position:absolute;left:0;right:0;bottom:98px;display:flex;justify-content:center;gap:12px;font-family:var(--display);font-size:11px;color:rgba(255,255,255,.75)}
+.c-modes b{font-weight:400;color:var(--sun)}
+.c-shut{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:62px;height:62px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.45)}
+.c-thumb{position:absolute;left:18px;bottom:32px;width:40px;height:40px;border-radius:9px;border:2px solid #fff;background:linear-gradient(180deg,#bfe8f7 0 45%,#a3d36b 45%);display:grid;place-items:center;font-size:18px}
+.c-joy{position:absolute;right:18px;bottom:30px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.3);border:2px solid rgba(255,255,255,.7);display:grid;place-items:center;color:#fff;font-size:16px}
+.c-top{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;padding:9px 10px;font-family:var(--display);font-size:11px;color:#fff;background:linear-gradient(180deg,rgba(0,0,0,.45),rgba(0,0,0,0))}
+/* 상점 */
+.cams{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.camc{border:2px solid var(--ink);border-radius:16px;background:var(--paper);box-shadow:0 3px 0 var(--ink);padding:12px;display:grid;gap:6px;align-content:start}
+.camc .ico{font-size:30px;line-height:1}
+.camc b{font-family:var(--display);font-weight:400;font-size:17px}
+.camc .pr{font-family:var(--display);font-size:14px;color:var(--sun-ink);background:var(--sun-s);border-radius:999px;padding:1px 9px;justify-self:start;font-variant-numeric:tabular-nums}
+.camc .pr.free{color:var(--leaf);background:var(--leaf-s)}
+.camc p{font-size:13.5px;color:var(--soft)}
+.camc.key{border-color:var(--coral)}
+.camc.key .pr{color:#fff;background:var(--coral)}
+</style>
+<style>
+.line2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:760px){.line2{grid-template-columns:1fr}}
+.inbox{border:2.5px solid var(--leaf);border-radius:16px;background:var(--paper);padding:14px 16px}
+.inbox.later{border-color:var(--line);background:transparent}
+.inbox h3{display:flex;gap:8px;align-items:center}
+.inbox ul{margin:8px 0 0;padding-left:18px;display:grid;gap:4px;font-size:15px}
+.inbox.later ul{color:var(--soft)}
+.g{display:inline-block;font-family:var(--display);font-size:12.5px;border-radius:999px;padding:1px 9px;border:1.5px solid var(--ink);white-space:nowrap}
+.g1{background:#ffffff}.g2{background:#c9f0cf}.g3{background:#cfe3ff}.g4{background:#ffd8a8}.g5{background:#ffc2c2}
+.zg{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.zc{border:2px solid var(--ink);border-radius:16px;background:var(--paper);box-shadow:0 3px 0 var(--ink);padding:12px 14px;display:grid;gap:8px;align-content:start}
+.zc h3{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.zc h3 small{font-family:var(--body);font-size:13px;color:var(--soft)}
+.zc ul{list-style:none;margin:0;padding:0;display:grid;gap:5px;font-size:15px}
+.zc li{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.zc .sub2{font-family:var(--display);font-size:13px;color:var(--soft);margin-top:4px}
+.num{font-variant-numeric:tabular-nums}
+.hidebox{border:2px dashed var(--coral);border-radius:14px;padding:12px 14px;background:#fff6f2;font-size:15px}
+.hidebox b{font-family:var(--display);font-weight:400;color:var(--coral)}
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div>
+      <span class="tag">설계 시안 4판 · 1차 판 결정</span>
+      <h1 style="margin-top:12px">동물 왕국 🐾<br>카메라 하나로 떠나는 동물 탐험</h1>
+      <p class="lead">아이들이 적은 정글 · 초원 · 사막 · 바다, 동물 등급, 카메라 이름을 살렸어요. 1차 판은 시연 · 테스트에 맞게 크기를 줄이고, 나머지는 '다음 판' 칸에 모아 두었어요.</p>
+    </div>
+    <div class="panel facts">
+      <div class="fact"><b>제목</b><span>동물 왕국</span></div>
+      <div class="fact"><b>주소</b><span>snapzoo.site (폴더 · 링크 이름 snapzoo) · 사기 전까지 jsun.site/snapzoo</span></div>
+      <div class="fact"><b>1차 판</b><span>구역 4 · 동물 26종 · 등급 5 · 카메라 6대</span></div>
+      <div class="fact"><b>코인</b><span>사진 상금(크게) + 초당 +1 · 도감 동물마다 +1 (하루 55분)</span></div>
+      <div class="fact"><b>시작</b><span>🚏 정거장 대기실 · 왼쪽 버스 · 오른쪽 배</span></div><div class="fact"><b>단추</b><span>걷기는 B(아래 탭) · 사진은 C(카메라 화면)</span></div>
+    </div>
+  </header>
+
+  <div class="hidebox"><b>만드는 틀만 빌려요.</b> 3D · 블록 캐릭터 · 조이스틱 · 친구 보이기는 큰법당 · 캠핑장 · 소호랩에서 쓰던 코드를 가져오지만, 게임 안에는 다른 공간의 이름 · 문 · 광장이 하나도 나오지 않아요. 아이들에게는 처음부터 따로 있는 게임 '동물 왕국'이에요.</div>
+
+  <section>
+    <h2>1차 판 라인 <small>시연 · 테스트용으로 여기까지</small></h2>
+    <div class="line2">
+      <div class="inbox">
+        <h3>✅ 1차 판에 넣어요</h3>
+        <ul>
+          <li>구역 4곳: 🌴 정글 · 🦁 초원 · 🏜️ 사막 · 🌊 바다(바닷가 · 깊은 바다)</li>
+          <li>🚏 정거장 대기실에서 시작: 🎫 매표소에서 표를 사고 왼쪽 🚌 버스(정글 무료 · 초원 · 사막 350), 오른쪽 ⛵ 배(바다 1,000)</li><li>화면: 걷기는 B(왼쪽 조이스틱 · 오른쪽 점프 · 아래 탭 다섯 칸), 📷 를 누르면 C(카메라 화면)로 바뀌어요</li>
+          <li>동물 26종, 등급 다섯: <span class="g g1">일반</span> <span class="g g2">드문</span> <span class="g g3">희귀</span> <span class="g g4">전설</span> <span class="g g5">신화</span></li>
+          <li>카메라 6대: 녹색 구리 렌즈 → 아카샤 레코드</li><li>꾸미기: 기본 탐험가로 시작, 머리 · 옷 · 탐험가 · 사진가 아이템을 상점에서 포인트로</li>
+          <li>초당 포인트 · 사진 상금 · 사진 점수 100점 · 도감 · 사진 앨범 · 상점</li>
+          <li>동물은 귀여운 3D, 도감은 저작권 없는 진짜 동물 사진 + 내 최고 사진</li><li>대기실은 친구들이 서로 보이는 메타버스 · 의자 · 동작(🍦 👋 🪁) · 채팅 금지, 구역 탐험은 혼자 놀기 먼저</li>
+        </ul>
+      </div>
+      <div class="inbox later">
+        <h3>⏳ 다음 판으로 미뤄요</h3>
+        <ul>
+          <li>등급 셋: 비밀 · 불멸 · 관리자 (범고래 · 백상아리 · 기린 · 얼룩말 · 악어 · 재규어 등)</li>
+          <li>카메라 셋: 오컬트 인코그니토 · 이모탈 코어 프리즘 · 마스터 아키텍트</li>
+          <li>상상 동물: 🐉 드래곤 · 🐙 크라켄 · 🔥 피닉스 (관리자 이벤트로)</li>
+          <li>나머지 동물 50여 종 (같은 틀에 이름만 더하면 돼요)</li>
+          <li>기록 온라인 저장 (다른 기기에서 이어 하기)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>구역과 동물 26종 <small>아이 등급표 그대로</small></h2>
+    <div class="zg">
+      <div class="zc"><h3>🌴 정글 <small>🚌 버스 무료</small></h3><ul>
+        <li>개구리 <span class="g g1">일반</span></li><li>뱀 <span class="g g1">일반</span></li><li>나무늘보 <span class="g g2">드문</span></li><li>토코투칸 <span class="g g3">희귀</span></li><li>오랑우탄 <span class="g g5">신화</span></li></ul></div>
+      <div class="zc"><h3>🦁 초원 <small>🚌 버스표 350</small></h3><ul>
+        <li>카피바라 <span class="g g1">일반</span></li><li>하이에나 <span class="g g2">드문</span></li><li>사자 <span class="g g3">희귀</span></li><li>치타 <span class="g g3">희귀</span></li><li>표범 <span class="g g3">희귀</span></li></ul></div>
+      <div class="zc"><h3>🏜️ 사막 <small>🚌 버스표 350</small></h3><ul>
+        <li>가시도마뱀 <span class="g g2">드문</span></li><li>방울뱀 <span class="g g2">드문</span></li><li>낙타 <span class="g g2">드문</span></li><li>캥거루쥐 <span class="g g3">희귀</span></li><li>미어캣 <span class="g g3">희귀</span></li><li>사막여우 <span class="g g5">신화</span></li></ul></div>
+      <div class="zc"><h3>🌊 바다 <small>⛵ 배표 1,000</small></h3><ul>
+        <li>홍게 <span class="g g1">일반</span></li><li>정어리 <span class="g g1">일반</span></li><li>도다리 <span class="g g2">드문</span></li><li>푸른바다거북 <span class="g g3">희귀</span></li><li>레몬상어 <span class="g g3">희귀</span></li></ul>
+        <p class="sub2">깊은 바다 (배 타고 더 멀리)</p><ul>
+        <li>초롱아귀 <span class="g g4">전설</span></li><li>드래곤피쉬 <span class="g g4">전설</span></li><li>산갈치 <span class="g g4">전설</span></li><li>클리오네 <span class="g g4">전설</span></li><li>덤보문어 <span class="g g5">신화</span></li></ul></div>
+    </div>
+    <p class="note">등급이 높을수록 드물게 나타나요. 일반 · 드문은 늘, 희귀는 가끔, 전설은 몇 분에 한 번, 신화는 10분에 한 번쯤 반짝이며. 이름과 등급은 js/data.js 한 곳에서 바꿀 수 있어요.</p>
+  </section>
+
+  <section>
+    <h2>동물 모습과 도감 <small>게임 속은 귀여운 3D · 도감은 진짜 사진</small></h2>
+    <div class="line2">
+      <div class="inbox"><h3>🧸 게임 속 동물</h3><ul>
+        <li>귀여운 3D: 머리가 크고 몸이 작은 동글동글한 모양, 큰 눈</li>
+        <li>캐릭터와 같은 블록 느낌을 살려 26종을 직접 만들어요 (외부 모델 안 써서 저작권 걱정 없음)</li>
+        <li>동물마다 '특별한 순간' 동작: 나무늘보 매달려 하품, 미어캣 벌떡 서기, 덤보문어 귀 펄럭 …</li>
+        <li>휴대폰에서 가볍게 돌도록 단순한 모양 · 색으로</li></ul></div>
+      <div class="inbox"><h3>📖 도감 카드</h3><ul>
+        <li>처음 찍으면 그 동물의 <b>진짜 사진</b>이 열려요 + 한 줄 설명 (사는 곳 · 재미있는 사실)</li>
+        <li>옆에 <b>내가 찍은 최고 사진</b> · 별 · 점수</li>
+        <li>사진은 저작권 문제 없는 것만: 위키미디어 공용의 공유 마당(CC0) · 퍼블릭 도메인 사진(미국 국립공원 · 어류야생동물국 · 해양대기청 등), 필요하면 CC BY는 찍은 사람 이름 표시</li>
+        <li>메뉴 '사진 출처'에 동물마다 출처 · 라이선스를 모아 둬요 (캠핑장 '자료 출처'처럼)</li></ul></div>
+    </div>
+    <p class="note">깊은 바다 동물(초롱아귀 · 드래곤피쉬 · 산갈치 · 클리오네 · 덤보문어)은 쓸 수 있는 사진이 적어서 하나씩 찾아 확인할게요. 못 찾으면 그 동물만 해양대기청(NOAA) 탐사 사진처럼 공공 자료로 대신해요.</p>
+  </section>
+
+  <section>
+    <h2>코인 규칙 <small>사진 상금은 크게 · 초당은 동물마다 똑같이 +1</small></h2>
+    <div class="panel tbl"><table>
+      <thead><tr><th>등급</th><th>처음 찍으면 상금</th><th>도감에 있으면 초당</th></tr></thead>
+      <tbody>
+        <tr><td><span class="g g1">일반</span></td><td class="num">50</td><td class="num">+1 / 초</td></tr>
+        <tr><td><span class="g g2">드문</span></td><td class="num">300</td><td class="num">+1 / 초</td></tr>
+        <tr><td><span class="g g3">희귀</span></td><td class="num">1,000</td><td class="num">+1 / 초</td></tr>
+        <tr><td><span class="g g4">전설</span></td><td class="num">10,000</td><td class="num">+1 / 초</td></tr>
+        <tr><td><span class="g g5">신화</span></td><td class="num">80,000</td><td class="num">+1 / 초</td></tr>
+      </tbody>
+    </table></div>
+    <ul class="note" style="margin:0;padding-left:18px;display:grid;gap:4px">
+      <li><b>초당 포인트:</b> 누구나 기본 1초에 +1, 도감에 동물이 한 마리 늘 때마다 +1 (등급과 상관없이). 26종을 다 모으면 1초에 27. 하루 55분(3,300초)까지, 화면을 보고 있을 때만 · 의자에 앉아 있어도 세요.</li>
+      <li><b>사진 상금:</b> 아이 표 숫자 그대로 크게. 별 3개면 그대로, 별 2개 3/4, 별 1개 절반. 더 잘 찍어 최고 사진을 바꾸면 10%.</li>
+      <li><b>속도 예상:</b> 첫날 하루 약 2만, 열흘쯤 동물이 모이면 하루 약 5만, 다 모으면 하루 약 9만 + 상금.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>상점 1차 판 <small>아이가 지은 이름 · 색 · 가격</small></h2>
+    <div class="cams">
+      <div class="camc" style="border-color:#bbb"><span class="ico">📷</span><b>녹색 구리 렌즈</b><span class="pr free">무료 · 흰색</span><p>줌 2배. 처음 들고 시작</p></div>
+      <div class="camc" style="border-color:#3db37a"><span class="ico">📷</span><b>황동 프리즘</b><span class="pr">500 · 초록색</span><p>줌 2.5배</p></div>
+      <div class="camc" style="border-color:#4c8df6"><span class="ico">📷</span><b>옵시디언 셔터</b><span class="pr">3,000 · 파란색</span><p>줌 3배 · 희귀 동물이 조금 더 자주</p></div>
+      <div class="camc" style="border-color:#9b51e0"><span class="ico">📷</span><b>아스트랄 옵틱스</b><span class="pr">50,000 · 보라색</span><p>줌 3.5배 · 반짝이기 직전 "곧!" 알림</p></div>
+      <div class="camc" style="border-color:#eb7a4b"><span class="ico">📷</span><b>시크릿 라이트</b><span class="pr">150,000 · 주황색</span><p>줌 4배 · 전설 동물이 더 자주</p></div>
+      <div class="camc" style="border-color:#eb5757"><span class="ico">📷</span><b>아카샤 레코드</b><span class="pr">500,000 · 빨간색</span><p>줌 4배 · 신화 동물이 더 자주 · 사진 상금 2배</p></div>
+    </div>
+    <p class="note">아이 가격 그대로예요. 흐려서 못 읽은 시크릿 라이트만 에픽(50,000)과 신화(500,000) 사이 150,000으로 정했어요. 초당이 동물마다 +1이라 천천히 늘어서 가격을 올리지 않아도 돼요. 예상: 첫날 황동 · 옵시디언 · 버스표 · 배표, 2~3일 아스트랄, 1주쯤 시크릿, 2주쯤 아카샤.</p>
+  </section>
+
+  <section>
+    <h2>꾸미기 <small>기본 캐릭터로 시작 · 상점에서 포인트로 사요</small></h2>
+    <p>큰법당 · 캠핑장처럼 처음부터 마음대로 꾸미지 않아요. 모두 같은 <b>기본 탐험가</b>로 시작하고, 모은 포인트로 상점에서 하나씩 사서 꾸며요. 꾸미기는 모양만 바뀌고 점수 · 코인에는 영향이 없어요. 대기실에서 친구들에게 보여요.</p>
+    <div class="zg">
+      <div class="zc"><h3>💇 머리 스타일</h3><ul><li>기본 짧은 머리 <span class="g g1">무료</span></li><li>곱슬머리 <span class="g g1">300</span></li><li>포니테일 <span class="g g1">300</span></li><li>땋은 머리 <span class="g g1">500</span></li></ul></div>
+      <div class="zc"><h3>👕 옷</h3><ul><li>기본 탐험복 <span class="g g1">무료</span></li><li>사파리 조끼 <span class="g g1">800</span></li><li>잠수복 <span class="g g1">1,500</span></li><li>사진가 재킷 <span class="g g1">2,000</span></li></ul></div>
+      <div class="zc"><h3>🎒 아이템 <small>탐험가 · 사진가</small></h3><ul><li>나침반 목걸이 <span class="g g1">800</span></li><li>탐험가 모자 <span class="g g1">1,000</span></li><li>카메라 가방 <span class="g g1">1,200</span></li><li>쌍안경 <span class="g g1">1,500</span></li><li>헤드랜턴 <span class="g g1">2,500</span></li></ul></div>
+    </div>
+    <p class="note">상점은 탭 셋: 📷 카메라 · 👕 꾸미기 · 🎫 표. 꾸미기는 몇백~몇천이라 첫날부터 하나씩 살 수 있어요. 목록 · 가격은 아이들과 더 정해요. 피부색 · 이름(낱말 조합)만 처음에 고를 수 있게 할지는 정할 것에.</p>
+  </section>
+
+  <section>
+    <h2>게임 흐름 순서도</h2>
+    <div class="panel">
+<pre class="mermaid">
+flowchart TD
+  A([동물 왕국 접속]) --> B{처음 왔어요?}
+  B -- 예 --> C[기본 탐험가로 시작<br/>이름은 낱말 조합 · 꾸미기는 상점에서]
+  B -- 아니요 --> D
+  C --> D[🚏 정거장 대기실<br/>초당 포인트가 쌓이기 시작 · 하루 55분]
+  D --> TK[🎫 매표소<br/>버스표 · 배표 사기]
+  TK --> D
+  D -- 왼쪽 --> BUS{🚌 버스 어디로?}
+  D -- 오른쪽 --> SHIP{⛵ 배 표 있어요?}
+  BUS -- 정글 · 무료 --> H[탐험하며 걷기<br/>화면 B · 아래 탭]
+  BUS -- 초원 · 사막 --> T1{버스표 있어요?}
+  T1 -- 예 --> H
+  T1 -- 아니요 --> TK
+  SHIP -- 예 · 바다 --> H
+  SHIP -- 아니요 --> TK
+  H --> I{동물이 가까이?<br/>높은 등급은 드물게}
+  I -- 아니요 --> H
+  I -- 예 --> K[📷 사진 모드로 바뀜<br/>화면 C · 카메라 화면]
+  K --> L[찰칵!]
+  L --> M[점수 100점<br/>가운데 40 · 크기 30 · 특별한 순간 30]
+  M --> N{처음 찍은 동물?}
+  N -- 예 --> O[도감 등록 🎉 진짜 사진이 열려요<br/>상금 + 초당 +1]
+  N -- 아니요 --> Q[최고 사진이면 바꾸기 · 상금 10%]
+  O --> H
+  Q --> H
+  H -. 🗺️ 지도 .-> D
+</pre>
+    </div>
+  </section>
+
+  <section>
+    <h2>정거장 대기실 <small>광장 대신 · 여기서 출발하고 돌아와요</small></h2>
+    <div class="panel">
+      <svg class="map" viewBox="0 0 640 330" role="img" aria-label="정거장 대기실: 왼쪽 버스 정류장, 가운데 매표소, 오른쪽 배 선착장">
+        <rect x="0" y="0" width="640" height="330" fill="#efe6d2"/>
+        <rect x="0" y="0" width="640" height="70" fill="#bfe8f7"/>
+        <rect x="430" y="210" width="210" height="120" fill="#5bbbe0"/>
+        <rect x="0" y="230" width="230" height="100" fill="#8b8f98"/>
+        <g stroke="#fff" stroke-width="5" stroke-dasharray="18 14"><line x1="0" y1="282" x2="230" y2="282"/></g>
+        <rect x="228" y="40" width="184" height="150" rx="14" fill="#fffdf6" stroke="#24342b" stroke-width="4"/>
+        <rect x="228" y="40" width="184" height="40" rx="14" fill="#ff6b4a" stroke="#24342b" stroke-width="4"/>
+        <text x="320" y="68" font-family="Jua, sans-serif" font-size="22" text-anchor="middle" fill="#fff">🎫 매표소</text>
+        <rect x="262" y="100" width="116" height="52" rx="8" fill="#cfeee6" stroke="#24342b" stroke-width="3"/>
+        <text x="320" y="124" font-family="Jua, sans-serif" font-size="14" text-anchor="middle" fill="#24342b">🚌 버스표 350</text>
+        <text x="320" y="144" font-family="Jua, sans-serif" font-size="14" text-anchor="middle" fill="#24342b">⛵ 배표 1,000</text>
+        <rect x="20" y="150" width="160" height="70" rx="12" fill="#ffd34d" stroke="#24342b" stroke-width="4"/>
+        <text x="100" y="180" font-family="Jua, sans-serif" font-size="20" text-anchor="middle" fill="#24342b">🚏 버스 정류장</text>
+        <text x="100" y="204" font-family="Gowun Dodum, sans-serif" font-size="13" text-anchor="middle" fill="#24342b">정글 무료 · 초원 · 사막</text>
+        <text x="110" y="300" font-size="56" text-anchor="middle">🚌</text>
+        <rect x="460" y="150" width="160" height="70" rx="12" fill="#ffffff" stroke="#24342b" stroke-width="4"/>
+        <text x="540" y="180" font-family="Jua, sans-serif" font-size="20" text-anchor="middle" fill="#24342b">⚓ 배 선착장</text>
+        <text x="540" y="204" font-family="Gowun Dodum, sans-serif" font-size="13" text-anchor="middle" fill="#24342b">바닷가 · 깊은 바다</text>
+        <text x="540" y="300" font-size="56" text-anchor="middle">⛴️</text>
+        <g><rect x="300" y="232" width="40" height="40" rx="6" fill="#ffd9b3" stroke="#24342b" stroke-width="3"/><rect x="296" y="268" width="48" height="44" rx="8" fill="#3aa7a0" stroke="#24342b" stroke-width="3"/><text x="320" y="226" font-family="Jua, sans-serif" font-size="14" text-anchor="middle" fill="#24342b">나</text></g>
+        <g font-family="Jua, sans-serif" font-size="26" fill="#24342b"><text x="250" y="276" text-anchor="end">⬅</text><text x="392" y="276">➡</text></g>
+      </svg>
+    </div>
+    <ul class="note" style="margin:0;padding-left:18px;display:grid;gap:4px">
+      <li>접속하면 정거장 대기실 가운데에 서요. 왼쪽으로 걸어가면 🚌 버스 정류장, 오른쪽으로 가면 ⚓ 배 선착장, 가운데가 🎫 매표소예요.</li>
+      <li>매표소에서 표를 한 번 사면 계속 탈 수 있는 정기권이에요 (아이 설계 가격: 버스 350 · 배 1,000). 정글행 버스는 표 없이 무료.</li>
+      <li>버스 · 배에 타면 짧게 창밖이 지나가고 그 구역에 내려요. 돌아올 때는 🗺️ 지도 → 정거장.</li>
+      <li>도감 · 상점은 걸어가는 건물이 아니라 아래 탭에서 바로 열어요.</li><li><b>대기실은 메타버스처럼:</b> 접속한 친구들이 서로 보여요. <b>채팅은 금지</b>, 표정 · 동작으로만 인사해요. 구역에 나가 탐험할 때는 혼자 놀기(1차 판).</li><li><b>쉬는 의자:</b> 대기실 벤치에 앉아 쉬어요 (앉은 채로도 초당 포인트가 쌓여요).</li><li><b>간단한 동작:</b> 🍦 아이스크림 먹기 · 👋 손 흔들기 · 🪁 연날리기 (단추 하나로, 친구들에게도 보여요).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>화면 시안 <small>걷기는 B · 사진 찍을 때는 C로 바뀌어요 (포켓몬고처럼)</small></h2>
+    <div class="phones">
+      <figure class="ph" style="margin:0">
+        <div class="dev" aria-hidden="true">
+          <div class="scene" style="background:linear-gradient(180deg,#bfe8f7 0 30%,#efe6d2 30%)">
+            <div style="position:absolute;left:78px;top:92px;width:94px;height:62px;border-radius:10px;background:#fffdf6;border:3px solid var(--ink);display:grid;place-items:center;font-family:var(--display);font-size:12px;text-align:center;line-height:1.3"><span style="color:var(--coral)">🎫 매표소</span>버스 350<br>배 1,000</div>
+            <div class="ani" style="left:14px;top:176px;font-size:34px">🚌</div><div style="position:absolute;left:8px;top:214px;font-family:var(--display);font-size:11px">⬅ 버스</div>
+            <div class="ani" style="right:14px;top:176px;font-size:34px">⛴️</div><div style="position:absolute;right:12px;top:214px;font-family:var(--display);font-size:11px">배 ➡</div>
+            <div class="blk" style="left:110px;top:230px"><em>나</em><i></i><i></i></div>
+          </div>
+          <div class="top"><span class="chip place">🚏 정거장</span><span class="chip">🪙 1,280 · +8/초</span><span class="chip">☰</span></div>
+          <div class="b-joy"></div><div class="b-jump"><span><b>⬆</b>점프</span></div>
+          <div class="b-bar"><span>📖<small>도감</small></span><span>🛒<small>상점</small></span><span class="cam"><b>📷</b><small>사진</small></span><span>😊<small>표정</small></span><span>🗺️<small>지도</small></span></div>
+        </div>
+        <figcaption><b>① 정거장 대기실</b>왼쪽 버스 · 가운데 매표소 · 오른쪽 배. 아래는 B 탭</figcaption>
+      </figure>
+      <figure class="ph" style="margin:0">
+        <div class="dev" aria-hidden="true">
+          <div class="scene" style="background:linear-gradient(180deg,#bfe8f7 0 34%,#3f8f4a 34% 72%,#2f7a3e 72%)"><div class="path"></div><div class="tree" style="left:30px;top:150px"></div><div class="ani spark" style="left:140px;top:196px">🦥</div><div class="blk" style="left:96px;top:250px"><em>나</em><i></i><i></i></div></div>
+          <div class="top"><span class="chip place">🌴 정글</span><span class="chip">🪙 1,280 · +8/초</span><span class="chip">☰</span></div>
+          <div class="bubble">드문 동물 나무늘보! 📷 눌러 봐요</div>
+          <div class="b-joy"></div><div class="b-jump"><span><b>⬆</b>점프</span></div>
+          <div class="b-bar"><span>📖<small>도감</small></span><span>🛒<small>상점</small></span><span class="cam"><b>📷</b><small>사진</small></span><span>😊<small>표정</small></span><span>🗺️<small>지도</small></span></div>
+        </div>
+        <figcaption><b>② 걷기 · 화면 B</b>왼쪽 조이스틱 · 오른쪽 점프, 그림 + 큰 글씨 아래 탭 다섯 칸. 엄지로 다 닿아요</figcaption>
+      </figure>
+      <figure class="ph" style="margin:0">
+        <div class="dev" aria-hidden="true">
+          <div class="scene" style="background:linear-gradient(180deg,#bfe8f7 0 34%,#3f8f4a 34%)"><div class="tree" style="left:20px;top:120px"></div><div class="ani spark" style="left:92px;top:166px;font-size:50px">🦥</div></div>
+          <div class="frame" style="top:24%"></div>
+          <div class="c-top"><span>📷 황동 프리즘 · 2.5x</span><span style="color:var(--sun)">✨ 지금!</span></div>
+          <div class="meter" style="top:57%"><div>가운데<s><i style="width:90%"></i></s></div><div>크기<s><i style="width:70%"></i></s></div><div>반짝<s><i style="width:100%"></i></s></div></div>
+          <div class="c-strip" style="height:150px"></div>
+          <div class="c-modes" style="bottom:104px"><span>1x</span><b>2.5x</b><span>−</span><span>+</span></div>
+          <div class="c-thumb">🐸</div><div class="c-shut"></div><div class="c-joy" style="font-size:13px">✕</div>
+        </div>
+        <figcaption><b>③ 사진 · 화면 C</b>📷 를 누르면 카메라 화면으로. 가운데 큰 셔터, 왼쪽 방금 사진, 오른쪽 ✕ 로 돌아가기</figcaption>
+      </figure>
+      <figure class="ph" style="margin:0">
+        <div class="dev" aria-hidden="true">
+          <div class="scene"></div><div class="shade"></div>
+          <div class="card"><span class="new">새 동물 도감 등록!</span><div class="pol" style="border-color:#3db37a">🦥</div><span class="g g2">드문</span><span class="st">★★★</span><span class="pt">나무늘보 · +300 · 초당 +1</span><span class="go">다시 찍기</span></div>
+        </div>
+        <figcaption><b>④ 사진 결과</b>등급 · 별 · 상금 · 초당 +1. 사진 테두리는 카메라 색</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>만드는 순서 <small>단계마다 시안을 먼저 보여 드려요</small></h2>
+    <div class="panel steps">
+      <div class="step"><span class="n">1</span><div><h3>설계 시안 <span class="check">지금 이 페이지 + 아이용 그림 한 장</span></h3><p>1차 판 라인 확정</p></div></div>
+      <div class="step"><span class="n">2</span><div><h3>블록 동물 26종 · 정거장 대기실 · 네 구역 모습 <span class="check">시안: 그림 한 장</span></h3><p>3D로 그려 찍어 보여 드리고 고르기</p></div></div>
+      <div class="step"><span class="n">3</span><div><h3>혼자 놀기 판 <span class="check">시안: 휴대폰 화면 캡처</span></h3><p>조이스틱 · 사진 · 점수 · 도감 · 초당 포인트 · 상점 · 정거장 · 매표소 · 버스 · 배. 아이들 시연 · 테스트</p></div></div>
+      <div class="step"><span class="n">4</span><div><h3>친구와 같이 <span class="check">시안: 두 화면 나란히</span></h3><p>중계 서버(서버 12개 × 100명): 먼저 대기실에서 친구 보이기 · 의자 · 동작(채팅 없음), 그다음 구역 탐험에서도</p></div></div>
+      <div class="step"><span class="n">5</span><div><h3>snapzoo.site · 아이콘 · 링크 미리보기 <span class="check">시안: 아이콘 3가지</span></h3><p>새 주소로 옮기기, 홈 화면 아이콘, 카톡 미리보기, 이용약관 · 개인정보 안내</p></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>정할 것 <small>이것만 정하면 2단계 시작</small></h2>
+    <div class="panel qs">
+      <div class="q"><span>1</span><div><b>1차 판 동물 26종</b><p>아이용 그림을 보여 주고 바꿀 동물이 있는지 들어 봐 주세요.</p></div></div>
+      <div class="q"><span>3</span><div><b>처음에 고를 수 있는 것</b><p>시안은 이름(낱말 조합)만. 피부색도 처음에 고르게 할지 정해 주세요.</p></div></div>
+      <div class="q"><span>2</span><div><b>표는 정기권? 한 번만?</b><p>시안은 한 번 사면 계속 타는 정기권. 탈 때마다 사게 하고 싶으면 알려 주세요.</p></div></div>
+    </div>
+  </section>
+
+</div>
