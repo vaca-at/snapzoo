@@ -21,6 +21,8 @@ html, body { height: 100%; margin: 0; overflow: hidden; }
 body { background: #bfe8f5; color: var(--ink); font-family: var(--body); -webkit-user-select: none; user-select: none; overscroll-behavior: none; }
 button { font: inherit; color: inherit; cursor: pointer; }
 #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+/* 화면 가장자리를 살짝 어둡게 (게임 화면처럼 가운데로 시선이 모이게) */
+.vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse 120% 90% at 50% 45%, transparent 58%, rgba(18, 32, 24, .26) 100%); }
 
 /* ---------- 위 알림판 ---------- */
 .hud { position: fixed; left: 0; right: 0; top: 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: calc(10px + var(--safe-t)) 12px 0; pointer-events: none; }

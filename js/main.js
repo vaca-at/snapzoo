@@ -5,7 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ANIMALS, RARITY, ZONES, CAMERAS, SCORE, STAR_RATE, BEST_RATE, FACES, starsOf } from './data.js';
 import { S, save, perSec, secLeft, tickSecond, dexCount, camera as curCam, randomName, validName } from './state.js';
 import { buildAnimal } from './animals.js';
-import { getZone, collide, bakeJoints } from './world.js';
+import { getZone, collide, bakeJoints, WIND, animateWater } from './world.js';
 import { Player } from './player.js';
 import { addPhoto } from './album.js';
 import * as UI from './ui.js';
@@ -52,11 +52,18 @@ const clouds = new THREE.Group();
     c.lookAt(0, c.position.y, 0); clouds.add(c);
   }
 }
-scene.add(sky, clouds);
+// 해: 하늘에 둥근 빛 (그림자를 만드는 해와 같은 방향)
+const sunDisc = new THREE.Sprite(new THREE.SpriteMaterial({ map: (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+  const gr = x.createRadialGradient(64, 64, 6, 64, 64, 64); gr.addColorStop(0, 'rgba(255,253,235,1)'); gr.addColorStop(0.25, 'rgba(255,240,190,.95)'); gr.addColorStop(1, 'rgba(255,230,170,0)');
+  x.fillStyle = gr; x.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})(), fog: false, depthWrite: false, transparent: true }));
+sunDisc.scale.setScalar(70);
+scene.add(sky, clouds, sunDisc);
 function setSky(top, horizon, show = true) {
   const col = sky.geometry.attributes.color, p = sky.geometry.attributes.position, a = new THREE.Color(top), b = new THREE.Color(horizon), c = new THREE.Color();
   for (let i = 0; i < p.count; i++) { const h = Math.max(0, p.getY(i) / 300); c.copy(b).lerp(a, Math.pow(h, 0.6)); col.setXYZ(i, c.r, c.g, c.b); }
-  col.needsUpdate = true; sky.visible = show; clouds.visible = show;
+  col.needsUpdate = true; sky.visible = show; clouds.visible = show; if (typeof sunDisc !== 'undefined') sunDisc.visible = show;
 }
 
 function resize() {
@@ -604,6 +611,7 @@ function placeMenu() {
 function updateCamera(dt) {
   // 해와 그림자가 나를 따라와요
   sun.position.copy(pos).add(SUN_OFF); sun.target.position.copy(pos);
+  sunDisc.position.copy(SUN_OFF).normalize().multiplyScalar(260).add(pos); sky.position.set(pos.x, 0, pos.z); clouds.position.set(pos.x * 0.6, 0, pos.z * 0.6);
   if (mode === 'photo') return;
   stepCameraTurn(dt);
   controls.update();
@@ -865,6 +873,8 @@ function loop(now) {
     if (Z.water && Z.foam) Z.foam.position.z = -2 + Math.sin(clock * 0.8) * 0.4;
     if (Z.snow) Z.snow.rotation.y = clock * 0.02;
     Z.update?.(clock, dt);
+    WIND.value = clock;
+    animateWater(Z, clock);
     updateBugs(dt);
     updatePath(clock);
     if (marker.visible) { marker.position.y = 4.2 + Math.abs(Math.sin(clock * 3)) * 0.6; marker.rotation.y = clock * 2; }
