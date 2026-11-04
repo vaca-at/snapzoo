@@ -62,8 +62,7 @@ body:not(.playing) .goalarrow, body.photo .goalarrow { display: none; }
 .joystick { position: absolute; left: 18px; bottom: 0; width: 124px; height: 124px; border-radius: 50%; background: rgba(255,253,246,.35); border: 3px solid rgba(255,253,246,.9); pointer-events: auto; touch-action: none; display: grid; place-items: center; }
 .knob { width: 56px; height: 56px; border-radius: 50%; background: var(--paper); border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); pointer-events: none; transition: transform .05s; }
 .jump { position: absolute; right: 22px; bottom: 22px; width: 80px; height: 80px; border-radius: 50%; background: var(--sun); color: var(--sun-ink); border: 3px solid var(--ink); box-shadow: 0 5px 0 var(--ink); font-size: 36px; font-weight: 700; pointer-events: auto; touch-action: manipulation; }
-.jump:active, .spot:active, .tabbar button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
-.spot { position: absolute; right: 16px; bottom: 120px; min-height: 56px; padding: 0 20px; border-radius: 999px; background: var(--coral); color: #fff; border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink); font-family: var(--display); font-size: 20px; pointer-events: auto; animation: pop .25s; }
+.jump:active, .tabbar button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
 @keyframes pop { from { transform: scale(.6); } }
 
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, 1fr); align-items: end; gap: 4px; padding: 8px 8px calc(8px + var(--safe-b)); background: var(--paper); border-top: 3px solid var(--ink); }
@@ -71,6 +70,24 @@ body:not(.playing) .goalarrow, body.photo .goalarrow { display: none; }
 .tabbar button span { font-size: 26px; line-height: 1; }
 .tabbar .cam { width: 84px; height: 84px; margin: -34px auto 0; border-radius: 50%; background: var(--coral); border: 4px solid var(--ink); box-shadow: 0 5px 0 var(--ink); }
 .tabbar .cam span { font-size: 38px; }
+
+/* 말풍선 메뉴: 매표소 · 버스 · 배 · 의자 바로 위 */
+.spotmenu { position: fixed; left: 0; top: 0; z-index: 15; width: max-content; max-width: min(300px, calc(100vw - 20px)); background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px; animation: pop .2s; --tail: 50%; }
+.spotmenu::after { content: ""; position: absolute; left: var(--tail); bottom: -13px; width: 18px; height: 18px; background: var(--paper); border-right: 3px solid var(--ink); border-bottom: 3px solid var(--ink); transform: translateX(-50%) rotate(45deg); }
+.sm-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-family: var(--display); font-size: 17px; padding-left: 4px; }
+.sm-head b { font-weight: 400; }
+.sm-x { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--ink); background: #fff; font-size: 16px; flex: none; }
+.sm-btns { display: flex; flex-direction: column; gap: 6px; }
+.sm-btn { min-height: 54px; padding: 6px 14px; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: var(--display); font-size: 17px; border: 2px solid var(--ink); border-radius: 14px; background: #fff; box-shadow: 0 3px 0 var(--ink); white-space: nowrap; }
+.sm-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.sm-btn b { font-weight: 400; }
+.sm-btn.buy { background: var(--sun); color: var(--sun-ink); }
+.sm-btn.go { background: var(--coral); color: #fff; }
+.sm-btn.go small { font-size: 12px; opacity: .9; }
+.sm-btn.done, .sm-btn.lock { background: #eef2ea; color: var(--ink-soft); box-shadow: none; }
+.sm-btn:disabled:not(.done):not(.lock) { opacity: .5; }
+.sm-note { margin: 0; font-size: 12px; color: var(--ink-soft); text-align: center; }
+body.photo .spotmenu, body:not(.playing) .spotmenu { display: none; }
 
 /* ---------- 사진 화면 C ---------- */
 .photoui { display: none; }
@@ -101,8 +118,9 @@ body.photo .walkui, body.photo .tabbar, body.photo .hud .chips .timebox { displa
 @keyframes flash { 0% { opacity: .95; } 100% { opacity: 0; } }
 
 /* ---------- 알림 ---------- */
-.toast { position: fixed; left: 50%; top: calc(110px + var(--safe-t)); transform: translate(-50%, -10px); max-width: calc(100% - 32px); background: var(--ink); color: var(--paper); font-family: var(--display); font-size: 16px; padding: 9px 16px; border-radius: 14px; text-align: center; pointer-events: none; opacity: 0; transition: opacity .25s, transform .25s; z-index: 30; }
+.toast { position: fixed; left: 50%; bottom: calc(238px + var(--safe-b)); transform: translate(-50%, 10px); max-width: calc(100% - 32px); background: var(--ink); color: var(--paper); font-family: var(--display); font-size: 16px; padding: 9px 16px; border-radius: 14px; text-align: center; pointer-events: none; opacity: 0; transition: opacity .25s, transform .25s; z-index: 30; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+body.photo .toast { bottom: calc(150px + var(--safe-b)); }
 .toast.gold { background: var(--sun); color: var(--sun-ink); border: 2px solid var(--ink); }
 
 /* ---------- 패널 ---------- */

@@ -136,10 +136,21 @@ function sign(text, w, h, bg = '#fffdf6', ink = '#24342b', size = 64) {
   return m;
 }
 
+// 누를 수 있는 곳: 보이지 않는 상자 (그림은 합쳐서 그리니 누르기 판정은 따로)
+const HIT_GEO = new THREE.BoxGeometry(1, 1, 1);
+const HIT_MAT = new THREE.MeshBasicMaterial({ visible: false });
+function hitBox(Z, spot, x, y, z, w, h, d) {
+  const m = new THREE.Mesh(HIT_GEO, HIT_MAT);
+  m.position.set(x, y, z); m.scale.set(w, h, d);
+  m.userData.keep = true; m.userData.spot = spot;
+  Z.group.add(m); Z.hits.push(m);
+}
+
 // ================== 정거장 대기실 ==================
+// spots: 가까이 가거나 누르면 그 위에 말풍선 메뉴가 떠요 (ax, ay, az = 말풍선 자리)
 function station() {
   const g = new THREE.Group();
-  const Z = { group: g, radius: 15, colliders: [], spots: [], benches: [], sky: '#bfe8f5', fog: ['#bfe8f5', 30, 70], spawn: { x: 0, z: 5, yaw: Math.PI } };
+  const Z = { group: g, radius: 15, colliders: [], spots: [], benches: [], hits: [], sky: '#bfe8f5', fog: ['#bfe8f5', 30, 70], spawn: { x: 0, z: 5, yaw: Math.PI } };
   ground(g, '#a8d68a', Z.radius);
   // 바닥 타일
   const floor = new THREE.Group(); g.add(floor);
@@ -164,7 +175,8 @@ function station() {
   const busV = new THREE.Group(); busV.position.set(-3.2, 0, 1); busV.rotation.y = Math.PI / 2; bus.add(busV);
   vehicleBus(busV);
   Z.colliders.push({ x: -13.2, z: -2, r: 2.2 });
-  Z.spots.push({ id: 'bus', x: -10, z: -2, r: 2.4, label: '🚌 버스 타기' });
+  const busSpot = { id: 'bus', x: -10, z: -2, r: 2.8, ax: -11.2, ay: 4.4, az: -2.6 };
+  Z.spots.push(busSpot); hitBox(Z, busSpot, -11.6, 1.7, -2.4, 6.6, 3.8, 4.6);
   // 가운데 매표소
   const bo = new THREE.Group(); bo.position.set(0, 0, -6.5); g.add(bo);
   box(bo, '#ff9f6a', 3.4, 2.6, 2, 0, 1.3, 0);
@@ -174,7 +186,8 @@ function station() {
   for (let i = 0; i < 5; i++) box(bo, i % 2 ? '#ff6b8a' : '#fffdf6', 0.76, 0.5, 0.2, -1.52 + i * 0.76, 2.4, 1.25);
   const bt = sign('🎫 매표소', 2.4, 0.8, '#fffdf6', '#24342b', 110); bt.position.set(0, 3.5, 0.5); bo.add(bt);
   Z.colliders.push({ x: 0, z: -6.5, r: 1.9 });
-  Z.spots.push({ id: 'booth', x: 0, z: -4.5, r: 1.8, label: '🎫 표 사기' });
+  const boothSpot = { id: 'booth', x: 0, z: -4.4, r: 2.4, ax: 0, ay: 4.1, az: -6.5 };
+  Z.spots.push(boothSpot); hitBox(Z, boothSpot, 0, 1.8, -6.3, 4, 3.8, 2.8);
   // 오른쪽 배 선착장
   const water = new THREE.Mesh(new THREE.PlaneGeometry(14, 12), mat('#5bbbe0', 0, 0.85));
   water.rotation.x = -Math.PI / 2; water.position.set(17, 0.08, -3); g.add(water);
@@ -185,7 +198,8 @@ function station() {
   box(dock, '#7a5532', 0.15, 2.2, 0.15, 1.5, 1.1, -2.2);
   const boat = new THREE.Group(); boat.position.set(7.5, 0, 0); dock.add(boat); vehicleBoat(boat);
   Z.colliders.push({ x: 18.2, z: -3, w: 12, d: 12 });
-  Z.spots.push({ id: 'boat', x: 11.5, z: -2.5, r: 2.4, label: '⛵ 배 타기' });
+  const boatSpot = { id: 'boat', x: 11.5, z: -2.5, r: 2.8, ax: 15.5, ay: 3.3, az: -3 };
+  Z.spots.push(boatSpot); hitBox(Z, boatSpot, 15.2, 1.3, -3, 9.5, 3, 5.5);
   // 쉬는 의자
   for (const [x, z, ry] of [[-6, 3.5, 0.5], [6, 3.5, -0.5], [-4.5, 8.5, 0.2], [4.5, 8.5, -0.2]]) {
     const b = new THREE.Group(); b.position.set(x, 0, z); b.rotation.y = ry + Math.PI; g.add(b);
@@ -193,7 +207,8 @@ function station() {
     box(b, '#c9844a', 2.2, 0.6, 0.12, 0, 0.9, -0.32);
     for (const sx of [-0.9, 0.9]) box(b, '#5a6b7a', 0.12, 0.5, 0.6, sx, 0.25, 0);
     Z.benches.push({ x, z, yaw: ry + Math.PI });
-    Z.spots.push({ id: 'bench', x, z, r: 1.4, label: '🪑 앉기', yaw: ry });
+    const bs = { id: 'bench', x, z, r: 1.4, ay: 1.9, yaw: ry };
+    Z.spots.push(bs); hitBox(Z, bs, x, 0.65, z, 2.4, 1.3, 1.1);
     Z.colliders.push({ x, z, r: 0.6 });
   }
   // 꽃 화분 · 나무

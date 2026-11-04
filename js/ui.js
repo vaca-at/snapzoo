@@ -73,13 +73,66 @@ export function toast(msg, kind = '') {
   toastTimer = setTimeout(() => { el.className = 'toast'; }, 2800);
 }
 
-// ---------- 걷기 화면: 상황 단추 ----------
-let spotLabel = null;
-export function setSpot(label) {
-  if (label === spotLabel) return;
-  spotLabel = label;
-  const b = $('#spotBtn');
-  b.hidden = !label; b.textContent = label;
+// ---------- 말풍선 메뉴: 매표소 · 버스 · 배 · 의자 바로 위에 할 일 단추 ----------
+let spotCur = null, spotKey = '';
+export function showSpotMenu(spot) { spotCur = spot; renderSpotMenu(); }
+export function hideSpotMenu() { spotCur = null; spotKey = ''; $('#spotMenu').hidden = true; }
+// 표를 살 수 있게 되거나, 앉고 일어설 때만 다시 그려요
+const spotState = () => [S.coins >= 350, S.coins >= 1000, S.tickets.bus, S.tickets.boat, G?.isSitting()].join();
+function renderSpotMenu() {
+  const s = spotCur, el = $('#spotMenu');
+  if (!s) return;
+  spotKey = spotState();
+  const buyTicket = (t) => S.tickets[t.id]
+    ? `<button class="sm-btn done" type="button" disabled>${t.icon} ${t.name} 있어요 ✓</button>`
+    : `<button class="sm-btn buy" type="button" data-buy="ticket:${t.id}" ${S.coins < t.price ? 'disabled' : ''}>${t.icon} ${t.name} 사기 <b>🪙 ${fmt(t.price)}</b></button>`;
+  let head = '', body = '';
+  if (s.id === 'booth') {
+    head = '🎫 매표소';
+    body = TICKETS.map(buyTicket).join('');
+    if (TICKETS.some((t) => !S.tickets[t.id] && S.coins < t.price)) body += `<p class="sm-note">🪙 <span class="sm-coins">${fmt(S.coins)}</span> · 포인트가 모이면 살 수 있어요</p>`;
+  } else if (s.id === 'bus' || s.id === 'boat') {
+    head = s.id === 'bus' ? '🚌 어디로 갈까요?' : '⛵ 어디로 갈까요?';
+    body = ZONE_ORDER.filter((z) => ZONES[z].ride === s.id).map((z) => {
+      const zd = ZONES[z], ok = !zd.ticket || S.tickets[zd.ticket];
+      return ok
+        ? `<button class="sm-btn go" type="button" data-go="${z}">${zd.icon} ${zd.name}${zd.ticket ? '' : ' <small>무료</small>'} ▶</button>`
+        : `<button class="sm-btn lock" type="button" disabled>🔒 ${zd.icon} ${zd.name}</button>`;
+    }).join('');
+    // 표가 없으면 여기서 바로 사요 (매표소까지 안 가도 돼요)
+    const tk = TICKETS.find((t) => t.id === s.id);
+    if (!S.tickets[tk.id]) body += buyTicket(tk);
+  } else if (s.id === 'bench') {
+    body = G.isSitting()
+      ? '<button class="sm-btn" type="button" data-act="stand">🧍 일어나기</button>'
+      : '<button class="sm-btn go" type="button" data-act="sit">🪑 앉기</button>';
+  }
+  el.innerHTML = `${head ? `<div class="sm-head"><b>${head}</b><button class="sm-x" type="button" data-act="close" aria-label="닫기">✕</button></div>` : ''}<div class="sm-btns">${body}</div>`;
+  el.hidden = false;
+  el.querySelectorAll('[data-buy]').forEach((b) => { b.onclick = () => { if (buy(b.dataset.buy)) renderSpotMenu(); }; });
+  el.querySelectorAll('[data-go]').forEach((b) => { b.onclick = () => G.travel(b.dataset.go); });
+  el.querySelectorAll('[data-act]').forEach((b) => {
+    b.onclick = () => {
+      const a = b.dataset.act;
+      if (a === 'close') G.closeSpot();
+      if (a === 'sit') { G.sitOn(s); renderSpotMenu(); }
+      if (a === 'stand') { G.standUp(); renderSpotMenu(); }
+    };
+  });
+}
+// 3D 위치를 따라 말풍선을 옮겨요 (화면 밖으로 나가지 않게)
+export function placeSpotMenu(x, y, show) {
+  const el = $('#spotMenu');
+  if (!spotCur) return;
+  if (spotState() !== spotKey) renderSpotMenu();
+  const c = el.querySelector('.sm-coins'); if (c) c.textContent = fmt(S.coins);
+  el.style.visibility = show ? 'visible' : 'hidden';
+  if (!show) return;
+  const w = el.offsetWidth, h = el.offsetHeight, W = window.innerWidth, H = window.innerHeight;
+  const cx = Math.max(w / 2 + 10, Math.min(W - w / 2 - 10, x));
+  const cy = Math.max(h + 96, Math.min(H - 250, y));
+  el.style.transform = `translate(${cx - w / 2}px, ${cy - h}px)`;
+  el.style.setProperty('--tail', `${Math.max(18, Math.min(w - 18, x - (cx - w / 2)))}px`);
 }
 
 // ---------- 머리 위 이름표 · 표정 ----------

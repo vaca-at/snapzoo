@@ -133,6 +133,7 @@ function enterZone(id) {
   pos.set(Z.spawn.x, 0, Z.spawn.z);
   yaw = Z.spawn.yaw; camYaw = yaw + Math.PI; me.sitting = false; me.action = null;
   S.zone = id; save();
+  if (typeof closeSpot === 'function' && menu) closeSpot();
   UI.setZone(ZONES[id]);
   if (typeof updateGoal === 'function' && started) updateGoal();
   // 동물: 늘 있는 동물은 바로, 가끔 나오는 동물은 시간표대로
@@ -313,7 +314,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); mode === 'photo' ? shoot() : me.jump(); }
   if (e.code === 'KeyC') mode === 'photo' ? exitPhoto() : enterPhoto();
   if (e.code === 'Escape' && mode === 'photo') exitPhoto();
-  if (e.code === 'KeyE') doSpot();
+  if (e.code === 'KeyE' && nearSpot) openSpot(nearSpot, 'near');
   if (mode === 'photo' && (e.code === 'Equal' || e.code === 'NumpadAdd')) zoomBy(1);
   if (mode === 'photo' && (e.code === 'Minus' || e.code === 'NumpadSubtract')) zoomBy(-1);
 });
@@ -322,21 +323,25 @@ window.addEventListener('blur', () => { keys.clear(); endJoy(); });
 
 // 화면을 끌면 둘러보기 (걷기) · 조준 옮기기 (사진)
 let drag = null, manualAim = 0;
-canvas.addEventListener('pointerdown', (e) => { drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerdown', (e) => { drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, t: performance.now() }; canvas.setPointerCapture(e.pointerId); });
 canvas.addEventListener('pointermove', (e) => {
   if (!drag || drag.id !== e.pointerId) return;
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  drag.moved += Math.abs(dx) + Math.abs(dy);
   if (mode === 'photo') { aim.yaw -= dx * 0.004 / zoom; aim.pitch = clampN(aim.pitch - dy * 0.004 / zoom, -0.6, 0.8); manualAim = 1.8; }
   else { camYaw -= dx * 0.008; camPitch = clampN(camPitch + dy * 0.005, 0.05, 1.1); }
 });
 const endDrag = () => { drag = null; };
-canvas.addEventListener('pointerup', endDrag);
+// 짧게 '톡' 누르면: 매표소 · 버스 · 배 · 의자를 눌렀는지 봐요
+canvas.addEventListener('pointerup', (e) => {
+  const d = drag; endDrag();
+  if (d && d.moved < 12 && performance.now() - d.t < 450) tapAt(e.clientX, e.clientY);
+});
 canvas.addEventListener('pointercancel', endDrag);
 canvas.addEventListener('wheel', (e) => { if (mode === 'photo') zoomBy(e.deltaY < 0 ? 1 : -1); else camDist = clampN(camDist + Math.sign(e.deltaY) * 0.6, 4, 10); }, { passive: true });
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
 
 $('#jumpBtn').addEventListener('click', () => me.jump());
-$('#spotBtn').addEventListener('click', () => doSpot());
 
 // ---------- 걷기 ----------
 let mode = 'walk';    // walk | photo
@@ -366,19 +371,37 @@ function updateWalk(dt) {
   me.vy -= 16 * dt; pos.y += me.vy * dt;
   if (pos.y <= 0) { pos.y = 0; me.vy = 0; me.onGround = true; }
   const q = { x: pos.x, z: pos.z }; collide(Z, q, 0.35); pos.x = q.x; pos.z = q.z;
-  // 가까운 곳 (버스 · 매표소 · 배 · 의자)
+  // 가까운 곳 (버스 · 매표소 · 배 · 의자): 다가가면 그 위에 말풍선 메뉴, 멀어지면 닫혀요
   nearSpot = null;
-  if (!me.sitting) for (const s of Z.spots) if (Math.hypot(s.x - pos.x, s.z - pos.z) < s.r) { nearSpot = s; break; }
-  UI.setSpot(me.sitting ? '🧍 일어나기' : nearSpot?.label || '');
+  for (const s of Z.spots) if (Math.hypot(s.x - pos.x, s.z - pos.z) < s.r) { nearSpot = s; break; }
+  if (me.sitting) return;
+  if (nearSpot && (!menu || menu.spot !== nearSpot)) openSpot(nearSpot, 'near');
+  else if (menu && menu.how === 'near' && !nearSpot) closeSpot();
+  else if (menu && menu.how === 'tap' && nearSpot === menu.spot) menu.how = 'near';   // 누르고 걸어가서 도착한 뒤 떠나면 닫혀요
 }
-function doSpot() {
-  if (me.sitting) { me.sitting = false; return; }
-  if (!nearSpot) return;
-  const s = nearSpot;
-  if (s.id === 'bench') { pos.set(s.x, 0, s.z); yaw = s.yaw; me.sitting = true; me.action = null; UI.toast('🪑 앉아서 쉬어요. 초당 포인트는 계속 쌓여요'); }
-  if (s.id === 'booth') UI.openTickets();
-  if (s.id === 'bus') UI.openRide('bus');
-  if (s.id === 'boat') UI.openRide('boat');
+
+// ---------- 말풍선 메뉴 (매표소 · 버스 · 배 · 의자 바로 위) ----------
+let menu = null;            // { spot, how: 'near' | 'tap' }
+function openSpot(s, how) { menu = { spot: s, how }; UI.showSpotMenu(s); }
+function closeSpot() { if (!menu) return; menu = null; UI.hideSpotMenu(); }
+const ray = new THREE.Raycaster(), tapV = new THREE.Vector2();
+function tapAt(x, y) {
+  if (mode !== 'walk' || UI.isOpen() || !Z?.hits?.length) { if (menu?.how === 'tap') closeSpot(); return; }
+  tapV.set(x / window.innerWidth * 2 - 1, -(y / window.innerHeight) * 2 + 1);
+  ray.setFromCamera(tapV, cam3);
+  const h = ray.intersectObjects(Z.hits, false)[0];
+  if (h) { openSpot(h.object.userData.spot, 'tap'); UI.sfx('unlock'); }
+  else if (menu && menu.how === 'tap') closeSpot();
+}
+export function sitOn(s) { pos.set(s.x, 0, s.z); yaw = s.yaw; me.sitting = true; me.action = null; UI.toast('🪑 앉아서 쉬어요. 초당 포인트는 계속 쌓여요'); }
+export function standUp() { me.sitting = false; }
+const mv = new THREE.Vector3();
+function placeMenu() {
+  if (!menu) return;
+  const s = menu.spot;
+  mv.set(s.ax ?? s.x, s.ay ?? 2, s.az ?? s.z).project(cam3);
+  const show = mode === 'walk' && !UI.isOpen() && mv.z < 1;
+  UI.placeSpotMenu((mv.x + 1) / 2 * window.innerWidth, (1 - mv.y) / 2 * window.innerHeight, show);
 }
 
 function updateCamera(dt) {
@@ -398,7 +421,7 @@ let zoom = 1, target = null;
 const frameEl = $('#frame');
 function enterPhoto() {
   if (mode === 'photo' || UI.isOpen()) return;
-  mode = 'photo'; me.sitting = false; me.action = null;
+  mode = 'photo'; me.sitting = false; me.action = null; closeSpot();
   me.root.visible = false; me.shadow.visible = false;
   aim.yaw = yaw; aim.pitch = 0;
   zoom = Math.min(zoom, curCam().zoom);
@@ -541,7 +564,7 @@ export function doAction(id) { if (mode === 'photo') exitPhoto(); me.doAction(id
 export function travel(dest) {
   const zd = ZONES[dest];
   if (zd.ticket && !S.tickets[zd.ticket]) { UI.openTickets(zd.ticket); return; }
-  UI.closeAll();
+  UI.closeAll(); closeSpot();
   if (mode === 'photo') exitPhoto();
   UI.ride(dest === 'station' ? (ZONES[zoneId].ride || 'bus') : zd.ride, zd, () => enterZone(dest));
 }
@@ -576,9 +599,9 @@ scene.add(marker);
 function goal() {
   const n = dexCount(), c = S.coins;
   if (zoneId === 'station') {
-    if (n === 0) return { t: '🚌 왼쪽 버스를 타고 정글로! (무료)', spot: 'bus' };
-    if (!S.tickets.bus && c >= 350) return { t: '🎫 버스표를 살 수 있어요! 매표소로', spot: 'booth' };
-    if (S.tickets.bus && !S.tickets.boat && c >= 1000) return { t: '🎫 배표를 살 수 있어요! 매표소로', spot: 'booth' };
+    if (n === 0) return { t: '🚌 왼쪽 버스를 눌러 정글로! (무료)', spot: 'bus' };
+    if (!S.tickets.bus && c >= 350) return { t: '🎫 매표소를 눌러 버스표를 사요!', spot: 'booth' };
+    if (S.tickets.bus && !S.tickets.boat && c >= 1000) return { t: '🎫 매표소를 눌러 배표를 사요!', spot: 'booth' };
     return { t: '' };
   }
   if (n === 0) return { t: '📷 동물 가까이 가서 아래 📷 를 눌러요' };
@@ -643,6 +666,7 @@ function loop(now) {
     if (Z.snow) Z.snow.rotation.y = clock * 0.02;
     if (marker.visible) { marker.position.y = 4.2 + Math.abs(Math.sin(clock * 3)) * 0.6; marker.rotation.y = clock * 2; }
     pointToGoal();
+    placeMenu();
     updateCoins(dt);
     sendMe();
     updateTags();
@@ -653,7 +677,8 @@ function loop(now) {
 
 // ---------- 시작 ----------
 UI.init({
-  enterPhoto, exitPhoto, shoot, zoomBy, travel, showFace, doAction, dressUp, pickServer, serverCounts,
+  enterPhoto, exitPhoto, shoot, zoomBy, travel, showFace, doAction, dressUp, pickServer, serverCounts, sitOn, standUp,
+  isSitting: () => me.sitting, closeSpot: () => closeSpot(),
   zone: () => zoneId, inPhoto: () => mode === 'photo',
 });
 dressUp();
@@ -681,4 +706,4 @@ requestAnimationFrame(loop);
   UI.toast(first ? `🎉 반가워요, ${S.name}!` : z === 'station' ? `🚏 ${S.name}, 다시 왔네요!` : `${ZONES[z].icon} ${ZONES[z].name}에서 이어 해요`);
 })();
 // 테스트에서 상태를 볼 수 있게 (게임에는 영향 없음)
-window.__snapzoo = { S, live, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), get zone() { return zoneId; }, get pos() { return pos.clone(); }, enterZone, spawn: (id) => spawn(ANIMALS.find((a) => a.id === id), true), dexCount };
+window.__snapzoo = { S, live, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), get zone() { return zoneId; }, get pos() { return pos.clone(); }, tp: (x, z) => pos.set(x, 0, z), enterZone, spawn: (id) => spawn(ANIMALS.find((a) => a.id === id), true), dexCount };

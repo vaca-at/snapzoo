@@ -51,7 +51,9 @@ button:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
 .now .view { aspect-ratio: 3 / 4; border-radius: 16px; border: 2px dashed var(--line); }
 .now small { text-align: center; color: var(--soft); font-size: 13px; }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-@media (min-width: 720px) { .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@media (min-width: 720px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.card.picked { box-shadow: 0 4px 0 var(--ink), 0 0 0 4px var(--sun); }
+.tag.pick { background: var(--sun); color: var(--sun-ink); border-color: var(--ink); }
 .card { background: var(--paper); border: 2px solid var(--ink); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 0 var(--ink); }
 .view { position: relative; aspect-ratio: 3 / 4; max-width: 100%; touch-action: pan-y; cursor: grab; }
 .num { position: absolute; left: 10px; top: 8px; font-family: var(--display); font-size: 22px; color: var(--ink); z-index: 3; }
@@ -72,8 +74,8 @@ footer b { color: var(--ink); }
   <header>
     <div class="intro">
       <p class="eyebrow">동물 왕국 · 탐험가 캐릭터</p>
-      <h1>캐릭터 시안 10가지</h1>
-      <p>1~5번은 캠핑장 · 큰법당처럼 네모난 블록, 6~10번은 얼굴과 몸이 둥근 모양이에요. 모두 카메라를 들고 있어요. 손가락으로 끌면 돌아가요.</p>
+      <h1>캐릭터 시안 2차</h1>
+      <p>1차에서 고른 1 · 5 · 8번(노란 테두리)과 새로 그린 둥근 캐릭터 11~15번이에요. 8번 콩알처럼 한 덩어리 마스코트 느낌으로 잡았어요. 손가락으로 끌면 돌아가요.</p>
       <div class="controls">
         <button id="walkBtn" type="button" aria-pressed="false">🚶 걷는 모습</button>
         <button id="spinBtn" type="button" aria-pressed="true">🔄 천천히 돌리기</button>
@@ -87,7 +89,7 @@ footer b { color: var(--ink); }
 
   <section class="grid" id="grid" aria-label="캐릭터 시안"></section>
 
-  <footer>마음에 드는 번호를 알려 주세요. <b>섞어도 돼요</b> (예: "7번 얼굴에 1번 옷"). 고른 모양으로 게임 속 나와 친구들, 머리 · 옷 · 아이템 꾸미기까지 다시 만들게요.</footer>
+  <footer>마음에 드는 번호를 알려 주세요. <b>여러 개를 골라도 돼요</b>: 처음에 하나를 고르고, 나머지는 상점에서 '모습 바꾸기'로 사게 할 수도 있어요. 고른 모양으로 게임 속 나와 친구들, 머리 · 옷 · 아이템 꾸미기까지 다시 만들게요.</footer>
 </div>
 
 <script type="importmap">
@@ -100,17 +102,16 @@ footer b { color: var(--ink); }
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
+// 1차에서 고른 1 · 5 · 8번 + 새 둥근 시안 11~15번
 const DESIGNS = [
-  { id: 'explorer', no: 1, kind: 'block', name: '네모 탐험가', desc: '캠핑장 비율. 층진 앞머리, 사파리 조끼, 카메라 끈' },
-  { id: 'chibi', no: 2, kind: 'block', name: '네모 꼬마', desc: '머리를 크게, 다리는 짧게. 탐험가 모자' },
-  { id: 'lion', no: 3, kind: 'block', name: '사자 후드', desc: '동물 왕국답게 갈기 달린 후드와 꼬리' },
-  { id: 'soft', no: 4, kind: 'block', name: '말랑 네모', desc: '모서리를 둥글린 블록, 파스텔 멜빵' },
-  { id: 'plaid', no: 5, kind: 'block', name: '체크 셔츠 네모', desc: '캠핑장처럼 무늬 옷, 긴 머리, 배낭' },
-  { id: 'dongle', no: 6, kind: 'round', name: '동글 꼬마', desc: '큰 동그란 머리, 짧은 팔다리' },
-  { id: 'bear', no: 7, kind: 'round', name: '곰돌이 모자', desc: '곰 귀 털모자에 사파리 조끼' },
-  { id: 'bean', no: 8, kind: 'round', name: '콩알 탐험가', desc: '머리와 몸이 한 덩어리인 마스코트' },
-  { id: 'hybrid', no: 9, kind: 'round', name: '동글 머리 네모 몸', desc: '둥근 얼굴에 블록 몸, 양쪽 똥머리' },
-  { id: 'sparkle', no: 10, kind: 'round', name: '반짝 눈 동글이', desc: '반짝이는 큰 눈, 단발, 쌍안경' },
+  { id: 'explorer', no: 1, kind: 'block', picked: true, name: '네모 탐험가', desc: '캠핑장 비율. 층진 앞머리, 사파리 조끼, 카메라 끈' },
+  { id: 'plaid', no: 5, kind: 'block', picked: true, name: '체크 셔츠 네모', desc: '캠핑장처럼 무늬 옷, 긴 머리, 배낭' },
+  { id: 'bean', no: 8, kind: 'round', picked: true, name: '콩알 탐험가', desc: '머리와 몸이 한 덩어리인 마스코트' },
+  { id: 'mochi', no: 11, kind: 'round', name: '찹쌀떡', desc: '납작하고 말랑한 떡 모양, 멜빵바지, 머리 위 새싹' },
+  { id: 'acorn', no: 12, kind: 'round', name: '도토리', desc: '달걀 모양 몸에 도토리 모자, 주황 반바지' },
+  { id: 'drop', no: 13, kind: 'round', name: '물방울 잠수부', desc: '물방울 모양, 이마에 물안경, 스노클, 오리발' },
+  { id: 'frog', no: 14, kind: 'round', name: '개구리 잠옷', desc: '콩알 몸에 개구리 후드 잠옷, 눈이 머리 위에' },
+  { id: 'rain', no: 15, kind: 'round', name: '노란 우비', desc: '우비 후드를 쓴 동글이, 파란 단추, 장화' },
 ];
 
 // ---------- 재료 ----------
@@ -455,12 +456,123 @@ const BUILD = {
   },
 };
 
+// ---------- 2차: 새 둥근 시안 ----------
+const HALF_TOP = (f = 0.5) => new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI * f);
+const HALF_BOT = (from = 0.5) => new THREE.SphereGeometry(1, 32, 12, 0, Math.PI * 2, Math.PI * from, Math.PI * (1 - from));
+// 납작한 면 위에 얼굴 (개구리 잠옷처럼 얼굴 구멍이 있을 때)
+function flatFace(p, y, z, s = 1) {
+  const eyes = [];
+  for (const sx of [-1, 1]) {
+    const g = joint(p, sx * 0.085 * s, y + 0.02 * s, z); eyes.push(g);
+    S(g, '#1b1b22', 0.05 * s, 0.07 * s, 0.025);
+    S(g, '#ffffff', 0.018 * s, 0.018 * s, 0.015, -0.016 * s, 0.024 * s, 0.02);
+    S(p, '#ff9aa8', 0.05 * s, 0.03 * s, 0.01, sx * 0.16 * s, y - 0.05 * s, z - 0.01);
+  }
+  const sm = add(p, new THREE.TorusGeometry(0.03 * s, 0.008, 6, 14, Math.PI), mat('#a0463c'), 0, y - 0.05 * s, z + 0.005);
+  sm.rotation.z = Math.PI;
+  return eyes;
+}
+Object.assign(BUILD, {
+  // 11 찹쌀떡
+  mochi() {
+    const R = rig(0.1);
+    R.legs.forEach((l) => S(l, '#5a3a24', 0.1, 0.06, 0.13, 0, -0.04, 0.05));
+    add(R.body, HALF_TOP(), mat(SKIN), 0, 0.34, 0, 0.44, 0.4, 0.4);
+    add(R.body, HALF_BOT(), mat('#7ec8e3'), 0, 0.34, 0, 0.445, 0.34, 0.405);
+    for (const s of [-1, 1]) { const st = RB(R.body, '#7ec8e3', 0.07, 0.17, 0.04, s * 0.14, 0.42, 0.34, 0.02); st.rotation.x = -0.45; S(R.body, '#ffd23c', 0.025, 0.025, 0.02, s * 0.14, 0.36, 0.385); }
+    arms(R, 0.3, 0.44, (a) => S(a, SKIN, 0.07, 0.09, 0.07, 0, -0.04, 0));
+    camera(R.arms[1], -0.12);
+    R.head = joint(R.body, 0, 0.34, 0);
+    R.eyes = roundFace(R.head, 0.39, { eye: 1.1, lat: 0.3, gap: 0.3 });
+    CAP(R.head, '#4f9a52', 0.018, 0.08, 0, 0.44, 0);
+    for (const s of [-1, 1]) { const lf = S(R.head, '#6cc070', 0.08, 0.025, 0.045, s * 0.07, 0.5, 0); lf.rotation.z = s * 0.5; }
+    return R;
+  },
+  // 12 도토리
+  acorn() {
+    const R = rig(0.14);
+    R.legs.forEach((l) => S(l, '#5a3a24', 0.09, 0.06, 0.13, 0, -0.07, 0.04));
+    S(R.body, SKIN, 0.34, 0.44, 0.34, 0, 0.46, 0);
+    add(R.body, HALF_BOT(0.62), mat('#e07a3a'), 0, 0.46, 0, 0.345, 0.445, 0.345);
+    arms(R, 0.4, 0.34, (a) => CAP(a, SKIN, 0.05, 0.1, 0, -0.07, 0));
+    camera(R.arms[1], -0.2);
+    R.head = joint(R.body, 0, 0.46, 0);
+    R.eyes = roundFace(R.head, 0.335, { eye: 1.05, lat: 0.1, gap: 0.34 });
+    add(R.head, HALF_TOP(0.42), mat('#8a5a2e'), 0, 0.2, 0, 0.37, 0.26, 0.37);
+    add(R.head, new THREE.TorusGeometry(0.345, 0.03, 8, 32), mat('#6e4520'), 0, 0.27, 0).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; S(R.head, '#76491f', 0.05, 0.03, 0.05, Math.cos(a) * 0.27, 0.36, Math.sin(a) * 0.27); }
+    CAP(R.head, '#6e4520', 0.03, 0.08, 0.02, 0.5, 0).rotation.z = -0.3;
+    return R;
+  },
+  // 13 물방울 잠수부
+  drop() {
+    const R = rig(0.12);
+    R.legs.forEach((l) => S(l, '#ffd23c', 0.1, 0.035, 0.19, 0, -0.08, 0.07));
+    S(R.body, SKIN, 0.36, 0.36, 0.36, 0, 0.42, 0);
+    add(R.body, new THREE.ConeGeometry(0.3, 0.26, 32), mat(SKIN), 0, 0.75, 0);
+    S(R.body, SKIN, 0.05, 0.05, 0.05, 0, 0.87, 0);
+    add(R.body, HALF_BOT(0.56), mat('#2f6fb0'), 0, 0.42, 0, 0.365, 0.365, 0.365);
+    add(R.body, new THREE.TorusGeometry(0.33, 0.025, 8, 32), mat('#ffd23c'), 0, 0.35, 0).rotation.x = Math.PI / 2;
+    arms(R, 0.38, 0.36, (a) => { CAP(a, '#2f6fb0', 0.055, 0.1, 0, -0.07, 0); S(a, SKIN, 0.05, 0.05, 0.05, 0, -0.17, 0); });
+    camera(R.arms[1], -0.22);
+    R.head = joint(R.body, 0, 0.42, 0);
+    R.eyes = roundFace(R.head, 0.355, { eye: 1.05, lat: 0.02, gap: 0.33 });
+    add(R.head, new THREE.TorusGeometry(0.33, 0.02, 8, 32), mat('#2b2b33'), 0, 0.16, 0).rotation.x = Math.PI / 2;
+    for (const s of [-1, 1]) {
+      const g = onSphere(R.head, 0.36, 0.44, s * 0.27);
+      add(g, new THREE.TorusGeometry(0.075, 0.022, 8, 20), mat('#ff6b4a'));
+      add(g, new THREE.CircleGeometry(0.07, 20), new THREE.MeshLambertMaterial({ color: '#9fd8ff', transparent: true, opacity: 0.75 }), 0, 0, 0.005);
+    }
+    const sn = CAP(R.head, '#ffd23c', 0.025, 0.32, 0.36, 0.2, -0.02); sn.rotation.z = -0.15;
+    S(R.head, '#ff6b4a', 0.04, 0.04, 0.04, 0.38, 0.4, -0.02);
+    return R;
+  },
+  // 14 개구리 잠옷
+  frog() {
+    const R = rig(0.12);
+    R.legs.forEach((l) => S(l, '#5fc25a', 0.12, 0.05, 0.17, 0, -0.07, 0.05));
+    CAP(R.body, '#5fc25a', 0.36, 0.5, 0, 0.6, 0);
+    S(R.body, '#d8f2a6', 0.25, 0.28, 0.08, 0, 0.42, 0.3);
+    S(R.body, SKIN, 0.25, 0.21, 0.08, 0, 0.76, 0.3);
+    arms(R, 0.52, 0.37, (a) => S(a, '#5fc25a', 0.075, 0.12, 0.075, 0, -0.08, 0));
+    camera(R.arms[1], -0.16);
+    R.head = joint(R.body, 0, 0, 0);
+    R.eyes = flatFace(R.head, 0.77, 0.375, 1.05);
+    for (const s of [-1, 1]) {
+      S(R.head, '#5fc25a', 0.12, 0.11, 0.11, s * 0.17, 1.06, 0.1);
+      S(R.head, '#ffffff', 0.08, 0.08, 0.06, s * 0.17, 1.08, 0.17);
+      S(R.head, '#1b1b22', 0.04, 0.05, 0.03, s * 0.17, 1.08, 0.215);
+    }
+    return R;
+  },
+  // 15 노란 우비
+  rain() {
+    const R = rig(0.22);
+    R.legs.forEach((l) => { CAP(l, '#ffd23c', 0.08, 0.1, 0, -0.1, 0); S(l, '#e6b800', 0.09, 0.04, 0.12, 0, -0.2, 0.03); });
+    add(R.body, new THREE.CylinderGeometry(0.2, 0.34, 0.5, 32), mat('#ffd23c'), 0, 0.27, 0);
+    for (let i = 0; i < 3; i++) S(R.body, '#3a7bd5', 0.03, 0.03, 0.02, 0, 0.38 - i * 0.12, 0.25 + i * 0.03);
+    add(R.body, new THREE.TorusGeometry(0.2, 0.025, 8, 24), mat('#e6b800'), 0, 0.51, 0).rotation.x = Math.PI / 2;
+    arms(R, 0.44, 0.24, (a) => { CAP(a, '#ffd23c', 0.06, 0.15, 0, -0.1, 0); S(a, SKIN, 0.055, 0.055, 0.055, 0, -0.25, 0); });
+    camera(R.arms[1], -0.32);
+    R.head = joint(R.body, 0, 0.5, 0);
+    const r = 0.34;
+    S(R.head, SKIN, r, r * 0.95, r, 0, r, 0);
+    const hg = joint(R.head, 0, r, 0);
+    R.eyes = roundFace(hg, r * 0.97, { eye: 1.1 });
+    for (const [x, s] of [[-0.16, 0.1], [0, 0.12], [0.16, 0.1]]) S(hg, '#5a3a26', s, s * 0.6, s * 0.5, x, r * 0.62, r * 0.66);
+    add(hg, HALF_TOP(0.62), mat('#ffd23c'), 0, 0.0, -0.03, r * 1.14, r * 1.12, r * 1.12).rotation.x = -0.55;
+    S(hg, '#ffd23c', r * 1.06, r * 0.96, r * 0.95, 0, -0.04, -0.09);
+    add(hg, new THREE.TorusGeometry(r * 1.06, 0.03, 8, 32), mat('#e6b800'), 0, 0.12, 0.13).rotation.x = Math.PI / 2 - 0.95;
+    return R;
+  },
+});
+
 // ---------- 카드 만들기 ----------
 const grid = document.getElementById('grid');
 grid.innerHTML = DESIGNS.map((d) => `
-  <article class="card">
+  <article class="card${d.picked ? ' picked' : ''}">
     <div class="view" data-design="${d.id}" role="img" aria-label="${d.no}번 ${d.name}"><span class="num">${d.no}</span></div>
-    <div class="meta"><span class="tag ${d.kind}">${d.kind === 'block' ? '네모' : '둥근'}</span><b>${d.name}</b><p>${d.desc}</p></div>
+    <div class="meta"><span class="tag ${d.picked ? 'pick' : d.kind}">${d.picked ? '고른 시안' : '새 둥근 시안'}</span><b>${d.name}</b><p>${d.desc}</p></div>
   </article>`).join('');
 
 // ---------- 그리기: 캔버스 하나로 카드 창마다 ----------
