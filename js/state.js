@@ -62,6 +62,8 @@ export function tickSecond() {
   return n;
 }
 
+// '000 00' 모양의 정해진 낱말 조합인지 (예전 이름이면 새로 받아요)
+export const validName = (n) => typeof n === 'string' && NAME_A.some((a) => NAME_B.some((b) => n === `${a} ${b}`));
 export function randomName() {
   const p = (a) => a[Math.floor(Math.random() * a.length)];
   return `${p(NAME_A)} ${p(NAME_B)}`;

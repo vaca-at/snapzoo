@@ -1,7 +1,7 @@
 // 화면: 위 알림판 · 아래 탭 다섯 칸 · 패널(도감 · 상점 · 표정 · 지도 · 매표소 · 버스/배) · 사진 결과 카드 · 소리
 import * as THREE from 'three';
 import { ANIMALS, RARITY, ZONES, ZONE_ORDER, CAMERAS, LOOKS, LOOK_TABS, TICKETS, FACES, ACTIONS, DAILY_SECONDS, SERVER_COUNT, SERVER_CAP } from './data.js';
-import { S, save, perSec, secLeft, dexCount, camera as curCam, randomName } from './state.js';
+import { S, save, perSec, secLeft, dexCount, camera as curCam } from './state.js';
 import { buildAnimal } from './animals.js';
 import { getPhoto, listPhotos } from './album.js';
 
@@ -393,27 +393,6 @@ export function showResult(r) {
   $('#againBtn').onclick = () => closeAll();
   $('#doneBtn').onclick = () => { closeAll(); G.exitPhoto(); };
   if (r.newDex && dexCount() === ANIMALS.length) setTimeout(() => toast('🏆 도감 완성! 동물 왕국의 사진 박사!', 'gold'), 600);
-}
-
-// ---------- 시작 화면 ----------
-export function showStart(name, returning, cb) {
-  let nm = name;
-  const sheet = panel('start', '동물 왕국', `
-    <div class="hello">
-      <h1>동물 왕국</h1>
-      <p class="lead">카메라 하나로 동물 친구를 찾아 도감을 채워요</p>
-      <div class="namebox"><span>내 이름</span><b id="nm">${nm}</b>${returning ? '' : '<button class="btn ghost" type="button" id="reroll" aria-label="다른 이름">🎲</button>'}</div>
-      <ul class="how">
-        <li>🕹️ 왼쪽 조이스틱으로 걷고, 오른쪽 ⤴ 로 점프</li>
-        <li>📷 동물 가까이에서 사진! 가운데 · 알맞은 크기 · ✨반짝일 때</li>
-        <li>🪙 1초마다 포인트가 쌓여요 (하루 55분까지)</li>
-        <li>🎫 매표소에서 표를 사고 🚌 버스 · ⛵ 배를 타요</li>
-      </ul>
-      <button class="btn big" type="button" id="startBtn">${returning ? '이어 하기 ▶' : '탐험 시작 ▶'}</button>
-    </div>`, { cls: 'start', noHead: true });
-  const rr = sheet.querySelector('#reroll');
-  if (rr) rr.onclick = () => { nm = randomName(); $('#nm').textContent = nm; };
-  $('#startBtn').onclick = () => { openId = null; $('#veil').hidden = true; $('#veil').innerHTML = ''; document.body.classList.add('playing'); cb(nm); };
 }
 
 // ---------- 소리 (짧은 전자음, 파일 없음) ----------

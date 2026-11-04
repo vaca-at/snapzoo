@@ -1,7 +1,7 @@
 // 동물 왕국 (snapzoo) 혼자 놀기 판: 걷기 · 점프 · 사진(화면 C) · 점수 · 도감 · 초당 포인트 · 상점 · 매표소 · 버스 · 배
 import * as THREE from 'three';
 import { ANIMALS, RARITY, ZONES, CAMERAS, SCORE, STAR_RATE, BEST_RATE, FACES, starsOf } from './data.js';
-import { S, save, perSec, secLeft, tickSecond, dexCount, camera as curCam, randomName } from './state.js';
+import { S, save, perSec, secLeft, tickSecond, dexCount, camera as curCam, randomName, validName } from './state.js';
 import { buildAnimal } from './animals.js';
 import { getZone, collide, bakeJoints } from './world.js';
 import { Player } from './player.js';
@@ -660,12 +660,16 @@ dressUp();
 // 처음 화면에는 대기실 모습을 뒤에 보여 줘요
 enterZone('station');
 requestAnimationFrame(loop);
-UI.showStart(S.name || randomName(), !!S.name, (name) => {
-  S.name = name; save();
+// 시작 창 없이 바로 들어가요: 처음이면 '000 00' 이름을 자동으로 받아요
+(() => {
+  const first = !validName(S.name);
+  if (first) S.name = randomName();
+  save();
   started = true;
-  UI.setName(name);
-  lockScreen();
-  UI.sfx('unlock');
+  document.body.classList.add('playing');
+  UI.setName(S.name);
+  // 화면 꺼짐 막기 · 소리는 브라우저가 첫 터치 뒤에만 허락해요
+  addEventListener('pointerdown', () => { lockScreen(); UI.sfx('unlock'); }, { once: true });
   const z = S.zone && ZONES[S.zone] && (!ZONES[S.zone].ticket || S.tickets[ZONES[S.zone].ticket]) ? S.zone : 'station';
   if (z !== 'station') enterZone(z); else net.join(S.server);
   // 저장된 자리로 (같은 장소일 때만)
@@ -674,7 +678,7 @@ UI.showStart(S.name || randomName(), !!S.name, (name) => {
     pos.set(q.x, 0, q.z); yaw = S.pos.yaw || 0; camYaw = yaw + Math.PI;
   }
   UI.updateHud(); updateGoal();
-  UI.toast(z === 'station' ? '🚏 정거장에 왔어요! 🎫 매표소 · 🚌 버스 · ⛵ 배' : `${ZONES[z].icon} ${ZONES[z].name}에서 이어 해요`);
-});
+  UI.toast(first ? `🎉 반가워요, ${S.name}!` : z === 'station' ? `🚏 ${S.name}, 다시 왔네요!` : `${ZONES[z].icon} ${ZONES[z].name}에서 이어 해요`);
+})();
 // 테스트에서 상태를 볼 수 있게 (게임에는 영향 없음)
 window.__snapzoo = { S, live, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), get zone() { return zoneId; }, get pos() { return pos.clone(); }, enterZone, spawn: (id) => spawn(ANIMALS.find((a) => a.id === id), true), dexCount };

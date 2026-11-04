@@ -215,15 +215,6 @@ body.photo .walkui, body.photo .tabbar, body.photo .hud .chips .timebox { displa
 .abtn { min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-family: var(--display); font-size: 15px; background: #fff4c8; border: 2px solid var(--ink); border-radius: 16px; box-shadow: 0 3px 0 var(--ink); }
 .abtn span { font-size: 32px; }
 
-/* 시작 화면 */
-.veil:has(.start) { align-items: center; background: rgba(20,60,40,.35); }
-.hello { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; padding: 6px 0; }
-.hello h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 52px; color: var(--leaf); text-shadow: 0 3px 0 #c8f0d4; line-height: 1.1; }
-.namebox { display: flex; align-items: center; gap: 10px; background: #fff4c8; border: 2px solid var(--ink); border-radius: 16px; padding: 6px 8px 6px 14px; }
-.namebox span { font-size: 13px; color: var(--ink-soft); }
-.namebox b { font-family: var(--display); font-weight: 400; font-size: 20px; }
-.how { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; text-align: left; font-size: 14.5px; line-height: 1.45; }
-
 /* 버스 · 배 창밖 */
 .ride { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: linear-gradient(#bfe8f5, #e8f7d8); transition: opacity .4s; font-family: var(--display); }
 .ride.boat { background: linear-gradient(#bfe8f5, #7cc8ea); }
