@@ -1,0 +1,858 @@
+<title>동물 왕국 동물 30종</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<style>
+/* 레이아웃: 위에 설명과 단추, 아래에 장소별로 동물 카드 (휴대폰 2열 · 넓은 화면 5~6열). 3D 는 캔버스 하나로 카드 창마다 */
+:root {
+  --bg: #eef5ef; --paper: #fffdf6; --ink: #24342b; --soft: #5d6d62; --line: #d0e0d4; --leaf: #3f8f5a; --sun: #ffc93c; --sun-ink: #6b4a00;
+  --st-jungle: #dcefdc; --st-savanna: #f6e7c4; --st-desert: #f7e4cc; --st-beach: #dcf0f8; --st-deep: #1d2c48;
+  --display: "Jua", "Apple SD Gothic Neo", sans-serif; --body: "Gowun Dodum", "Apple SD Gothic Neo", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #141d17; --paper: #1f2b23; --ink: #e8f1ea; --soft: #a3b6a8; --line: #33463a; --leaf: #7fd39b; --sun-ink: #3a2a00; --st-jungle: #26382a; --st-savanna: #3a3424; --st-desert: #3c3022; --st-beach: #223640; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg: #141d17; --paper: #1f2b23; --ink: #e8f1ea; --soft: #a3b6a8; --line: #33463a; --leaf: #7fd39b; --sun-ink: #3a2a00; --st-jungle: #26382a; --st-savanna: #3a3424; --st-desert: #3c3022; --st-beach: #223640; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 22px 44px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 22px; }
+.eyebrow { margin: 0; font-family: var(--display); color: var(--leaf); font-size: 14px; }
+h1 { margin: 4px 0 6px; font-family: var(--display); font-weight: 400; font-size: clamp(28px, 6vw, 42px); line-height: 1.1; }
+.lead { margin: 0; max-width: 62ch; color: var(--soft); }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.controls button { font-family: var(--display); font-size: 16px; min-height: 46px; padding: 6px 16px; border-radius: 14px; border: 2px solid var(--ink); background: var(--paper); color: var(--ink); box-shadow: 0 3px 0 var(--ink); cursor: pointer; }
+.controls button[aria-pressed="true"] { background: var(--sun); color: var(--sun-ink); }
+button:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+.zhead { display: flex; align-items: baseline; gap: 10px; margin: 0 0 10px; font-family: var(--display); font-size: 22px; font-weight: 400; }
+.zhead small { font-family: var(--body); font-size: 14px; color: var(--soft); }
+.grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 900px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.card { background: var(--paper); border: 2px solid var(--ink); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
+.view { aspect-ratio: 1; max-width: 100%; touch-action: pan-y; cursor: grab; position: relative; }
+.night { position: absolute; right: 8px; top: 6px; font-size: 18px; z-index: 3; }
+.meta { padding: 6px 10px 8px; border-top: 2px solid var(--ink); display: flex; flex-direction: column; gap: 2px; }
+.meta b { font-family: var(--display); font-weight: 400; font-size: 16px; display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+.meta small { color: var(--soft); font-size: 12px; }
+.rb { font-family: var(--display); font-size: 11px; padding: 0 7px; border-radius: 999px; border: 1.5px solid currentColor; white-space: nowrap; }
+.r-common { color: var(--soft); } .r-uncommon { color: #2f8a4a; } .r-rare { color: #2a64b8; } .r-legend { color: #b8661a; } .r-mythic { color: #c22a5a; }
+#gl { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+</style>
+<canvas id="gl" aria-hidden="true"></canvas>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">동물 왕국 · 지금 게임 속 동물</p>
+    <h1>동물 30종</h1>
+    <p class="lead">게임에 들어간 모습 그대로예요. 실제 동물의 몸 비율 · 털 색 · 무늬로 만들었어요. 끌면 돌아가고, 단추로 걷기와 특별한 순간을 볼 수 있어요. 🌙는 밤에만 나와요.</p>
+    <div class="controls">
+      <button id="walkBtn" type="button" aria-pressed="false">🚶 걷기</button>
+      <button id="actBtn" type="button" aria-pressed="false">✨ 특별한 순간</button>
+      <button id="spinBtn" type="button" aria-pressed="true">🔄 돌리기</button>
+    </div>
+  </header>
+  <div id="zones"></div>
+</div>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+</script>
+<script type="module">
+// 귀여운 블록 동물 26종: 머리가 크고 몸이 작은 동글동글한 모양 · 큰 눈.
+// 외부 3D 모델 없이 상자만으로 만들어요 (저작권 걱정 없음). 동물은 +z 쪽을 바라봐요.
+// buildAnimal(model) → { root, update(t, moving, act) , size, center }
+//   act: 특별한 순간이 시작된 뒤 지난 초 (아니면 -1)
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+const MATS = new Map();
+function mat(color, emissive = 0, opacity = 1) {
+  const k = `${color}|${emissive}|${opacity}`;
+  if (!MATS.has(k)) {
+    const m = new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0 });
+    if (emissive) { m.emissive = new THREE.Color(color); m.emissiveIntensity = emissive; }
+    if (opacity < 1) { m.transparent = true; m.opacity = opacity; m.depthWrite = false; }
+    MATS.set(k, m);
+  }
+  return MATS.get(k);
+}
+const BOX = new THREE.BoxGeometry(1, 1, 1);
+const CONE = new THREE.ConeGeometry(0.5, 1, 4);
+// 둥근 모서리 상자: 동물 · 건물이 둥근 캐릭터와 로우폴리 배경에 어울리게 (크기마다 한 번만 만들어요)
+const RB = new Map();
+function roundGeo(w, h, d) {
+  const k = `${w.toFixed(3)},${h.toFixed(3)},${d.toFixed(3)}`;
+  if (!RB.has(k)) {
+    const r = Math.min(w, h, d) * 0.22;
+    RB.set(k, r < 0.012 ? new THREE.BoxGeometry(w, h, d) : new RoundedBoxGeometry(w, h, d, 2, r));   // 아주 작은 부품은 각진 채로 (크기는 그대로)
+  }
+  return RB.get(k);
+}
+function box(parent, color, w, h, d, x = 0, y = 0, z = 0, glow = 0, opacity = 1) {
+  const m = new THREE.Mesh(roundGeo(w, h, d), typeof color === 'string' ? mat(color, glow, opacity) : color);
+  m.position.set(x, y, z);
+  parent.add(m);
+  return m;
+}
+// 각진 상자 (1번 네모 탐험가 · 얇은 판처럼 각이 있어야 하는 것)
+function sharpBox(parent, color, w, h, d, x = 0, y = 0, z = 0, glow = 0, opacity = 1) {
+  const m = new THREE.Mesh(BOX, typeof color === 'string' ? mat(color, glow, opacity) : color);
+  m.scale.set(w, h, d);
+  m.position.set(x, y, z);
+  parent.add(m);
+  return m;
+}
+// =====================================================================
+// 진짜 동물처럼: 실제 몸 비율 · 털 색 · 무늬를 매끈한 3D 로 (도감의 진짜 사진과 어울리게)
+// 모든 동물은 +z 쪽을 바라봐요. BUILD[model]() → { root, update(t, moving, act) }
+// =====================================================================
+const sin = Math.sin, cos = Math.cos;
+const SPH = new THREE.SphereGeometry(1, 14, 10);   // 휴대폰에 맞게 면 수는 적당히
+const SPH_LO = new THREE.SphereGeometry(1, 7, 5);
+const SMATS = new Map();
+// 털 · 피부 재료 (살짝 거칠게), 눈은 반짝이게
+function skin(c, rough = 0.75, extra = {}) {
+  const k = c + rough + JSON.stringify(extra);
+  if (!SMATS.has(k)) SMATS.set(k, new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: 0, ...extra }));
+  return SMATS.get(k);
+}
+function joint(parent, x = 0, y = 0, z = 0) { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; }
+// 타원 몸통 조각
+function E(p, c, rx, ry, rz, x = 0, y = 0, z = 0, rot = null, lo = false) {
+  const m = new THREE.Mesh(lo ? SPH_LO : SPH, typeof c === 'string' ? skin(c) : c);
+  m.scale.set(rx, ry, rz); m.position.set(x, y, z);
+  if (rot) m.rotation.set(rot[0] || 0, rot[1] || 0, rot[2] || 0);
+  p.add(m); return m;
+}
+// 가늘어지는 원기둥 (다리 · 목 · 꼬리): 관절 아래로 len 만큼
+const CYLS = new Map();
+function taper(p, c, len, r0, r1, dir = -1) {
+  const k = `${len.toFixed(3)}${r0.toFixed(3)}${r1.toFixed(3)}`;
+  if (!CYLS.has(k)) { const g = new THREE.CylinderGeometry(r1, r0, len, 8, 1); CYLS.set(k, g); }
+  const m = new THREE.Mesh(CYLS.get(k), typeof c === 'string' ? skin(c) : c);
+  m.position.y = dir * len / 2; if (dir > 0) m.rotation.x = Math.PI;
+  p.add(m);
+  E(p, c, r1, r1, r1, 0, dir * len, 0);   // 끝을 둥글게
+  return m;
+}
+// 진짜 같은 눈: 까만 눈동자(가끔 색 홍채) + 작은 반짝
+function eye(p, r, x, y, z, iris = null, pupil = 'round') {
+  const g = joint(p, x, y, z);
+  if (iris) {
+    E(g, skin(iris, 0.2), r, r, r * 0.8);
+    E(g, skin('#0b0b0f', 0.1), pupil === 'slit' ? r * 0.25 : r * 0.55, r * 0.8, r * 0.5, 0, 0, r * 0.45);
+  } else E(g, skin('#120d0b', 0.12), r, r, r * 0.8);
+  E(g, skin('#ffffff', 0.1), r * 0.28, r * 0.28, r * 0.2, -r * 0.3, r * 0.35, r * 0.7, null, true);
+  return g;
+}
+const eyePair = (p, r, gap, y, z, iris, pupil, turn = 0.5) => [-1, 1].map((sx) => { const e = eye(p, r, sx * gap, y, z, iris, pupil); e.rotation.y = sx * turn; return e; });
+// 무늬: 타원 표면 위에 납작한 점을 붙여요 (where 로 자리 고르기)
+function spotsOn(p, cfg, rnd) {
+  const { rx, ry, rz, cx = 0, cy = 0, cz = 0, n, color, size, where = () => true, flat = 0.25, stretch = 1 } = cfg;
+  const q = new THREE.Vector3(), nrm = new THREE.Vector3();
+  let made = 0, tries = 0;
+  while (made < n && tries++ < n * 20) {
+    const u = rnd() * 2 - 1, th = rnd() * Math.PI * 2, s = Math.sqrt(1 - u * u);
+    const nx = s * cos(th), ny = u, nz = s * sin(th);
+    if (!where(nx, ny, nz)) continue;
+    q.set(cx + nx * rx * 0.99, cy + ny * ry * 0.99, cz + nz * rz * 0.99);
+    nrm.set(nx / rx, ny / ry, nz / rz).normalize();
+    const k = size * (0.6 + rnd() * 0.7);
+    const m = E(p, color, k * stretch, k, k * flat, q.x, q.y, q.z, null, true);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nrm);
+    made++;
+  }
+}
+const easeIn = (a, d = 0.3) => Math.min(1, a / d);
+
+// ---------------- 네 발 짐승 (사자 · 치타 · 표범 · 하이에나 · 카피바라 · 낙타 · 사막여우 · 땅돼지 · 고슴도치) ----------------
+function quadruped(o) {
+  const rnd = mulberry(o.seed || 7);
+  const root = new THREE.Group();
+  const [bx, by, bz] = o.body, H = o.leg + by * 0.55;
+  const body = joint(root, 0, H, 0);
+  const torso = joint(body);
+  E(torso, o.color, bx, by, bz);
+  if (o.chest) E(torso, o.chest, bx * 0.82, by * 0.95, bz * 0.5, 0, 0.02, bz * 0.45);   // 가슴은 조금 더 두툼
+  if (o.belly) E(torso, o.belly, bx * 0.86, by * 0.55, bz * 0.88, 0, -by * 0.45, 0);
+  if (o.rump) E(torso, o.color, bx * 0.95, by * 0.92, bz * 0.45, 0, o.rump, -bz * 0.5);
+  if (o.hump) E(torso, o.color, bx * 0.6, o.hump, bz * 0.38, 0, by * 0.75, -bz * 0.05);
+  if (o.spots) spotsOn(torso, { rx: bx, ry: by, rz: bz, n: o.spots.n, color: o.spots.c, size: o.spots.s, where: (nx, ny) => ny > -0.35, stretch: o.spots.stretch || 1 }, rnd);
+  if (o.spines) for (let i = 0; i < o.spines; i++) {
+    const u = rnd(), th = rnd() * Math.PI * 2, s = Math.sqrt(1 - u * u), nx = s * cos(th), nz = s * sin(th), ny = u;
+    if (ny < 0.05 || nz > 0.85) continue;
+    const c = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.13, 5), skin(i % 3 ? '#6e5a44' : '#e8dcc6'));
+    c.position.set(nx * bx, ny * by, nz * bz); c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(nx / bx, ny / by, nz / bz).normalize());
+    torso.add(c);
+  }
+  // 다리: 어깨 · 엉덩이에서 아래로, 끝에 발
+  const legs = [[-1, 1], [1, 1], [-1, -1], [1, -1]].map(([sx, sz]) => {
+    const l = joint(root, sx * bx * 0.55, H - by * 0.25, sz * bz * 0.6);
+    const len = o.leg + by * 0.3;
+    E(l, o.color, o.legR * 1.5, by * 0.45, o.legR * 1.6, 0, -by * 0.05, 0);   // 허벅지
+    taper(l, o.legColor || o.color, len, o.legR * 1.1, o.legR * 0.75);
+    E(l, o.foot || o.legColor || o.color, o.legR * 1.05, o.legR * 0.7, o.legR * 1.4, 0, -len + o.legR * 0.2, o.legR * 0.35);
+    return l;
+  });
+  // 목 · 머리
+  const neck = joint(body, 0, by * 0.35, bz * 0.82);
+  neck.rotation.x = (o.neckTilt ?? 0.75);   // 앞으로 기울인 목
+  const [nl, nr] = o.neck || [by * 0.9, by * 0.55];
+  taper(neck, o.color, nl, nr, nr * 0.8, 1);
+  if (o.mane) E(neck, o.mane, nr * 1.25, nl * 0.6, nr * 1.2, 0, nl * 0.45, -nr * 0.1);   // 목 갈기
+  const head = joint(neck, 0, nl, 0);
+  const headX = -(o.neckTilt ?? 0.75) + (o.headTilt || 0);   // 머리는 다시 앞을 보게
+  head.rotation.x = headX;
+  const [hx, hy, hz] = o.head;
+  E(head, o.headColor || o.color, hx, hy, hz);
+  if (o.mane) {
+    // 갈기: 얼굴 둘레를 감싸는 털 (얼굴은 앞으로 보이게)
+    for (let i = 0; i < 18; i++) { const a = (i / 18) * Math.PI * 2; E(head, i % 2 ? o.mane : o.mane2 || o.mane, hx * 0.42, hx * 0.42, hz * 0.5, cos(a) * hx * 1.05, sin(a) * hy * 1.05 + hy * 0.05, -hz * 0.25); }
+    E(head, o.mane, hx * 1.25, hy * 1.2, hz * 0.8, 0, 0.02, -hz * 0.55);
+  }
+  const [sx_, sy_, sz_, sc] = o.snout;
+  E(head, sc || o.headColor || o.color, sx_, sy_, sz_, 0, -hy * 0.25, hz * 0.85);
+  if (o.lip) E(head, o.lip, sx_ * 0.85, sy_ * 0.45, sz_ * 0.9, 0, -hy * 0.25 - sy_ * 0.6, hz * 0.85);
+  E(head, o.nose || '#2a1d18', sx_ * 0.45, sy_ * 0.35, sy_ * 0.3, 0, -hy * 0.2 + sy_ * 0.35, hz * 0.85 + sz_ * 0.92);
+  if (o.tear) for (const s of [-1, 1]) E(head, o.tear, hx * 0.06, hy * 0.42, 0.01, s * hx * 0.38, -hy * 0.2, hz * 0.78, [0, s * 0.5, s * 0.15]);
+  const eyes = eyePair(head, hx * (o.eye || 0.16), hx * 0.48, hy * 0.25, hz * 0.62, o.iris, 'round', 0.55);
+  if (o.headSpots) spotsOn(head, { rx: hx, ry: hy, rz: hz, n: o.headSpots, color: o.spots.c, size: o.spots.s * 0.6, where: (nx, ny, nz) => ny > 0.1 && nz < 0.7 }, rnd);
+  const ears = [-1, 1].map((s) => {
+    const e = joint(head, s * hx * 0.62, hy * 0.75, -hz * 0.15);
+    const [ew, eh] = o.ear;
+    E(e, o.earColor || o.color, ew, eh, ew * 0.35, 0, eh * 0.75, 0);
+    if (o.earIn) E(e, o.earIn, ew * 0.65, eh * 0.7, ew * 0.15, 0, eh * 0.72, ew * 0.18);
+    e.rotation.z = s * -(o.earOut ?? 0.35);
+    return e;
+  });
+  // 꼬리
+  const tail = joint(body, 0, by * 0.35, -bz * 0.92);
+  tail.rotation.x = -(o.tailDroop ?? 2.3);
+  taper(tail, o.tailColor || o.color, o.tail, o.tailR || 0.035, (o.tailR || 0.035) * 0.6, 1);
+  if (o.tuft) E(tail, o.tuft, (o.tailR || 0.035) * 2.2, (o.tailR || 0.035) * 3, (o.tailR || 0.035) * 2.2, 0, o.tail, 0);
+  if (o.tailRings) for (let i = 1; i <= o.tailRings; i++) E(tail, o.spots.c, (o.tailR || 0.035) * 1.15, 0.018, (o.tailR || 0.035) * 1.15, 0, o.tail * (0.4 + i * 0.12), 0, null, true);
+
+  const kind = o.kind, gait = o.gait || 9;
+  function update(t, moving, act) {
+    const w = moving ? sin(t * gait) * 0.5 : 0;
+    legs[0].rotation.x = w; legs[3].rotation.x = w; legs[1].rotation.x = -w; legs[2].rotation.x = -w;
+    body.position.y = H + (moving ? Math.abs(sin(t * gait)) * 0.025 : sin(t * 1.6) * 0.006);
+    body.rotation.x = 0; torso.scale.y = 1 + (moving ? 0 : sin(t * 1.6) * 0.012);   // 숨쉬기
+    neck.rotation.x = (o.neckTilt ?? 0.75) + (moving ? sin(t * gait * 2) * 0.03 : sin(t * 0.7) * 0.05);
+    head.rotation.set(headX, moving ? 0 : sin(t * 0.5) * 0.25, 0); head.scale.setScalar(1);
+    tail.rotation.z = sin(t * 2.2) * 0.25;
+    ears.forEach((e, i) => { e.rotation.x = 0; });
+    blink(eyes, t + (o.seed || 0));
+    if (act < 0) return;
+    const p = easeIn(act);
+    if (kind === 'roar') { neck.rotation.x -= 0.35 * p; head.rotation.x += 0.25 * p; head.scale.setScalar(1 + 0.06 * p * (0.7 + 0.3 * sin(act * 28))); }
+    else if (kind === 'nap') { neck.rotation.x += 0.55 * p; eyes.forEach((e) => { e.scale.y = 0.12; }); }
+    else if (kind === 'laugh') { neck.rotation.x -= 0.25; head.rotation.x += sin(act * 24) * 0.18; body.position.y += Math.abs(sin(act * 24)) * 0.03; }
+    else if (kind === 'dash') { const w2 = sin(t * 24) * 0.95; legs[0].rotation.x = w2; legs[3].rotation.x = w2; legs[1].rotation.x = -w2; legs[2].rotation.x = -w2; body.rotation.x = sin(t * 24) * 0.06; }
+    else if (kind === 'wag') { tail.rotation.z = sin(act * 12) * 0.9; tail.rotation.x = -1.6; head.rotation.y = sin(act * 3) * 0.3; }
+    else if (kind === 'chew') { head.rotation.z = sin(act * 9) * 0.1; neck.rotation.x -= 0.15; }
+    else if (kind === 'ears') { ears.forEach((e, i) => { e.rotation.x = -0.4 * p + sin(act * 16 + i) * 0.12; }); head.rotation.y = sin(act * 3) * 0.6; }
+    else if (kind === 'dig') { neck.rotation.x += 0.6 * p; legs[0].rotation.x = sin(act * 16) * 0.8; legs[1].rotation.x = -sin(act * 16) * 0.8; }
+    else if (kind === 'ball') { torso.scale.set(1 + 0.15 * p, 1 + 0.25 * p, 1 - 0.2 * p); neck.rotation.x += 0.8 * p; }
+  }
+  return { root, update };
+}
+function blink(eyes, t) { const b = (t % 4.1) < 0.11 ? 0.12 : 1; eyes.forEach((e) => { e.scale.y = b; }); }
+
+// ---------------- 뱀 (에메랄드나무보아 · 방울뱀) ----------------
+function snake(o) {
+  const rnd = mulberry(o.seed || 3);
+  const root = new THREE.Group();
+  const N = 18, segs = [];
+  for (let i = 0; i < N; i++) {
+    const r = o.r * (i < 3 ? 0.85 + i * 0.05 : Math.max(0.25, 1 - (i - 3) / (N - 2) * 0.85));
+    const s = joint(root, 0, r * 0.85, -i * o.r * 1.1);
+    const band = o.band && i % 3 === 1;
+    E(s, band ? o.band : o.color, r * 1.05, r * 0.85, o.r * 0.9);
+    if (o.belly) E(s, o.belly, r * 0.9, r * 0.35, o.r * 0.85, 0, -r * 0.55, 0, null, true);
+    if (o.diamond && i % 2 === 0 && i < N - 2) E(s, o.diamond, r * 0.6, r * 0.2, o.r * 0.6, 0, r * 0.78, 0, [0, Math.PI / 4, 0], true);
+    segs.push(s);
+  }
+  const head = joint(root, 0, o.r * 0.85, o.r * 1.1);
+  E(head, o.color, o.r * 1.15, o.r * 0.7, o.r * 1.6, 0, 0, o.r * 0.5);
+  E(head, o.belly || o.color, o.r * 0.9, o.r * 0.3, o.r * 1.3, 0, -o.r * 0.35, o.r * 0.6, null, true);
+  const eyes = eyePair(head, o.r * 0.24, o.r * 0.82, o.r * 0.3, o.r * 1.1, o.iris, 'slit', 0.9);
+  const tongue = joint(head, 0, -o.r * 0.15, o.r * 2.0);
+  E(tongue, '#c8243c', o.r * 0.08, o.r * 0.05, o.r * 0.6, 0, 0, o.r * 0.5); tongue.visible = false;
+  let rattle = null;
+  if (o.rattle) { rattle = joint(segs[N - 1], 0, 0.02, -o.r * 0.6); for (let i = 0; i < 4; i++) E(rattle, '#d9c49a', o.r * (0.45 - i * 0.05), o.r * (0.35 - i * 0.04), o.r * 0.32, 0, 0, -i * o.r * 0.42); }
+  function update(t, moving, act) {
+    const sp = moving ? 7 : 1.6, amp = moving ? o.r * 1.6 : o.r * 0.6;
+    segs.forEach((s, i) => { s.position.x = sin(t * sp - i * 0.55) * amp * Math.min(1, i / 3 + 0.2); });
+    head.position.x = sin(t * sp + 0.55) * amp * 0.2; head.position.y = o.r * 0.85; head.rotation.set(0, 0, 0); tongue.visible = (t % 2.2) < 0.25;
+    blink(eyes, t + 5);
+    if (rattle) rattle.rotation.z = 0;
+    if (act < 0) return;
+    const p = easeIn(act);
+    head.position.y = o.r * 0.85 + o.r * 3 * p; head.rotation.x = -0.25 * p;
+    if (rattle) { rattle.rotation.z = sin(act * 70) * 0.4; segs[N - 1].position.y = o.r * 2 * p; }
+    else tongue.visible = sin(act * 22) > 0;
+  }
+  return { root, update };
+}
+
+// ---------------- 빨간눈청개구리 ----------------
+function frog() {
+  const root = new THREE.Group();
+  const body = joint(root, 0, 0.13, 0);
+  E(body, '#5cc23e', 0.2, 0.12, 0.26);
+  E(body, '#4aa8d8', 0.205, 0.06, 0.2, 0, -0.03, -0.02);   // 옆구리 파랑
+  E(body, '#f4ecb8', 0.16, 0.06, 0.2, 0, -0.07, 0.02);    // 하얀 배
+  for (const s of [-1, 1]) for (let i = 0; i < 3; i++) E(body, '#f2d23c', 0.012, 0.035, 0.03, s * 0.19, -0.02, -0.08 + i * 0.07, null, true);   // 옆구리 노란 줄
+  const head = joint(body, 0, 0.03, 0.2);
+  E(head, '#5cc23e', 0.17, 0.09, 0.13);
+  E(head, '#2f7a2a', 0.05, 0.012, 0.012, 0, -0.01, 0.125, null, true);
+  const eyes = [-1, 1].map((s) => { const b = joint(head, s * 0.11, 0.08, 0.02); E(b, '#5cc23e', 0.07, 0.065, 0.07); const e = eye(b, 0.06, 0, 0.01, 0.025, '#e0242a', 'slit'); e.rotation.y = s * 0.6; return e; });
+  const legs = [-1, 1].map((s) => {
+    const l = joint(root, s * 0.17, 0.09, -0.12);
+    E(l, '#5cc23e', 0.07, 0.06, 0.16, 0, 0, 0.02);
+    E(l, '#4aa8d8', 0.05, 0.04, 0.1, s * 0.03, -0.03, -0.04, null, true);
+    for (let k = 0; k < 3; k++) E(l, '#f08a2a', 0.025, 0.012, 0.025, s * 0.04 + (k - 1) * 0.03, -0.075, 0.15);
+    return l;
+  });
+  for (const s of [-1, 1]) { const a = joint(root, s * 0.12, 0.08, 0.15); taper(a, '#5cc23e', 0.08, 0.025, 0.02); for (let k = 0; k < 3; k++) E(a, '#f08a2a', 0.02, 0.01, 0.02, (k - 1) * 0.025, -0.085, 0.02); }
+  function update(t, moving, act) {
+    let y = moving ? Math.abs(sin(t * 6)) * 0.1 : 0;
+    if (act >= 0) y = Math.abs(sin(act * 4)) * 0.45;
+    body.position.y = 0.13 + y; legs.forEach((l) => { l.position.y = 0.09 + y * 0.9; l.rotation.x = y > 0.03 ? 0.7 : 0; });
+    body.scale.y = 1 + (moving || act >= 0 ? 0 : Math.abs(sin(t * 2.4)) * 0.05);   // 목 부풀리기
+    blink(eyes, t + 1);
+  }
+  return { root, update };
+}
+
+// ---------------- 영장류 · 나무늘보 (나무늘보 · 오랑우탄 · 올빼미원숭이) ----------------
+function primate(o) {
+  const root = new THREE.Group();
+  const body = joint(root, 0, o.leg + o.body[1] * 0.8, 0);
+  const torso = joint(body); torso.rotation.x = o.lean ?? 0.25;
+  E(torso, o.color, ...o.body);
+  if (o.shag) for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; E(torso, i % 2 ? o.color : o.shag, o.body[0] * 0.35, o.body[1] * 0.5, o.body[2] * 0.3, cos(a) * o.body[0] * 0.8, -o.body[1] * 0.35, sin(a) * o.body[2] * 0.8, null, true); }
+  if (o.belly) E(torso, o.belly, o.body[0] * 0.65, o.body[1] * 0.75, o.body[2] * 0.4, 0, -0.02, o.body[2] * 0.62);
+  const head = joint(body, 0, o.body[1] * 0.95, o.body[2] * 0.25);
+  E(head, o.color, o.head, o.head * 0.95, o.head * 0.9);
+  if (o.cheekPads) for (const s of [-1, 1]) E(head, o.color, o.head * 0.35, o.head * 0.55, o.head * 0.2, s * o.head * 0.95, -o.head * 0.05, o.head * 0.3);
+  E(head, o.face, o.head * 0.72, o.head * 0.7, o.head * 0.3, 0, -o.head * 0.05, o.head * 0.68);
+  E(head, o.muzzle || o.face, o.head * 0.42, o.head * 0.3, o.head * 0.25, 0, -o.head * 0.35, o.head * 0.82);
+  E(head, '#2a1d18', o.head * 0.14, o.head * 0.08, o.head * 0.06, 0, -o.head * 0.25, o.head * 1.02);
+  if (o.mask) for (const s of [-1, 1]) E(head, o.mask, o.head * 0.22, o.head * 0.11, o.head * 0.08, s * o.head * 0.28, o.head * 0.1, o.head * 0.86, [0, 0, s * -0.4]);
+  if (o.brows) for (const s of [-1, 1]) E(head, o.brows, o.head * 0.2, o.head * 0.06, o.head * 0.08, s * o.head * 0.25, o.head * 0.35, o.head * 0.8, [0, 0, s * -0.2]);
+  const eyes = eyePair(head, o.head * (o.eye || 0.11), o.head * 0.27, o.head * 0.12, o.head * 0.86, o.iris, 'round', 0.25);
+  const arms = [-1, 1].map((s) => {
+    const a = joint(body, s * o.body[0] * 0.85, o.body[1] * 0.6, o.body[2] * 0.2);
+    taper(a, o.color, o.arm, o.armR, o.armR * 0.75);
+    if (o.claws) for (let k = 0; k < 3; k++) { const c = joint(a, (k - 1) * o.armR * 0.6, -o.arm, o.armR * 0.3); taper(c, '#e8dcc6', o.armR * 1.8, o.armR * 0.2, o.armR * 0.12); c.rotation.x = 0.6; }
+    else E(a, o.face, o.armR * 1.2, o.armR * 0.8, o.armR * 1.3, 0, -o.arm, o.armR * 0.4);
+    a.rotation.z = s * 0.25;
+    return a;
+  });
+  const legs = [-1, 1].map((s) => { const l = joint(root, s * o.body[0] * 0.45, o.leg, 0.02); taper(l, o.color, o.leg, o.armR * 1.1, o.armR * 0.85); E(l, o.face, o.armR * 1.1, o.armR * 0.6, o.armR * 1.6, 0, -o.leg + 0.02, o.armR * 0.5); return l; });
+  let tail = null;
+  if (o.tail) { tail = joint(body, 0, -o.body[1] * 0.6, -o.body[2] * 0.7); tail.rotation.x = -2.5; taper(tail, o.color, o.tail, o.armR * 0.8, o.armR * 0.5, 1); }
+  const sp = o.slow ? 2.6 : 7;
+  function update(t, moving, act) {
+    const w = moving ? sin(t * sp) * 0.5 : 0;
+    legs[0].rotation.x = w; legs[1].rotation.x = -w;
+    arms[0].rotation.set(-w * 1.1 - 0.15, 0, -0.25); arms[1].rotation.set(w * 1.1 - 0.15, 0, 0.25);
+    body.rotation.z = moving ? sin(t * sp) * 0.05 : 0;
+    head.rotation.set(0, sin(t * (o.slow ? 0.3 : 0.6)) * 0.3, 0);
+    if (tail) tail.rotation.z = sin(t * 1.5) * 0.3;
+    blink(eyes, t + 3);
+    if (act < 0) return;
+    const p = easeIn(act, o.slow ? 1.2 : 0.3);
+    if (o.slow) { arms[0].rotation.set(0, 0, -2.6 * p); arms[1].rotation.set(0, 0, 2.6 * p); head.rotation.x = -0.35 * p; }
+    else if (o.beat) { const b = sin(act * 18); arms[0].rotation.set(-1.4 - b * 0.3, 0, -0.4); arms[1].rotation.set(-1.4 + b * 0.3, 0, 0.4); head.rotation.x = -0.2; }
+    else { eyes.forEach((e) => e.scale.setScalar(1 + 0.25 * sin(act * 6) ** 2)); head.rotation.y = sin(act * 2.5) * 0.7; }
+  }
+  return { root, update };
+}
+
+// ---------------- 토코투칸 ----------------
+function toucan() {
+  const root = new THREE.Group();
+  const body = joint(root, 0, 0.32, 0);
+  const torso = joint(body); torso.rotation.x = -0.35;
+  E(torso, '#16161c', 0.15, 0.24, 0.15);
+  E(torso, '#fbf6ea', 0.11, 0.1, 0.06, 0, 0.12, 0.11);   // 하얀 목
+  E(torso, '#c8243c', 0.08, 0.05, 0.08, 0, -0.18, 0.06);  // 꼬리 밑 빨강
+  const head = joint(body, 0, 0.26, 0.04);
+  E(head, '#16161c', 0.12, 0.12, 0.12);
+  E(head, '#fbf6ea', 0.1, 0.06, 0.06, 0, -0.04, 0.08);
+  for (const s of [-1, 1]) E(head, '#4fb0e8', 0.05, 0.05, 0.02, s * 0.1, 0.02, 0.05, [0, s * 0.8, 0]);
+  const eyes = eyePair(head, 0.026, 0.11, 0.02, 0.055, '#2a3f8a', 'round', 1.0);
+  const beak = joint(head, 0, 0.0, 0.1);
+  const bk = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.42, 16), skin('#ff8a1c', 0.4)); bk.rotation.x = Math.PI / 2 + 0.12; bk.position.set(0, -0.02, 0.21); bk.scale.set(0.8, 1, 1.3); beak.add(bk);
+  E(beak, '#ffb41c', 0.06, 0.03, 0.18, 0, 0.035, 0.14, null, true);
+  E(beak, '#16161c', 0.03, 0.03, 0.03, 0, -0.035, 0.41, null, true);
+  const wings = [-1, 1].map((s) => { const w = joint(body, s * 0.13, 0.08, 0); E(w, '#16161c', 0.04, 0.2, 0.13, 0, -0.08, -0.03); return w; });
+  const tail = joint(body, 0, -0.18, -0.1); E(tail, '#16161c', 0.07, 0.03, 0.22, 0, 0, -0.2); tail.rotation.x = 0.5;
+  for (const s of [-1, 1]) { const l = joint(root, s * 0.06, 0.12, 0.02); taper(l, '#4a6a9a', 0.12, 0.018, 0.014); }
+  function update(t, moving, act) {
+    body.position.y = 0.32 + (moving ? Math.abs(sin(t * 10)) * 0.04 : 0);
+    head.rotation.set(0, sin(t * 1.1) * 0.5, sin(t * 0.7) * 0.1);
+    wings[0].rotation.z = 0; wings[1].rotation.z = 0;
+    blink(eyes, t + 2);
+    if (act < 0) return;
+    const f = sin(act * 26) * 0.8 + 0.8;
+    wings[0].rotation.z = -f; wings[1].rotation.z = f;
+    body.position.y = 0.32 + Math.abs(sin(act * 4)) * 0.35;
+  }
+  return { root, update };
+}
+
+// ---------------- 가시도마뱀 ----------------
+function thornydevil() {
+  const rnd = mulberry(7);
+  const root = new THREE.Group();
+  const body = joint(root, 0, 0.09, 0);
+  E(body, '#c98a4a', 0.15, 0.07, 0.2);
+  spotsOn(body, { rx: 0.15, ry: 0.07, rz: 0.2, n: 14, color: '#7a3e22', size: 0.04, where: (x, y) => y > 0 }, rnd);
+  spotsOn(body, { rx: 0.15, ry: 0.07, rz: 0.2, n: 10, color: '#ecc070', size: 0.035, where: (x, y) => y > 0 }, rnd);
+  const spikes = joint(body);
+  for (let i = 0; i < 26; i++) {
+    const u = rnd() * 0.9 + 0.1, th = rnd() * Math.PI * 2, s = Math.sqrt(1 - u * u), nx = s * cos(th), nz = s * sin(th);
+    const c = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.06, 5), skin(i % 3 ? '#a8622e' : '#f2c27a'));
+    c.position.set(nx * 0.15, u * 0.07, nz * 0.2); c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(nx / 0.15, u / 0.07, nz / 0.2).normalize()); spikes.add(c);
+  }
+  const head = joint(body, 0, 0.02, 0.2);
+  E(head, '#c98a4a', 0.08, 0.05, 0.09, 0, 0, 0.04);
+  for (const s of [-1, 1]) { const h = new THREE.Mesh(new THREE.ConeGeometry(0.015, 0.07, 6), skin('#a8622e')); h.position.set(s * 0.04, 0.06, 0.01); h.rotation.z = s * -0.3; head.add(h); }
+  const eyes = eyePair(head, 0.016, 0.06, 0.02, 0.06, '#3a2a1a', 'round', 1.1);
+  const tail = joint(body, 0, 0, -0.18); tail.rotation.x = -1.7; taper(tail, '#c98a4a', 0.22, 0.03, 0.01, 1);
+  const legs = [[-1, 1], [1, 1], [-1, -1], [1, -1]].map(([sx, sz]) => { const l = joint(root, sx * 0.12, 0.07, sz * 0.12); l.rotation.z = sx * 1.1; taper(l, '#b87a3e', 0.1, 0.02, 0.014); return l; });
+  function update(t, moving, act) {
+    const w = moving ? sin(t * 12) * 0.5 : 0;
+    legs.forEach((l, i) => { l.rotation.y = (i === 0 || i === 3 ? w : -w); });
+    tail.rotation.z = sin(t * (moving ? 12 : 1.5)) * 0.25;
+    body.scale.set(1, 1, 1); spikes.scale.setScalar(1); head.rotation.set(0, 0, 0);
+    blink(eyes, t + 4);
+    if (act < 0) return;
+    const p = easeIn(act, 0.4);
+    body.scale.set(1 + 0.12 * p, 1 + 0.3 * p, 1); spikes.scale.setScalar(1 + 0.35 * p); head.rotation.x = 0.5 * p;
+  }
+  return { root, update };
+}
+
+// ---------------- 캥거루쥐 ----------------
+function kangaroorat() {
+  const root = new THREE.Group();
+  const body = joint(root, 0, 0.13, 0);
+  E(body, '#c9a072', 0.1, 0.1, 0.12);
+  E(body, '#fbf3e4', 0.075, 0.07, 0.09, 0, -0.04, 0.02);
+  const head = joint(body, 0, 0.08, 0.1);
+  E(head, '#c9a072', 0.075, 0.07, 0.085);
+  E(head, '#fbf3e4', 0.04, 0.03, 0.05, 0, -0.03, 0.06);
+  E(head, '#e89aa0', 0.012, 0.01, 0.01, 0, -0.01, 0.13);
+  for (const s of [-1, 1]) E(head, '#fbf3e4', 0.025, 0.015, 0.02, s * 0.05, -0.035, 0.045, null, true);   // 하얀 뺨
+  const eyes = eyePair(head, 0.024, 0.045, 0.02, 0.06, null, 'round', 0.7);
+  for (const s of [-1, 1]) { const e = joint(head, s * 0.04, 0.06, -0.01); E(e, '#d8b088', 0.025, 0.035, 0.008, 0, 0.02, 0); E(e, '#f0c8c0', 0.015, 0.024, 0.004, 0, 0.02, 0.006); }
+  const legs = [-1, 1].map((s) => { const l = joint(root, s * 0.07, 0.1, -0.02); E(l, '#c9a072', 0.045, 0.07, 0.08); E(l, '#fbf3e4', 0.03, 0.015, 0.1, 0, -0.07, 0.05); return l; });
+  for (const s of [-1, 1]) { const a = joint(body, s * 0.05, -0.02, 0.09); taper(a, '#fbf3e4', 0.04, 0.012, 0.01); }
+  const tail = joint(body, 0, -0.04, -0.11); tail.rotation.x = -1.4;
+  taper(tail, '#b88a5a', 0.38, 0.012, 0.008, 1);
+  E(tail, '#2e2016', 0.025, 0.06, 0.025, 0, 0.36, 0); E(tail, '#fbf3e4', 0.022, 0.03, 0.022, 0, 0.42, 0);
+  function update(t, moving, act) {
+    let y = moving ? Math.abs(sin(t * 9)) * 0.1 : 0;
+    if (act >= 0) y = Math.abs(sin(act * 3.5)) * 0.7;
+    body.position.y = 0.13 + y; legs.forEach((l) => { l.position.y = 0.1 + y; l.rotation.x = y > 0.03 ? 0.5 : 0; });
+    head.rotation.y = sin(t * 2) * 0.3;
+    blink(eyes, t + 6);
+  }
+  return { root, update };
+}
+
+// ---------------- 미어캣 ----------------
+function meerkat() {
+  const root = new THREE.Group();
+  const body = joint(root, 0, 0.1, 0);
+  const torso = joint(body, 0, 0.17, 0);
+  E(torso, '#c9a06a', 0.085, 0.19, 0.08);
+  E(torso, '#ecd2a6', 0.06, 0.15, 0.03, 0, -0.01, 0.06);
+  for (let i = 0; i < 5; i++) E(torso, '#8a6a44', 0.06, 0.012, 0.03, 0, 0.08 - i * 0.04, -0.07, null, true);   // 등 줄무늬
+  const head = joint(body, 0, 0.4, 0.02);
+  E(head, '#d4ae7a', 0.07, 0.065, 0.075);
+  E(head, '#d4ae7a', 0.035, 0.03, 0.05, 0, -0.02, 0.08);
+  E(head, '#2a1d18', 0.015, 0.012, 0.01, 0, -0.01, 0.13);
+  for (const s of [-1, 1]) E(head, '#2e2016', 0.028, 0.03, 0.02, s * 0.035, 0.01, 0.055, [0, s * 0.4, 0]);   // 까만 눈 둘레
+  const eyes = eyePair(head, 0.016, 0.037, 0.012, 0.07, null, 'round', 0.45);
+  for (const s of [-1, 1]) E(head, '#2e2016', 0.02, 0.022, 0.01, s * 0.065, 0.03, -0.01);
+  const arms = [-1, 1].map((s) => { const a = joint(torso, s * 0.06, 0.08, 0.05); taper(a, '#c9a06a', 0.1, 0.018, 0.014); return a; });
+  for (const s of [-1, 1]) { const l = joint(root, s * 0.05, 0.1, 0.02); E(l, '#c9a06a', 0.045, 0.08, 0.06, 0, -0.03, 0); E(l, '#2e2016', 0.025, 0.012, 0.05, 0, -0.1, 0.04); }
+  const tail = joint(body, 0, 0.04, -0.06); tail.rotation.x = -1.9; taper(tail, '#c9a06a', 0.24, 0.022, 0.01, 1); E(tail, '#2e2016', 0.014, 0.05, 0.014, 0, 0.23, 0);
+  function update(t, moving, act) {
+    body.rotation.x = moving ? 1.0 : 0; body.position.y = moving ? 0.1 + Math.abs(sin(t * 11)) * 0.03 : 0.1;
+    torso.scale.y = 1; head.rotation.set(moving ? -1.0 : 0, sin(t * 1.3) * 0.6, 0);
+    arms.forEach((a) => { a.rotation.x = moving ? 0.3 : -0.3; });
+    blink(eyes, t + 7);
+    if (act < 0) return;
+    const p = easeIn(act);
+    body.rotation.x = 0; torso.scale.y = 1 + 0.15 * p; head.rotation.set(-0.15, sin(act * 3) * 1.0, 0);
+  }
+  return { root, update };
+}
+
+// ---------------- 게 (홍게 · 유령게) ----------------
+function crab(C1 = '#d8402a', C2 = '#f07a4a', legLong = 1, stalks = false) {
+  const root = new THREE.Group();
+  const body = joint(root, 0, 0.13, 0);
+  E(body, C1, 0.2, 0.08, 0.17);
+  E(body, C2, 0.15, 0.04, 0.12, 0, 0.05, 0.02, null, true);
+  for (let i = 0; i < 6; i++) E(body, C2, 0.015, 0.015, 0.015, (i % 3 - 1) * 0.08, 0.075, (Math.floor(i / 3) - 0.5) * 0.08, null, true);
+  E(body, '#f6ecd8', 0.17, 0.03, 0.14, 0, -0.06, 0, null, true);
+  const eyes = [-1, 1].map((s) => { const e = joint(body, s * 0.04, 0.06, 0.15); if (stalks) { taper(e, C1, 0.07, 0.008, 0.008, 1); const k = eye(e, 0.02, 0, 0.08, 0); return k; } return eye(e, 0.016, 0, 0.01, 0); });
+  const claws = [-1, 1].map((s) => {
+    const c = joint(body, s * 0.16, 0.0, 0.12); c.rotation.y = s * -0.4;
+    taper(c, C1, 0.12, 0.025, 0.02, 1); c.children[0].rotation.x = Math.PI / 2 + 0.4; c.children[0].position.set(0, 0.03, 0.05);
+    const top = joint(c, 0, 0.05, 0.12); E(top, C1, 0.05, 0.035, 0.07, 0, 0, 0.04); E(top, '#2a1d18', 0.01, 0.01, 0.025, 0, 0, 0.1, null, true);
+    E(c, C1, 0.035, 0.02, 0.06, 0, 0.02, 0.17);
+    return { c, top };
+  });
+  const legs = [];
+  for (const s of [-1, 1]) for (let i = 0; i < 4; i++) {
+    const l = joint(root, s * 0.17, 0.13, -0.08 + i * 0.05);
+    l.rotation.z = s * (1.0 - i * 0.05); l.rotation.y = s * (0.3 - i * 0.2);
+    taper(l, C1, 0.13 * legLong, 0.012, 0.009);
+    const k = joint(l, 0, -0.13 * legLong, 0); k.rotation.z = s * -1.6; taper(k, C2, 0.12 * legLong, 0.009, 0.005);
+    legs.push(l);
+  }
+  function update(t, moving, act) {
+    legs.forEach((l, i) => { l.rotation.x = moving ? sin(t * 16 + i) * 0.35 : 0; });
+    body.position.y = 0.13 + (moving ? Math.abs(sin(t * 16)) * 0.015 : 0);
+    claws.forEach(({ c, top }) => { c.rotation.x = 0; top.rotation.x = 0; });
+    blink(eyes, t + 8);
+    if (act < 0) return;
+    if (stalks) { root.position.x = sin(act * 10) * 0.25; return; }   // 유령게는 쌩 옆으로
+    claws.forEach(({ c, top }, i) => { c.rotation.x = -0.9 * easeIn(act, 0.25); top.rotation.x = -Math.abs(sin(act * 14 + i)) * 0.6; });
+  }
+  return { root, update };
+}
+
+// ---------------- 물고기 공통: 렌즈 모양 몸 · 등이 짙고 배가 밝게 ----------------
+function fin(p, c, w, h, x, y, z, rot, opacity = 0.9) {
+  const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.quadraticCurveTo(w * 0.4, h * 0.9, w, h); sh.lineTo(w * 0.9, 0); sh.closePath();
+  const m = new THREE.Mesh(new THREE.ShapeGeometry(sh), skin(c, 0.5, { side: THREE.DoubleSide, transparent: opacity < 1, opacity }));
+  m.position.set(x, y, z); if (rot) m.rotation.set(...rot); p.add(m); return m;
+}
+function fishBody(p, o) {
+  const g = joint(p);
+  E(g, o.back, o.w, o.h, o.l);
+  E(g, o.belly, o.w * 1.01, o.h * 0.55, o.l * 0.94, 0, -o.h * 0.45, 0);
+  if (o.stripe) E(g, o.stripe, o.w * 1.02, o.h * 0.12, o.l * 0.9, 0, 0, 0, null, true);
+  const eyes = eyePair(g, o.h * 0.16, o.w * 0.8, o.h * 0.2, o.l * 0.65, o.iris || '#d8d8c0', 'round', 1.3);
+  const tail = joint(g, 0, 0, -o.l * 0.95);
+  fin(tail, o.fin, o.h * 0.9, o.h * 1.0, 0, 0, 0, [0, Math.PI / 2, 0]);
+  fin(tail, o.fin, o.h * 0.9, o.h * 1.0, 0, 0, 0, [Math.PI, Math.PI / 2, 0]);
+  if (o.dorsal !== false) fin(g, o.fin, o.l * 0.45, o.h * 0.7, 0, o.h * 0.8, o.l * 0.15, [0, Math.PI / 2, 0]);
+  return { g, tail, eyes };
+}
+function sardine() {
+  const root = new THREE.Group(), rnd = mulberry(5), fish = [];
+  for (let i = 0; i < 7; i++) {
+    const p = joint(root, (rnd() - 0.5) * 0.8, (rnd() - 0.5) * 0.35, (rnd() - 0.5) * 0.7);
+    const f = fishBody(p, { w: 0.035, h: 0.055, l: 0.16, back: '#2f6c9a', belly: '#e8eef4', stripe: '#9fb8cc', fin: '#a8bccc' });
+    for (let k = 0; k < 3; k++) E(f.g, '#1e3c58', 0.006, 0.006, 0.006, 0.034, 0.02, 0.06 - k * 0.04, null, true);
+    fish.push({ p, ...f, base: p.position.clone(), ph: rnd() * 6 });
+  }
+  function update(t, moving, act) {
+    fish.forEach((f) => { f.tail.rotation.y = sin(t * 18 + f.ph) * 0.45; f.p.position.y = f.base.y + sin(t * 2 + f.ph) * 0.05; f.p.rotation.set(0, 0, 0); });
+    root.rotation.y = 0;
+    if (act < 0) return;
+    fish.forEach((f) => { f.p.rotation.z = act * 8 + f.ph; f.p.position.y = f.base.y + sin(act * 6 + f.ph) * 0.1; });
+    root.rotation.y = act * 2.6;
+  }
+  return { root, update };
+}
+function flounder() {
+  const root = new THREE.Group(), rnd = mulberry(9);
+  const body = joint(root, 0, 0.05, 0);
+  E(body, '#9a7e5c', 0.24, 0.035, 0.3);
+  spotsOn(body, { rx: 0.24, ry: 0.035, rz: 0.3, n: 22, color: '#6e5636', size: 0.03, where: (x, y) => y > 0.3 }, rnd);
+  spotsOn(body, { rx: 0.24, ry: 0.035, rz: 0.3, n: 10, color: '#d8c49a', size: 0.02, where: (x, y) => y > 0.3 }, rnd);
+  for (const s of [-1, 1]) E(body, '#8a6e4c', 0.06, 0.012, 0.28, s * 0.23, 0, -0.01, null, true);   // 지느러미 테두리
+  const eyes = [eye(body, 0.024, -0.03, 0.04, 0.2, '#d8c88a'), eye(body, 0.024, 0.05, 0.04, 0.16, '#d8c88a')];
+  eyes.forEach((e) => { e.rotation.x = -1.3; });
+  const tail = joint(body, 0, 0, -0.3); fin(tail, '#8a6e4c', 0.12, 0.1, 0, 0, 0, [-Math.PI / 2, 0, 0]); fin(tail, '#8a6e4c', 0.12, 0.1, 0, 0, 0, [-Math.PI / 2, Math.PI, 0]);
+  const sand = joint(root); sand.visible = false;
+  for (let i = 0; i < 10; i++) E(sand, '#e6d2a2', 0.025, 0.025, 0.025, (rnd() - 0.5) * 0.6, 0.05, (rnd() - 0.5) * 0.6, null, true);
+  function update(t, moving, act) {
+    tail.rotation.x = sin(t * (moving ? 8 : 2)) * 0.25; body.rotation.z = moving ? sin(t * 8) * 0.05 : 0; body.position.y = 0.05; sand.visible = false;
+    blink(eyes, t + 9);
+    if (act < 0) return;
+    body.position.y = 0.05 + Math.abs(sin(act * 8)) * 0.08; body.rotation.z = sin(act * 16) * 0.15;
+    sand.visible = true; sand.children.forEach((s, i) => { s.position.y = 0.05 + ((act * 1.2 + i * 0.11) % 0.5); });
+  }
+  return { root, update };
+}
+function turtle() {
+  const root = new THREE.Group();
+  const body = joint(root);
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), skin('#5a6a3a', 0.55));
+  shell.scale.set(0.44, 0.22, 0.52); body.add(shell);
+  // 등딱지 무늬 (가운데 줄 + 양옆 판)
+  for (let i = 0; i < 5; i++) E(body, '#8a7a4a', 0.075, 0.03, 0.075, 0, 0.215 - Math.abs(i - 2) * 0.025, -0.3 + i * 0.15, null, true);
+  for (const s of [-1, 1]) for (let i = 0; i < 4; i++) E(body, '#7a6a3e', 0.07, 0.025, 0.07, s * 0.2, 0.15, -0.22 + i * 0.15, [0, 0, s * 0.6], true);
+  E(body, '#e8dcb0', 0.42, 0.05, 0.5, 0, -0.01, 0);
+  const head = joint(body, 0, 0.03, 0.5);
+  E(head, '#7a8a5a', 0.1, 0.085, 0.13, 0, 0.01, 0.06);
+  for (let i = 0; i < 4; i++) E(head, '#c9c49a', 0.03, 0.02, 0.025, (i % 2 - 0.5) * 0.08, 0.07, 0.03 + Math.floor(i / 2) * 0.06, null, true);
+  const eyes = eyePair(head, 0.02, 0.07, 0.04, 0.14, '#3a2a1a', 'round', 0.9);
+  const fl = [[-1, 1, 0.34], [1, 1, 0.34], [-1, -1, 0.18], [1, -1, 0.18]].map(([sx, sz, len]) => { const f = joint(body, sx * 0.36, -0.02, sz * 0.22); E(f, '#7a8a5a', len, 0.025, 0.1, sx * len * 0.85, 0, 0, [0, sx * sz * -0.35, 0]); return f; });
+  function update(t, moving, act) {
+    const s = sin(t * (moving ? 2.6 : 1.2));
+    fl[0].rotation.z = s * 0.45; fl[1].rotation.z = -s * 0.45; fl[2].rotation.z = -s * 0.25; fl[3].rotation.z = s * 0.25;
+    head.rotation.set(0, sin(t * 0.7) * 0.2, 0);
+    blink(eyes, t + 10);
+    if (act < 0) return;
+    fl[0].rotation.z = 0.9 + sin(act * 10) * 0.5; head.rotation.x = -0.3;
+  }
+  return { root, update };
+}
+function shark() {
+  const root = new THREE.Group();
+  const body = joint(root);
+  E(body, '#b8a868', 0.24, 0.26, 0.8);
+  E(body, '#efe8cc', 0.23, 0.12, 0.74, 0, -0.14, 0.02);
+  E(body, '#b8a868', 0.18, 0.18, 0.3, 0, 0.0, 0.62);   // 뾰족한 코
+  E(body, '#2a2a2a', 0.08, 0.008, 0.05, 0, -0.1, 0.78, null, true);   // 입
+  const eyes = eyePair(body, 0.025, 0.15, 0.04, 0.7, null, 'round', 1.3);
+  for (const s of [-1, 1]) for (let i = 0; i < 4; i++) E(body, '#8a7a4a', 0.004, 0.06, 0.01, s * 0.235, 0, 0.4 - i * 0.04, null, true);   // 아가미
+  fin(body, '#a8985a', 0.3, 0.32, 0, 0.22, 0.05, [0, Math.PI / 2, 0]);
+  fin(body, '#a8985a', 0.18, 0.2, 0, 0.18, -0.45, [0, Math.PI / 2, 0]);
+  const pect = [-1, 1].map((s) => { const f = joint(body, s * 0.2, -0.12, 0.25); fin(f, '#a8985a', 0.3, 0.12, 0, 0, 0, [Math.PI / 2, 0, s > 0 ? 0 : Math.PI]); f.rotation.z = s * -0.4; return f; });
+  const tail = joint(body, 0, 0, -0.8);
+  fin(tail, '#a8985a', 0.3, 0.42, 0, 0, 0, [0, Math.PI / 2, 0.1]);
+  fin(tail, '#a8985a', 0.22, 0.22, 0, 0, 0, [Math.PI, Math.PI / 2, 0.1]);
+  function update(t, moving, act) {
+    tail.rotation.y = sin(t * 4) * 0.35; body.rotation.y = sin(t * 4) * 0.05; body.rotation.z = 0;
+    blink(eyes, t + 11);
+    if (act < 0) return;
+    body.rotation.z = act * 4.5;
+  }
+  return { root, update };
+}
+function angler() {
+  const root = new THREE.Group();
+  const body = joint(root);
+  E(body, '#3a2e3a', 0.32, 0.3, 0.34);
+  E(body, '#2a2028', 0.3, 0.12, 0.3, 0, -0.18, 0.04);
+  E(body, '#120c12', 0.26, 0.09, 0.08, 0, -0.06, 0.29);   // 커다란 입
+  for (let i = 0; i < 8; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.07, 5), skin('#f2ece0', 0.3)); c.position.set(-0.2 + i * 0.057, i % 2 ? -0.02 : -0.1, 0.33); c.rotation.x = i % 2 ? Math.PI : 0; body.add(c); }
+  const eyes = eyePair(body, 0.03, 0.15, 0.1, 0.26, null, 'round', 0.7);
+  const lure = joint(body, 0, 0.26, 0.15);
+  const rod = joint(lure); rod.rotation.x = 0.6; taper(rod, '#4a3a4a', 0.32, 0.012, 0.008, 1);
+  const bulb = joint(rod, 0, 0.33, 0);
+  E(bulb, skin('#bff6ff', 0.2, { emissive: '#bff6ff', emissiveIntensity: 1.6 }), 0.045, 0.045, 0.045);
+  const tail = joint(body, 0, 0, -0.32); fin(tail, '#3a2e3a', 0.18, 0.2, 0, 0, 0, [0, Math.PI / 2, 0]); fin(tail, '#3a2e3a', 0.18, 0.2, 0, 0, 0, [Math.PI, Math.PI / 2, 0]);
+  function update(t, moving, act) {
+    tail.rotation.y = sin(t * 3.5) * 0.35; lure.rotation.x = sin(t * 1.8) * 0.15; bulb.scale.setScalar(1);
+    blink(eyes, t + 12);
+    if (act < 0) return;
+    bulb.scale.setScalar(1.6 + sin(act * 12) * 0.5); lure.rotation.x = sin(act * 6) * 0.35;
+  }
+  return { root, update };
+}
+function dragonfish() {
+  const root = new THREE.Group();
+  const segs = []; let prev = root;
+  for (let i = 0; i < 6; i++) {
+    const s = joint(prev, 0, 0, i ? -0.2 : 0.2); prev = s;
+    const k = 1 - i * 0.12;
+    E(s, '#14121e', 0.07 * k, 0.1 * k, 0.13);
+    E(s, skin('#6ef0ff', 0.2, { emissive: '#6ef0ff', emissiveIntensity: 1.3 }), 0.01, 0.01, 0.01, 0.07 * k, -0.05 * k, 0, null, true);
+    E(s, skin('#6ef0ff', 0.2, { emissive: '#6ef0ff', emissiveIntensity: 1.3 }), 0.01, 0.01, 0.01, -0.07 * k, -0.05 * k, 0, null, true);
+    segs.push(s);
+  }
+  const head = joint(segs[0], 0, 0.01, 0.13);
+  E(head, '#14121e', 0.08, 0.11, 0.14, 0, 0, 0.04);
+  for (let i = 0; i < 5; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(0.008, 0.06, 5), skin('#e8e8f0', 0.3)); c.position.set(-0.04 + i * 0.02, -0.05, 0.16); c.rotation.x = Math.PI; head.add(c); }
+  const eyes = eyePair(head, 0.022, 0.06, 0.03, 0.1, '#3a3a50', 'round', 1.2);
+  const barbel = joint(head, 0, -0.1, 0.06);
+  taper(barbel, '#3a3550', 0.32, 0.005, 0.004);
+  const glow = joint(barbel, 0, -0.33, 0); E(glow, skin('#ff5af0', 0.2, { emissive: '#ff5af0', emissiveIntensity: 1.6 }), 0.03, 0.03, 0.03);
+  const tail = segs[5]; fin(tail, '#14121e', 0.12, 0.14, 0, 0, -0.1, [0, Math.PI / 2, 0]); fin(tail, '#14121e', 0.12, 0.14, 0, 0, -0.1, [Math.PI, Math.PI / 2, 0]);
+  function update(t, moving, act) {
+    segs.forEach((s, i) => { s.rotation.y = i ? sin(t * 3.5 - i) * 0.16 : 0; });
+    barbel.rotation.x = sin(t * 2) * 0.2; barbel.rotation.z = 0; glow.scale.setScalar(1);
+    blink(eyes, t + 13);
+    if (act < 0) return;
+    barbel.rotation.z = sin(act * 7) * 0.8; barbel.rotation.x = -0.5; glow.scale.setScalar(1.6 + sin(act * 14) * 0.5);
+  }
+  return { root, update };
+}
+function oarfish() {
+  const root = new THREE.Group();
+  const segs = []; let prev = root;
+  for (let i = 0; i < 14; i++) {
+    const s = joint(prev, 0, 0, i ? -0.24 : 0.9); prev = s;
+    const h = 0.17 - i * 0.008;
+    E(s, i % 2 ? '#dfe5ee' : '#c8d0dc', 0.04, h, 0.14);
+    if (i % 2 === 0) E(s, '#7a8aa0', 0.041, 0.012, 0.04, 0, (i % 4 ? 0.05 : -0.04), 0, null, true);
+    E(s, skin('#e2283a', 0.5, { transparent: true, opacity: 0.9 }), 0.008, 0.05, 0.13, 0, h + 0.03, 0, null, true);   // 빨간 등지느러미
+    segs.push(s);
+  }
+  const head = joint(segs[0], 0, 0, 0.14);
+  E(head, '#dfe5ee', 0.045, 0.15, 0.12);
+  for (let i = 0; i < 5; i++) { const r = joint(head, 0, 0.14, -0.02 - i * 0.03); r.rotation.x = -0.5 - i * 0.12; taper(r, '#e2283a', 0.3 - i * 0.04, 0.008, 0.004, 1); }
+  const eyes = eyePair(head, 0.025, 0.04, 0.03, 0.06, '#c8c8a0', 'round', 1.4);
+  function update(t, moving, act) {
+    const amp = act >= 0 ? 0.42 : 0.16, sp = act >= 0 ? 6 : 2.4;
+    segs.forEach((s, i) => { s.rotation.y = i ? sin(t * sp - i * 0.7) * amp * 0.6 : 0; s.rotation.x = act >= 0 && i ? sin(t * sp - i * 0.7 + 1) * 0.1 : 0; });
+    blink(eyes, t + 14);
+  }
+  return { root, update };
+}
+function clione() {
+  const root = new THREE.Group();
+  const body = joint(root);
+  const glass = skin('#eaf6ff', 0.15, { transparent: true, opacity: 0.55, emissive: '#cfeaff', emissiveIntensity: 0.25 });
+  E(body, glass, 0.09, 0.22, 0.09);
+  E(body, skin('#ff7a2a', 0.4, { emissive: '#ff7a2a', emissiveIntensity: 0.4 }), 0.045, 0.07, 0.045, 0, -0.02, 0);
+  const head = joint(body, 0, 0.2, 0);
+  E(head, glass, 0.08, 0.08, 0.08);
+  E(head, skin('#ff8a3a', 0.4), 0.03, 0.03, 0.03, 0, 0.06, 0, null, true);
+  const eyes = eyePair(head, 0.01, 0.03, 0.01, 0.07, null, 'round', 0.3);
+  E(body, glass, 0.04, 0.06, 0.04, 0, -0.24, 0);
+  const wings = [-1, 1].map((s) => { const w = joint(body, s * 0.07, 0.08, 0); E(w, glass, 0.12, 0.06, 0.012, s * 0.11, 0, 0); return w; });
+  function update(t, moving, act) {
+    const sp = act >= 0 ? 20 : 5, a = act >= 0 ? 0.9 : 0.5;
+    wings[0].rotation.y = sin(t * sp) * a; wings[1].rotation.y = -sin(t * sp) * a;
+    body.position.y = sin(t * 2) * 0.05 + (act >= 0 ? Math.abs(sin(act * 3)) * 0.25 : 0);
+    blink(eyes, t + 15);
+  }
+  return { root, update };
+}
+function dumbo() {
+  const root = new THREE.Group();
+  const body = joint(root);
+  const mantle = skin('#f2a07a', 0.45, { transparent: true, opacity: 0.95 });
+  E(body, mantle, 0.25, 0.3, 0.24, 0, 0.08, 0);
+  E(body, skin('#f8c0a0', 0.45), 0.16, 0.12, 0.15, 0, 0.3, -0.02);
+  const eyes = eyePair(body, 0.035, 0.12, 0.04, 0.2, null, 'round', 0.6);
+  const ears = [-1, 1].map((s) => { const e = joint(body, s * 0.22, 0.24, 0); E(e, skin('#f08a6a', 0.45, { transparent: true, opacity: 0.9 }), 0.15, 0.025, 0.1, s * 0.12, 0, 0); return e; });
+  // 다리 사이 막(우산처럼) + 다리 8개
+  const web = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.22, 16, 1, true), skin('#f2a07a', 0.5, { transparent: true, opacity: 0.6, side: THREE.DoubleSide }));
+  web.position.y = -0.24; web.rotation.x = Math.PI; body.add(web);
+  const arms = [...Array(8)].map((_, i) => { const an = (i / 8) * Math.PI * 2; const a = joint(body, cos(an) * 0.17, -0.18, sin(an) * 0.17); taper(a, '#f2a07a', 0.2, 0.03, 0.015); for (let k = 0; k < 3; k++) E(a, '#fbe0d0', 0.008, 0.008, 0.008, 0, -0.05 - k * 0.05, 0.02, null, true); a.userData.an = an; return a; });
+  function update(t, moving, act) {
+    const sp = act >= 0 ? 12 : 2.6, a = act >= 0 ? 0.8 : 0.35;
+    ears[0].rotation.z = sin(t * sp) * a; ears[1].rotation.z = -sin(t * sp) * a;
+    body.position.y = sin(t * 1.4) * 0.06 + (act >= 0 ? Math.abs(sin(act * 4)) * 0.25 : 0);
+    arms.forEach((ar) => { const k = 0.35 + sin(t * 1.8) * 0.12; ar.rotation.x = sin(ar.userData.an) * k; ar.rotation.z = -cos(ar.userData.an) * k; });
+    web.scale.set(1 + sin(t * 1.8) * 0.08, 1, 1 + sin(t * 1.8) * 0.08);
+    blink(eyes, t + 16);
+  }
+  return { root, update };
+}
+
+// ---------------- 동물별 실제 모습 ----------------
+const BUILD = {
+  frog: () => frog(),
+  snake: () => snake({ color: '#2fa84a', band: '#e8f4d0', belly: '#e8e070', r: 0.075, iris: '#c8b84a', seed: 2 }),
+  rattlesnake: () => snake({ color: '#c4a46e', diamond: '#6e4a2a', belly: '#efe0b8', r: 0.07, iris: '#d8a83a', rattle: true, seed: 4 }),
+  sloth: () => primate({ color: '#9a8466', face: '#e6d6b6', muzzle: '#d6c4a2', mask: '#3a2a1e', body: [0.24, 0.26, 0.2], head: 0.18, leg: 0.12, arm: 0.36, armR: 0.05, claws: true, slow: true, lean: 0.35 }),
+  orangutan: () => primate({ color: '#b8521c', shag: '#d0682a', face: '#7a5040', muzzle: '#8a6050', body: [0.32, 0.34, 0.26], head: 0.22, leg: 0.2, arm: 0.62, armR: 0.07, cheekPads: true, beat: true, eye: 0.1, lean: 0.2 }),
+  nightmonkey: () => primate({ color: '#7a6e64', belly: '#d8a870', face: '#d8cbb6', muzzle: '#c8b8a0', brows: '#2a2420', body: [0.14, 0.17, 0.13], head: 0.12, leg: 0.12, arm: 0.2, armR: 0.03, eye: 0.24, iris: '#b8762a', tail: 0.4, lean: 0.3 }),
+  toucan: () => toucan(),
+  capybara: () => quadruped({ body: [0.3, 0.26, 0.48], color: '#a0703c', belly: '#b88a52', leg: 0.12, legR: 0.055, neck: [0.12, 0.14], neckTilt: 1.15, head: [0.15, 0.17, 0.22], snout: [0.13, 0.13, 0.12, '#8a5c30'], nose: '#3a2418', ear: [0.04, 0.035], earOut: 0.2, tail: 0.02, eye: 0.11, kind: 'nap', gait: 7, seed: 1 }),
+  hyena: () => quadruped({ body: [0.22, 0.26, 0.42], color: '#b89a68', belly: '#d2bc90', chest: '#c4a674', leg: 0.36, legR: 0.045, neck: [0.24, 0.12], neckTilt: 0.7, head: [0.14, 0.13, 0.17], snout: [0.075, 0.07, 0.11, '#4a3a2a'], ear: [0.06, 0.07], earColor: '#5a4630', earIn: '#8a7050', tail: 0.26, tuft: '#2e2418', spots: { c: '#4e3a26', n: 30, s: 0.035 }, eye: 0.13, kind: 'laugh', rump: -0.06, seed: 3 }),
+  lion: () => quadruped({ body: [0.27, 0.28, 0.52], color: '#d8a654', belly: '#ecd0a0', leg: 0.36, legR: 0.06, foot: '#c8964a', neck: [0.2, 0.15], neckTilt: 0.55, mane: '#8a4a1e', mane2: '#a85e26', head: [0.17, 0.16, 0.18], headColor: '#dcac5c', snout: [0.1, 0.08, 0.1, '#ecd0a0'], nose: '#5a3424', ear: [0.05, 0.045], earOut: 0.4, tail: 0.5, tailDroop: 2.6, tuft: '#5a2e14', eye: 0.11, iris: '#c8902a', kind: 'roar', seed: 5 }),
+  cheetah: () => quadruped({ body: [0.2, 0.2, 0.5], color: '#e0b468', belly: '#f6e6c4', leg: 0.46, legR: 0.035, neck: [0.2, 0.1], neckTilt: 0.6, head: [0.11, 0.1, 0.12], snout: [0.06, 0.05, 0.06, '#f6e6c4'], tear: '#1e1a16', ear: [0.035, 0.03], earOut: 0.5, tail: 0.55, tailR: 0.025, tailDroop: 2.7, tailRings: 4, spots: { c: '#1e1a16', n: 70, s: 0.022 }, headSpots: 10, eye: 0.15, iris: '#c8a03a', kind: 'dash', gait: 11, seed: 8 }),
+  leopard: () => quadruped({ body: [0.24, 0.23, 0.52], color: '#d8a24a', belly: '#f4e2bc', leg: 0.33, legR: 0.045, neck: [0.18, 0.12], neckTilt: 0.65, head: [0.14, 0.13, 0.15], snout: [0.08, 0.06, 0.07, '#f0dcb0'], ear: [0.04, 0.035], earOut: 0.5, tail: 0.6, tailR: 0.03, tailDroop: 2.5, spots: { c: '#3a2614', n: 55, s: 0.04, stretch: 1.3 }, headSpots: 8, eye: 0.13, iris: '#a8c04a', kind: 'wag', seed: 11 }),
+  camel: () => quadruped({ body: [0.3, 0.3, 0.55], color: '#c89a62', belly: '#dcb888', leg: 0.85, legR: 0.05, foot: '#a87a4a', hump: 0.3, neck: [0.6, 0.09], neckTilt: 0.35, headTilt: 1.0, head: [0.12, 0.12, 0.2], snout: [0.09, 0.08, 0.1, '#b88a56'], lip: '#a87a4a', ear: [0.03, 0.04], earOut: 0.8, tail: 0.3, tailR: 0.02, tuft: '#7a5634', eye: 0.14, kind: 'chew', gait: 5, seed: 12 }),
+  fennec: () => quadruped({ body: [0.15, 0.13, 0.24], color: '#ecc890', belly: '#fbf2e2', leg: 0.18, legR: 0.025, neck: [0.1, 0.07], head: [0.1, 0.09, 0.1], snout: [0.045, 0.04, 0.07, '#fbf2e2'], ear: [0.075, 0.17], earIn: '#f6d8c8', earOut: 0.3, tail: 0.24, tailR: 0.045, tailDroop: 2.2, tuft: '#2e2016', eye: 0.2, kind: 'ears', seed: 13 }),
+  aardvark: () => quadruped({ body: [0.26, 0.24, 0.48], color: '#b8927a', belly: '#c8a48a', leg: 0.22, legR: 0.05, rump: 0.05, neck: [0.14, 0.13], neckTilt: 1.1, headTilt: 0.15, head: [0.11, 0.1, 0.16], snout: [0.05, 0.05, 0.22, '#a8846a'], nose: '#d8a090', ear: [0.05, 0.14], earIn: '#d8a898', earOut: 0.2, tail: 0.4, tailR: 0.06, tailDroop: 2.4, eye: 0.13, kind: 'dig', gait: 6, seed: 14 }),
+  hedgehog: () => quadruped({ body: [0.16, 0.12, 0.2], color: '#7a6450', belly: '#e8d8bc', leg: 0.06, legR: 0.025, spines: 110, neck: [0.06, 0.06], neckTilt: 1.2, head: [0.08, 0.075, 0.09], headColor: '#e8d8bc', snout: [0.04, 0.035, 0.07, '#e8d8bc'], nose: '#1e1414', ear: [0.04, 0.05], earIn: '#e8b8b0', earOut: 0.4, tail: 0.02, eye: 0.17, kind: 'ball', gait: 12, seed: 21 }),
+  thornydevil: () => thornydevil(),
+  kangaroorat: () => kangaroorat(),
+  meerkat: () => meerkat(),
+  crab: () => crab('#d8402a', '#f07a4a', 1.4),
+  ghostcrab: () => crab('#e4d6b4', '#f4ead2', 1.0, true),
+  sardine: () => sardine(),
+  flounder: () => flounder(),
+  turtle: () => turtle(),
+  shark: () => shark(),
+  angler: () => angler(),
+  dragonfish: () => dragonfish(),
+  oarfish: () => oarfish(),
+  clione: () => clione(),
+  dumbo: () => dumbo(),
+};
+
+const _box = new THREE.Box3(), _v = new THREE.Vector3();
+function buildAnimal(model) {
+  const m = (BUILD[model] || BUILD.capybara)();
+  m.update(0, false, -1);
+  m.root.updateMatrixWorld(true);
+  _box.setFromObject(m.root);
+  _box.getSize(_v);
+  m.size = Math.max(_v.x, _v.y, _v.z * 0.7);   // 사진 크기 판정에 쓰는 길이
+  m.height = _v.y;
+  m.center = (_box.min.y + _box.max.y) / 2;   // 뿌리에서 몸 가운데까지 높이
+  return m;
+}
+
+function mulberry(seed) {
+  return function () {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const LIST = [{"id": "frog", "name": "개구리", "zone": "jungle", "rarity": "common", "model": "frog", "act": "폴짝 점프", "night": false}, {"id": "snake", "name": "뱀", "zone": "jungle", "rarity": "common", "model": "snake", "act": "혀 날름", "night": false}, {"id": "sloth", "name": "나무늘보", "zone": "jungle", "rarity": "uncommon", "model": "sloth", "act": "느린 기지개", "night": false}, {"id": "toucan", "name": "토코투칸", "zone": "jungle", "rarity": "rare", "model": "toucan", "act": "날갯짓", "night": false}, {"id": "orangutan", "name": "오랑우탄", "zone": "jungle", "rarity": "mythic", "model": "orangutan", "act": "가슴 두드리기", "night": false}, {"id": "capybara", "name": "카피바라", "zone": "savanna", "rarity": "common", "model": "capybara", "act": "꾸벅 졸기", "night": false}, {"id": "hyena", "name": "하이에나", "zone": "savanna", "rarity": "uncommon", "model": "hyena", "act": "깔깔 웃기", "night": false}, {"id": "lion", "name": "사자", "zone": "savanna", "rarity": "rare", "model": "lion", "act": "어흥!", "night": false}, {"id": "cheetah", "name": "치타", "zone": "savanna", "rarity": "rare", "model": "cheetah", "act": "전력 질주", "night": false}, {"id": "leopard", "name": "표범", "zone": "savanna", "rarity": "rare", "model": "leopard", "act": "꼬리 살랑", "night": false}, {"id": "thornydevil", "name": "가시도마뱀", "zone": "desert", "rarity": "uncommon", "model": "thornydevil", "act": "가시 세우기", "night": false}, {"id": "rattlesnake", "name": "방울뱀", "zone": "desert", "rarity": "uncommon", "model": "rattlesnake", "act": "방울 흔들기", "night": false}, {"id": "camel", "name": "낙타", "zone": "desert", "rarity": "uncommon", "model": "camel", "act": "쩝쩝 되새김", "night": false}, {"id": "kangaroorat", "name": "캥거루쥐", "zone": "desert", "rarity": "rare", "model": "kangaroorat", "act": "깡충 높이뛰기", "night": false}, {"id": "meerkat", "name": "미어캣", "zone": "desert", "rarity": "rare", "model": "meerkat", "act": "벌떡 망보기", "night": false}, {"id": "fennec", "name": "사막여우", "zone": "desert", "rarity": "mythic", "model": "fennec", "act": "큰 귀 쫑긋", "night": false}, {"id": "redcrab", "name": "홍게", "zone": "beach", "rarity": "common", "model": "crab", "act": "집게 번쩍", "night": false}, {"id": "sardine", "name": "정어리", "zone": "beach", "rarity": "common", "model": "sardine", "act": "반짝 회전", "night": false}, {"id": "flounder", "name": "도다리", "zone": "beach", "rarity": "uncommon", "model": "flounder", "act": "모래 털기", "night": false}, {"id": "seaturtle", "name": "푸른바다거북", "zone": "beach", "rarity": "rare", "model": "turtle", "act": "지느러미 인사", "night": false}, {"id": "lemonshark", "name": "레몬상어", "zone": "beach", "rarity": "rare", "model": "shark", "act": "빙글 돌기", "night": false}, {"id": "anglerfish", "name": "초롱아귀", "zone": "deep", "rarity": "legend", "model": "angler", "act": "초롱 반짝", "night": false}, {"id": "dragonfish", "name": "드래곤피쉬", "zone": "deep", "rarity": "legend", "model": "dragonfish", "act": "빛 수염 흔들기", "night": false}, {"id": "oarfish", "name": "산갈치", "zone": "deep", "rarity": "legend", "model": "oarfish", "act": "물결 춤", "night": false}, {"id": "clione", "name": "클리오네", "zone": "deep", "rarity": "legend", "model": "clione", "act": "날개 팔랑", "night": false}, {"id": "dumbo", "name": "덤보문어", "zone": "deep", "rarity": "mythic", "model": "dumbo", "act": "귀 지느러미 파닥", "night": false}, {"id": "nightmonkey", "name": "올빼미원숭이", "zone": "jungle", "rarity": "rare", "model": "nightmonkey", "act": "큰 눈 깜빡", "night": true}, {"id": "aardvark", "name": "땅돼지", "zone": "savanna", "rarity": "rare", "model": "aardvark", "act": "흙 파기", "night": true}, {"id": "hedgehog", "name": "사막고슴도치", "zone": "desert", "rarity": "rare", "model": "hedgehog", "act": "가시 공 되기", "night": true}, {"id": "ghostcrab", "name": "유령게", "zone": "beach", "rarity": "rare", "model": "ghostcrab", "act": "쌩 달리기", "night": true}];
+const ZONES = [['jungle', '🌴 정글'], ['savanna', '🦁 초원'], ['desert', '🏜️ 사막'], ['beach', '🏖️ 바닷가'], ['deep', '🌊 깊은 바다']];
+const RN = { common: '일반', uncommon: '드문', rare: '희귀', legend: '전설', mythic: '신화' };
+document.getElementById('zones').innerHTML = ZONES.map(([z, label]) => {
+  const list = LIST.filter((a) => a.zone === z);
+  return `<section><h2 class="zhead">${label} <small>${list.length}종</small></h2><div class="grid">${list.map((a) => `
+    <article class="card"><div class="view" data-model="${a.model}" data-zone="${z}" style="background:var(--st-${z})" role="img" aria-label="${a.name}">${a.night ? '<span class="night" title="밤에만">🌙</span>' : ''}</div>
+    <div class="meta"><b>${a.name}<span class="rb r-${a.rarity}">${RN[a.rarity]}</span></b><small>✨ ${a.act}</small></div></article>`).join('')}</div></section>`;
+}).join('');
+const canvas = document.getElementById('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.setScissorTest(true);
+const views = [...document.querySelectorAll('.view')].map((el) => {
+  const scene = new THREE.Scene(), deep = el.dataset.zone === 'deep';
+  scene.add(new THREE.HemisphereLight(deep ? '#9fc0ff' : '#fff7e8', '#8a7a58', deep ? 1.1 : 1.5));
+  const sun = new THREE.DirectionalLight('#fff1d6', deep ? 1.2 : 2.3); sun.position.set(3, 5, 4); scene.add(sun);
+  const m = buildAnimal(el.dataset.model); scene.add(m.root);
+  const b = new THREE.Box3().setFromObject(m.root), s = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
+  const R = Math.max(s.x, s.y, s.z) * 0.62;
+  const cam = new THREE.PerspectiveCamera(32, 1, 0.01, 50); cam.position.set(c.x, c.y + R * 0.5, c.z + R * 3.1); cam.lookAt(c);
+  const sh = new THREE.Mesh(new THREE.CircleGeometry(R * 0.75, 24), new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.1 }));
+  sh.rotation.x = -Math.PI / 2; sh.position.y = Math.max(0.003, b.min.y - 0.01); scene.add(sh);
+  const v = { el, scene, m, cam, yaw: 0.7, drag: null };
+  el.addEventListener('pointerdown', (e) => { v.drag = e.clientX; el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointermove', (e) => { if (v.drag === null) return; v.yaw += (e.clientX - v.drag) * 0.012; v.drag = e.clientX; });
+  const end = () => { v.drag = null; }; el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+  return v;
+});
+let walking = false, acting = false, actT = 0, spinning = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+const toggle = (id, get, set) => { const b = document.getElementById(id); b.setAttribute('aria-pressed', String(get())); b.onclick = () => { set(!get()); b.setAttribute('aria-pressed', String(get())); }; };
+toggle('walkBtn', () => walking, (x) => { walking = x; });
+toggle('actBtn', () => acting, (x) => { acting = x; actT = 0; });
+toggle('spinBtn', () => spinning, (x) => { spinning = x; });
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; const t = now / 1000;
+  if (acting) { actT += dt; if (actT > 2.4) actT = 0; }
+  const W = canvas.clientWidth, H = canvas.clientHeight, pr = renderer.getPixelRatio();
+  if (canvas.width !== Math.floor(W * pr) || canvas.height !== Math.floor(H * pr)) renderer.setSize(W, H, false);
+  renderer.setScissor(0, 0, W, H); renderer.setClearColor(0, 0); renderer.clear();
+  for (const v of views) {
+    const r = v.el.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > H) continue;
+    if (spinning && v.drag === null) v.yaw += dt * 0.4;
+    v.m.root.rotation.y = v.yaw; v.m.update(t, walking, acting ? actT : -1);
+    const y = H - r.bottom;
+    renderer.setViewport(r.left, y, r.width, r.height); renderer.setScissor(r.left, y, r.width, r.height);
+    v.cam.aspect = r.width / r.height; v.cam.updateProjectionMatrix(); renderer.render(v.scene, v.cam);
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
