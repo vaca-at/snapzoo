@@ -25,6 +25,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---------- 위 알림판 ---------- */
 .hud { position: fixed; left: 0; right: 0; top: 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: calc(10px + var(--safe-t)) 12px 0; pointer-events: none; }
 .where { font-family: var(--display); font-size: 17px; background: var(--paper); border: 2px solid var(--ink); border-radius: 999px; padding: 6px 12px; box-shadow: 0 3px 0 var(--ink); white-space: nowrap; }
+.left { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
+.goal { margin: 0; max-width: 58vw; font-family: var(--display); font-size: 14px; line-height: 1.35; background: var(--sun); color: var(--sun-ink); border: 2px solid var(--ink); border-radius: 12px; padding: 5px 10px; box-shadow: 0 2px 0 var(--ink); }
+.goal.bump { animation: bump .4s; }
+body.photo .goal { display: none; }
 .chips { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .chip { display: flex; align-items: center; gap: 5px; background: var(--paper); border: 2px solid var(--ink); border-radius: 999px; padding: 4px 11px 4px 7px; font-family: var(--display); font-size: 17px; box-shadow: 0 3px 0 var(--ink); font-variant-numeric: tabular-nums; }
 .chip .ic { font-size: 16px; }
@@ -41,6 +45,10 @@ body:not(.playing) .hud, body:not(.playing) .walkui, body:not(.playing) .tabbar,
 .nametag .nm { font-family: var(--display); font-size: 13px; background: rgba(255,253,246,.92); border: 1.5px solid var(--ink); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
 .nametag .face { font-size: 30px; line-height: 1; opacity: 0; transform: scale(.4); transition: opacity .2s, transform .2s; background: var(--paper); border: 2px solid var(--ink); border-radius: 16px; padding: 4px 6px; }
 .nametag.withFace .face { opacity: 1; transform: scale(1); }
+
+.goalarrow { position: fixed; left: 0; top: 0; width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; background: var(--sun); color: var(--sun-ink); border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); font-size: 30px; font-weight: 700; pointer-events: none; animation: nudge .8s ease-in-out infinite alternate; }
+@keyframes nudge { to { filter: brightness(1.12); } }
+body:not(.playing) .goalarrow, body.photo .goalarrow { display: none; }
 
 /* ---------- 걷기 화면 B ---------- */
 .walkui { position: fixed; left: 0; right: 0; bottom: calc(92px + var(--safe-b)); height: 128px; pointer-events: none; }

@@ -28,6 +28,13 @@ export function init(game) {
 
 // ---------- 위 알림판 ----------
 export function setZone(z) { $('#zoneName').textContent = `${z.icon} ${z.name}`; }
+let goalCache = null;
+export function setGoal(t) {
+  if (t === goalCache) return;
+  goalCache = t;
+  const g = $('#goal'); g.textContent = t; g.hidden = !t;
+  if (t) bump(g);
+}
 export function setName(n) { $('#nameTag .nm').textContent = n; }
 let lastCoins = -1;
 export function updateHud() {

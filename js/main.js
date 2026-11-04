@@ -61,6 +61,7 @@ function enterZone(id) {
   yaw = Z.spawn.yaw; camYaw = yaw + Math.PI; me.sitting = false; me.action = null;
   S.zone = id; save();
   UI.setZone(ZONES[id]);
+  if (typeof updateGoal === 'function' && started) updateGoal();
   // 동물: 늘 있는 동물은 바로, 가끔 나오는 동물은 시간표대로
   for (const k in timers) delete timers[k];
   for (const sp of ANIMALS.filter((a) => a.zone === id)) {
@@ -469,15 +470,67 @@ function updateCoins(dt) {
     secAcc -= 1;
     const n = tickSecond();
     if (n === 0 && !UI.capShown) UI.capToast();
+    updateGoal();
   }
   UI.updateHud();
 }
-setInterval(() => { if (started) save(); }, 5000);
-document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else lockScreen(); });
+// 다른 앱에 다녀오거나 새로고침해도 그 자리에서 이어 해요
+function keepPlace() { if (started && mode === 'walk') S.pos = { zone: zoneId, x: +pos.x.toFixed(2), z: +pos.z.toFixed(2), yaw: +yaw.toFixed(2) }; save(); }
+setInterval(() => { if (started) keepPlace(); }, 5000);
+document.addEventListener('visibilitychange', () => { if (document.hidden) keepPlace(); else lockScreen(); });
+window.addEventListener('pagehide', keepPlace);
+
+// ---------- 다음에 할 일 안내 (처음 온 아이도 길을 잃지 않게) ----------
+const marker = new THREE.Group();
+{
+  const m = new THREE.Mesh(new THREE.ConeGeometry(0.45, 0.9, 4), new THREE.MeshBasicMaterial({ color: '#ffc93c' }));
+  m.rotation.x = Math.PI; marker.add(m);
+}
+marker.visible = false;
+scene.add(marker);
+function goal() {
+  const n = dexCount(), c = S.coins;
+  if (zoneId === 'station') {
+    if (n === 0) return { t: '🚌 왼쪽 버스를 타고 정글로! (무료)', spot: 'bus' };
+    if (!S.tickets.bus && c >= 350) return { t: '🎫 버스표를 살 수 있어요! 매표소로', spot: 'booth' };
+    if (S.tickets.bus && !S.tickets.boat && c >= 1000) return { t: '🎫 배표를 살 수 있어요! 매표소로', spot: 'booth' };
+    return { t: '' };
+  }
+  if (n === 0) return { t: '📷 동물 가까이 가서 아래 📷 를 눌러요' };
+  if ((!S.tickets.bus && c >= 350) || (!S.tickets.boat && c >= 1000)) return { t: '🎫 표 살 포인트가 모였어요! 🗺️ 지도 → 정거장' };
+  const left = ANIMALS.filter((a) => a.zone === zoneId && !S.dex[a.id]).length;
+  return { t: left ? `🔍 여기서 아직 못 만난 동물 ${left}마리` : '🏅 여기 동물을 다 찾았어요!' };
+}
+function updateGoal() {
+  const g = goal();
+  UI.setGoal(g.t);
+  const s = g.spot && Z.spots.find((p) => p.id === g.spot);
+  marker.visible = !!s;
+  if (s) marker.position.set(s.x, 0, s.z);
+}
 
 // 화면 꺼짐 막기
 let wake = null;
 async function lockScreen() { try { if ('wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch { /* 지원 안 함 */ } }
+
+// 목표가 화면 밖이면 가장자리에 방향 화살표
+const goalArrow = document.querySelector('#goalArrow');
+function pointToGoal() {
+  if (!marker.visible || mode !== 'walk' || UI.isOpen()) { goalArrow.hidden = true; return; }
+  const w = window.innerWidth, h = window.innerHeight;
+  v3.set(marker.position.x, 2, marker.position.z).applyMatrix4(cam3.matrixWorldInverse);
+  const behind = v3.z > 0;
+  const p = v3.clone().applyMatrix4(cam3.projectionMatrix);
+  let x = (p.x + 1) / 2 * w, y = (1 - p.y) / 2 * h;
+  if (behind) { x = w - x; y = h * 0.8; }
+  const m = 46, top = 150, bottom = h - 260;
+  const inside = !behind && x > m && x < w - m && y > top && y < bottom;
+  goalArrow.hidden = inside;
+  if (inside) return;
+  const cx = w / 2, cy = (top + bottom) / 2, dx = x - cx, dy = y - cy;
+  const k = Math.min((w / 2 - m) / Math.abs(dx || 1e-3), ((bottom - top) / 2) / Math.abs(dy || 1e-3));
+  goalArrow.style.transform = `translate(${cx + dx * k}px, ${cy + dy * k}px) translate(-50%, -50%) rotate(${Math.atan2(dy, dx)}rad)`;
+}
 
 // ---------- 머리 위 표정 · 이름표 위치 ----------
 const v3 = new THREE.Vector3();
@@ -502,6 +555,8 @@ function loop(now) {
     updateCamera(dt);
     if (Z.water && Z.foam) Z.foam.position.z = -2 + Math.sin(clock * 0.8) * 0.4;
     if (Z.snow) Z.snow.rotation.y = clock * 0.02;
+    if (marker.visible) { marker.position.y = 4.2 + Math.abs(Math.sin(clock * 3)) * 0.6; marker.rotation.y = clock * 2; }
+    pointToGoal();
     updateCoins(dt);
     updateTags();
     renderer.render(scene, cam3);
@@ -526,8 +581,13 @@ UI.showStart(S.name || randomName(), !!S.name, (name) => {
   UI.sfx('unlock');
   const z = S.zone && ZONES[S.zone] && (!ZONES[S.zone].ticket || S.tickets[ZONES[S.zone].ticket]) ? S.zone : 'station';
   if (z !== 'station') enterZone(z);
-  UI.updateHud();
+  // 저장된 자리로 (같은 장소일 때만)
+  if (S.pos && S.pos.zone === z && Number.isFinite(S.pos.x)) {
+    const q = { x: S.pos.x, z: S.pos.z }; collide(Z, q, 0.35);
+    pos.set(q.x, 0, q.z); yaw = S.pos.yaw || 0; camYaw = yaw + Math.PI;
+  }
+  UI.updateHud(); updateGoal();
   UI.toast(z === 'station' ? '🚏 정거장에 왔어요! 🎫 매표소 · 🚌 버스 · ⛵ 배' : `${ZONES[z].icon} ${ZONES[z].name}에서 이어 해요`);
 });
 // 테스트에서 상태를 볼 수 있게 (게임에는 영향 없음)
-window.__snapzoo = { S, live, get zone() { return zoneId; }, get pos() { return pos.clone(); }, enterZone, spawn: (id) => spawn(ANIMALS.find((a) => a.id === id), true), dexCount };
+window.__snapzoo = { S, live, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), get zone() { return zoneId; }, get pos() { return pos.clone(); }, enterZone, spawn: (id) => spawn(ANIMALS.find((a) => a.id === id), true), dexCount };

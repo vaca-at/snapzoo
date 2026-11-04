@@ -4,7 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#3f8f5a">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📷</text></svg>">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="동물 왕국">
 <title>동물 왕국</title>
 <meta name="description" content="카메라 하나로 동물 친구를 찾아 도감을 채우는 사진 게임">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,7 +30,10 @@
 
 <!-- 위 알림판 -->
 <div class="hud">
-  <div class="where" id="zoneName">🚏 정거장 대기실</div>
+  <div class="left">
+    <div class="where" id="zoneName">🚏 정거장 대기실</div>
+    <p class="goal" id="goal" hidden></p>
+  </div>
   <div class="chips">
     <div class="chip coin" id="coinChip"><span class="ic">🪙</span><b id="coinTxt">0</b><small id="perSec">+1/초</small></div>
     <div class="chip dex"><span class="ic">📖</span><b id="dexTxt">0/26</b></div>
@@ -33,6 +41,7 @@
   </div>
 </div>
 
+<div id="goalArrow" class="goalarrow" hidden aria-hidden="true">➜</div>
 <div id="nameTag" class="nametag"><span class="face"></span><span class="nm"></span></div>
 
 <!-- 걷기 화면 B -->
