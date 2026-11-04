@@ -38,7 +38,8 @@ export const TICKETS = [
 
 // 동물 26종 (아이 등급표 그대로). model 은 js/animals.js 의 모양 이름
 // act: 특별한 순간 이름, swim: 물속에서 헤엄 (높이), shy: 가까이 가면 도망가요
-// photo: 도감에 열릴 진짜 동물 사진 (저작권 문제 없는 것만: { src, by, license, link }) — 아직 비어 있어요
+// photo: 도감에 열릴 진짜 동물 사진은 js/dexphotos.js (같은 id)
+// night: 밤(저녁 7시 ~ 새벽 6시)에만 나와요
 export const ANIMALS = [
   // 🌴 정글
   { id: 'frog',      name: '개구리',       zone: 'jungle',  rarity: 'common',   model: 'frog',      act: '폴짝 점프',      desc: '비 오는 숲에서 개굴개굴 노래해요.' },
@@ -71,6 +72,11 @@ export const ANIMALS = [
   { id: 'oarfish',   name: '산갈치',       zone: 'deep',    rarity: 'legend',   model: 'oarfish',   act: '물결 춤',        desc: '몸길이가 몇 미터나 되는 은빛 물고기예요.', swim: 2.4 },
   { id: 'clione',    name: '클리오네',     zone: 'deep',    rarity: 'legend',   model: 'clione',    act: '날개 팔랑',      desc: '"바다의 천사"라고 불리는 작은 고둥이에요.', swim: 1.8 },
   { id: 'dumbo',     name: '덤보문어',     zone: 'deep',    rarity: 'mythic',   model: 'dumbo',     act: '귀 지느러미 파닥', desc: '코끼리 귀 같은 지느러미로 헤엄쳐요.', swim: 1.6 },
+  // 🌙 밤에만 나오는 동물 (실제 시간으로 저녁 7시 ~ 새벽 6시)
+  { id: 'nightmonkey', name: '올빼미원숭이', zone: 'jungle',  rarity: 'rare',     model: 'nightmonkey', act: '큰 눈 깜빡',  desc: '세상에서 하나뿐인 밤에 다니는 원숭이예요.', night: true },
+  { id: 'aardvark',  name: '땅돼지',       zone: 'savanna', rarity: 'rare',     model: 'aardvark',  act: '흙 파기',        desc: '밤에 긴 혀로 개미를 잔뜩 먹어요.', night: true },
+  { id: 'hedgehog',  name: '사막고슴도치', zone: 'desert',  rarity: 'rare',     model: 'hedgehog',  act: '가시 공 되기',   desc: '더운 낮엔 자고 시원한 밤에 나와요.', night: true },
+  { id: 'ghostcrab', name: '유령게',       zone: 'beach',   rarity: 'rare',     model: 'ghostcrab', act: '쌩 달리기',      desc: '모래색 몸으로 밤 바닷가를 재빨리 달려요.', night: true },
 ];
 
 // 상점 카메라 6대 (아이가 지은 이름 · 색 · 가격)
@@ -155,9 +161,10 @@ export const ACTIONS = [
   { id: 'bugs',     icon: '🦋', name: '곤충잡기' },
   { id: 'bike',     icon: '🚲', name: '자전거타기' },
   { id: 'icecream', icon: '🍦', name: '아이스크림' },
+  { id: 'show',     icon: '📖', name: '도감 자랑' },
 ];
 // 광장 동작 단추 (오른쪽, 위에서부터). 연날리기 · 자전거타기는 광장을 저절로 돌아요
-export const PLAZA_ACTS = ['wave', 'kite', 'bugs', 'bike'];
+export const PLAZA_ACTS = ['wave', 'show', 'kite', 'bugs', 'bike'];
 
 // 친구와 같이 (정거장 대기실): 방 중계 서버 (server/ 폴더, Cloudflare Durable Objects)
 // 서버가 아직 없거나 닿지 않으면 혼자 놀기로 그대로 동작해요.

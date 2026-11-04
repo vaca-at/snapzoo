@@ -124,6 +124,10 @@ export class Player {
     S(this.icecream, '#e23b52', 0.035, 0.035, 0.035, 0.02, 0.22, 0.01);
     this.icecream.visible = false;
     this.bike = this.buildBike(bean); this.root.add(this.bike); this.bike.visible = false;
+    // 📖 도감 자랑 카드 (머리 위에 두 손으로 들어요)
+    this.card = new THREE.Mesh(G('cardp', () => new THREE.PlaneGeometry(0.75, 1.0)), new THREE.MeshBasicMaterial({ transparent: true, side: THREE.DoubleSide, map: this.cardMap || null }));
+    this.card.position.set(0, bean ? 1.75 : 2.55, 0.18); this.card.userData.keep = true; this.card.visible = false;
+    this.root.add(this.card);
     this.kite = joint(this.root); this.kite.visible = false;
     const k = joint(this.kite); this.kiteBody = k;
     box(k, '#ff6b8a', 0.6, 0.6, 0.03).rotation.z = Math.PI / 4;
@@ -324,6 +328,7 @@ export class Player {
     return true;
   }
   doAction(id, flavor) { return this.play(id, flavor); }
+  setCard(tex) { this.cardMap = tex; this.card.material.map = tex; this.card.material.needsUpdate = true; }
   jump() { if (this.onGround && !this.sitting) { this.vy = 5.2; this.onGround = false; } }
 
   // 자세 섞기 (캠핑장 avatar.js 방식): 서기 · 앉기 · 걷기 · 뛰기 · 점프 · 동작 자세 사이를 매 프레임 부드럽게
@@ -378,6 +383,8 @@ export class Player {
     this.icecream.visible = act?.id === 'icecream';
     if (this.icecream.visible) this.icecream.position.y = (bean ? 0.02 : 0.1) + Math.max(0, Math.sin(act.t * 4)) * 0.03;   // 할짝할짝
     this.bike.visible = act?.id === 'bike';
+    this.card.visible = act?.id === 'show' && !!this.cardMap;
+    if (this.card.visible) this.card.rotation.z = Math.sin(t * 2.4) * 0.06;
     if (this.bike.visible) this.wheels.forEach((w) => { w.rotation.x += dt * sp * 3.2; });
     this.net.visible = act?.id === 'bugs';
     this.cam.visible = !this.net.visible && !this.icecream.visible && !this.bike.visible;
@@ -425,6 +432,8 @@ function actionPose(id, at, base, t) {
     }
     case 'bike':   // 안장에 앉아 핸들을 잡기 (페달 밟는 발은 animate 에서)
       return { ...base, y: 0, hip: 0.22, head: -0.12, a0: [-1.25, -0.12], a1: [-1.25, 0.12], l0: [-1.3, 0.12], l1: [-1.3, -0.12] };
+    case 'show':   // 두 손으로 카드를 머리 위로 번쩍
+      return mix(base, { a0: [-2.75, -0.25], a1: [-2.75, 0.25], head: -0.15 }, ease(at / 0.35));
     case 'icecream': {   // 아이스크림을 입으로 가져가 할짝
       const lick = Math.max(0, Math.sin(at * 4));
       return mix(base, { a0: [-1.9 - lick * 0.3, 0.3], head: lick * 0.15 }, bump(at, 0, 0.3, 5.5, 6));

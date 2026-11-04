@@ -3,7 +3,7 @@
 // 채팅은 없어요: 서버가 정해진 값(낱말 조합 이름, 목록에 있는 옷 · 동작 · 표정, 숫자)만 골라 넘기고 나머지는 버려요.
 // 아무것도 저장하지 않아요 (끊긴 분의 자리를 30초 남겨 두는 것만). (캠핑장 server/worker.js 와 같은 방식)
 import { DurableObject } from 'cloudflare:workers';
-import { NAME_A, NAME_B, LOOKS, BODIES, CAMERAS, ACTIONS, FACES, SERVER_COUNT, SERVER_CAP } from '../js/data.js';
+import { NAME_A, NAME_B, LOOKS, BODIES, ANIMALS, CAMERAS, ACTIONS, FACES, SERVER_COUNT, SERVER_CAP } from '../js/data.js';
 
 const GRACE = 30e3;   // 끊긴 분 자리를 남겨 두는 시간 (다른 앱에 잠깐 다녀오기, 화면 끄기)
 const ROOM_RE = new RegExp(`^station-([1-9]|1[0-9]|20)$`);
@@ -39,6 +39,7 @@ export default {
 // ---------- 넘겨도 되는 값만 고르기 ----------
 const NAMES = new Set(NAME_A.flatMap((a) => NAME_B.map((b) => `${a} ${b}`)));
 const HAIR = new Set(LOOKS.hair.map((x) => x.id)), OUTFIT = new Set(LOOKS.outfit.map((x) => x.id)), ITEM = new Set(LOOKS.item.map((x) => x.id));
+const ANIMAL_IDS = new Set(ANIMALS.map((x) => x.id));
 const CAMS = new Set(CAMERAS.map((x) => x.id)), ACTS = new Set(ACTIONS.map((x) => x.id)), BODY = new Set(BODIES.map((x) => x.id));
 const num = (v, lim) => (Number.isFinite(+v) ? Math.max(-lim, Math.min(lim, Math.round(+v * 100) / 100)) : 0);
 export function cleanState(d) {
@@ -52,6 +53,7 @@ export function cleanState(d) {
     f: Number.isInteger(d.f) && d.f >= 0 && d.f < FACES.length ? d.f : -1,
     w: { b: BODY.has(w.b) ? w.b : 'block', g: w.g === 'f' ? 'f' : 'm', h: HAIR.has(w.h) ? w.h : 'short', o: OUTFIT.has(w.o) ? w.o : 'explorer', i: Array.isArray(w.i) ? [...new Set(w.i.filter((i) => ITEM.has(i)))].slice(0, ITEM.size) : [] },
     c: CAMS.has(d.c) ? d.c : 'copper',
+    v: d.a === 'show' && ANIMAL_IDS.has(d.v) ? d.v : '', vs: [1, 2, 3].includes(d.vs) ? d.vs : 1,
   };
 }
 

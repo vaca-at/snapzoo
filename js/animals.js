@@ -379,14 +379,14 @@ function meerkat() {
 }
 
 // ---------- 게 ----------
-function crab() {
+function crab(C1 = '#e6402e', C2 = '#ff7a5c', C3 = '#d33a29') {
   const root = new THREE.Group();
   const body = joint(root, 0, 0.16, 0);
-  box(body, '#e6402e', 0.46, 0.16, 0.32);
-  box(body, '#ff7a5c', 0.3, 0.02, 0.18, 0, 0.085, 0.02);
+  box(body, C1, 0.46, 0.16, 0.32);
+  box(body, C2, 0.3, 0.02, 0.18, 0, 0.085, 0.02);
   const stalks = joint(body, 0, 0.08, 0.1);
   for (const sx of [-1, 1]) {
-    box(stalks, '#e6402e', 0.04, 0.14, 0.04, sx * 0.09, 0.07, 0);
+    box(stalks, C1, 0.04, 0.14, 0.04, sx * 0.09, 0.07, 0);
     const e = new THREE.Group(); e.position.set(sx * 0.09, 0.17, 0.02); stalks.add(e);
     box(e, '#ffffff', 0.1, 0.1, 0.08); box(e, '#1b1b22', 0.07, 0.07, 0.02, 0, -0.005, 0.045);
     box(e, '#ffffff', 0.02, 0.02, 0.01, -sx * 0.015, 0.02, 0.056);
@@ -396,15 +396,15 @@ function crab() {
   const claws = [];
   for (const sx of [-1, 1]) {
     const c = joint(body, sx * 0.25, 0.02, 0.12);
-    box(c, '#e6402e', 0.06, 0.06, 0.14, 0, 0, 0.05);
-    const top = joint(c, 0, 0.03, 0.14); box(top, '#ff5a43', 0.14, 0.07, 0.14, 0, 0.02, 0.05);
-    box(c, '#ff5a43', 0.13, 0.05, 0.12, 0, -0.03, 0.18);
+    box(c, C1, 0.06, 0.06, 0.14, 0, 0, 0.05);
+    const top = joint(c, 0, 0.03, 0.14); box(top, C2, 0.14, 0.07, 0.14, 0, 0.02, 0.05);
+    box(c, C2, 0.13, 0.05, 0.12, 0, -0.03, 0.18);
     claws.push({ c, top });
   }
   const legs = [];
   for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) {
     const l = joint(root, sx * 0.22, 0.12, -0.08 + i * 0.07);
-    box(l, '#d33a29', 0.16, 0.03, 0.03, sx * 0.08, -0.04, 0);
+    box(l, C3, 0.16, 0.03, 0.03, sx * 0.08, -0.04, 0);
     l.rotation.z = sx * -0.6; legs.push(l);
   }
   function update(t, moving, act) {
@@ -684,6 +684,11 @@ const BUILD = {
   kangaroorat: () => kangaroorat(),
   meerkat: () => meerkat(),
   crab: () => crab(),
+  // 🌙 밤에만 나오는 동물
+  ghostcrab: () => crab('#e8dcc0', '#f6efdc', '#cbbd9c'),
+  nightmonkey: () => ape({ color: '#8a7a68', belly: '#c9b08a', face: '#d8c4a4', mask: '#3a2e24', hair: '#6e5f4f', bw: 0.36, bh: 0.38, bd: 0.3, hs: 0.44, leg: 0.16, arm: 0.36, aw: 0.1 }),
+  aardvark: () => quad({ color: '#c49a7a', belly: '#d8b89a', snout: '#e0bfa2', bw: 0.46, bh: 0.42, bd: 0.8, hs: 0.42, leg: 0.3, ear: 'big', earColor: '#b88a6a', tail: 0.55, kind: 'chew' }),
+  hedgehog: () => quad({ color: '#d9c2a0', belly: '#f2e4cc', snout: '#f2e4cc', bw: 0.36, bh: 0.26, bd: 0.4, hs: 0.36, leg: 0.12, lw: 0.08, ear: 'big', spots: { c: '#6e5a44', n: 34, s: 0.07 }, tail: 0.05, kind: 'ears', seed: 21 }),
   sardine: () => sardine(),
   flounder: () => flounder(),
   turtle: () => turtle(),

@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { ANIMALS, RARITY, ZONES, ZONE_ORDER, CAMERAS, LOOKS, LOOK_TABS, BODIES, GENDERS, TICKETS, FACES, ACTIONS, PLAZA_ACTS, FLAVORS, DAILY_SECONDS, SERVER_COUNT, SERVER_CAP } from './data.js';
 import { S, save, perSec, secLeft, dexCount, camera as curCam, owns } from './state.js';
 import { Player } from './player.js';
+import { DEX_PHOTOS } from './dexphotos.js';
+import { setBgm, setSfx } from './audio.js';
 import { buildAnimal } from './animals.js';
 import { getPhoto, listPhotos } from './album.js';
 
@@ -15,6 +17,7 @@ export function init(game) {
   $('#tabDex').onclick = () => openDex();
   $('#tabShop').onclick = () => openShop();
   $('#tabChar').onclick = () => openWardrobe();
+  $('#gearBtn').onclick = () => openSettings();
   $('#tabPhoto').onclick = () => G.enterPhoto();
   $('#tabFace').onclick = () => openFace();
   $('#tabMap').onclick = () => openMap();
@@ -261,7 +264,7 @@ export function openDex() {
     const cards = ANIMALS.filter((a) => a.zone === z).map((a) => {
       const d = S.dex[a.id];
       return `<button class="card ${d ? 'got' : ''}" type="button" data-animal="${a.id}" style="--rc:${RARITY[a.rarity].color}">
-        <span class="pic">${d ? `<img src="${portrait(a.model)}" alt="">` : `<img class="sil" src="${portrait(a.model)}" alt=""><b class="q">?</b>`}</span>
+        <span class="pic">${d ? `<img src="${portrait(a.model)}" alt="">` : `<img class="sil" src="${portrait(a.model)}" alt=""><b class="q">${a.night ? '🌙' : '?'}</b>`}${S.fav === a.id ? '<i class="fav">⭐</i>' : ''}</span>
         <span class="nm">${d ? a.name : '???'}</span>
         <span class="meta">${rBadge(a.rarity)}${d ? `<span class="st">${starStr(d.stars)}</span>` : ''}</span></button>`;
     }).join('');
@@ -280,22 +283,25 @@ async function openAnimal(id) {
   const a = ANIMALS.find((x) => x.id === id), d = S.dex[id], zd = ZONES[a.zone];
   if (!d) {
     panel('animal', '???', `<div class="mystery"><img class="sil big" src="${portrait(a.model)}" alt=""><p>${rBadge(a.rarity)} ${zd.icon} ${zd.name}에 살아요</p>
-      <p class="lead">아직 못 만났어요. 사진을 찍으면 도감이 열려요!</p></div>
+      <p class="lead">${a.night ? '🌙 밤(저녁 7시 ~ 새벽 6시)에만 나와요. ' : ''}아직 못 만났어요. 사진을 찍으면 도감이 열려요!</p></div>
       <div class="row"><button class="btn" type="button" id="backDex">← 도감</button></div>`);
     $('#backDex').onclick = () => openDex();
     return;
   }
   const best = await getPhoto(`best-${id}`);
+  const ph = DEX_PHOTOS[id];
   const cam = CAMERAS.find((c) => c.id === d.cam) || CAMERAS[0];
   panel('animal', a.name, `
     <div class="animal">
-      <figure class="real">${a.photo ? `<img src="${a.photo.src}" alt="${a.name} 진짜 사진"><figcaption>${a.photo.by} · ${a.photo.license}</figcaption>` : `<img src="${portrait(a.model)}" alt=""><figcaption>진짜 사진 준비 중</figcaption>`}</figure>
+      <figure class="real">${ph ? `<img src="${ph.src}" alt="${a.name} 진짜 사진"><figcaption>📷 진짜 ${a.name} · ${ph.by} · ${ph.license} · <a href="${ph.link}" target="_blank" rel="noopener">원본</a></figcaption>` : `<img src="${portrait(a.model)}" alt=""><figcaption>진짜 사진 준비 중</figcaption>`}</figure>
       <p class="desc">${rBadge(a.rarity)} ${zd.icon} ${zd.name}<br>${a.desc}</p>
       <figure class="polaroid" style="--fc:${cam.color}">${best?.img ? `<img src="${best.img}" alt="내가 찍은 ${a.name}">` : ''}<figcaption>내 최고 사진 · ${d.score}점 <span class="st">${starStr(d.stars)}</span></figcaption></figure>
-      <p class="fine">특별한 순간: <b>${a.act}</b> · 찍은 횟수 ${d.shots || 1}번</p>
+      <p class="fine">특별한 순간: <b>${a.act}</b> · 찍은 횟수 ${d.shots || 1}번${a.night ? ' · 🌙 밤 동물' : ''}</p>
     </div>
-    <div class="row"><button class="btn" type="button" id="backDex">← 도감</button></div>`);
+    <div class="row"><button class="btn" type="button" id="backDex">← 도감</button><button class="favbtn ${S.fav === id ? 'on' : ''}" type="button" id="favBtn">${S.fav === id ? '⭐ 자랑 카드' : '☆ 자랑 카드로 고르기'}</button></div>
+    <p class="fine center">⭐ 자랑 카드는 광장에서 📖 도감 자랑을 누르면 머리 위에 들어 보여요</p>`);
   $('#backDex').onclick = () => openDex();
+  $('#favBtn').onclick = () => { S.fav = S.fav === id ? '' : id; save(); openAnimal(id); if (S.fav) toast(`⭐ ${a.name}를 자랑 카드로 골랐어요`); };
 }
 async function openAlbum() {
   if (G.inPhoto()) G.exitPhoto();
@@ -476,11 +482,7 @@ export function openMap() {
   const sheet = panel('map', '🗺️ 지도', `<div class="map">${items}</div>
     ${here === 'station' ? '<p class="lead">🚌 버스 정류장(왼쪽) · 🎫 매표소(가운데) · ⛵ 배 선착장(오른쪽)으로 걸어가요</p><div id="servers"></div>'
       : '<div class="row"><button class="btn big" type="button" id="goStation">🚏 정거장으로 돌아가기</button></div>'}
-    <div class="row"><button class="btn" type="button" id="muteBtn">${S.mute ? '🔇 소리 꺼짐' : '🔊 소리 켜짐'}</button>
-      <button class="btn ${S.lite ? 'on' : ''}" type="button" id="liteBtn">${S.lite ? '⚡ 가벼운 화질 켜짐' : '✨ 예쁜 화질'}</button></div>
-    <p class="fine center">휴대폰이 뜨겁거나 끊기면 ⚡ 가벼운 화질을 켜요 (그림자 · 풀 · 구름 · 물결을 줄여요)</p>`);
-  sheet.querySelector('#liteBtn').onclick = (e) => { G.setLite(!S.lite); e.currentTarget.textContent = S.lite ? '⚡ 가벼운 화질 켜짐' : '✨ 예쁜 화질'; e.currentTarget.classList.toggle('on', S.lite); toast(S.lite ? '⚡ 가벼운 화질로 바꿨어요' : '✨ 예쁜 화질로 바꿨어요'); };
-  sheet.querySelector('#muteBtn').onclick = (e) => { S.mute = !S.mute; save(); e.currentTarget.textContent = S.mute ? '🔇 소리 꺼짐' : '🔊 소리 켜짐'; if (!S.mute) sfx('unlock'); };
+    `);
   const b = sheet.querySelector('#goStation');
   if (b) b.onclick = () => G.travel('station');
   if (here === 'station') renderServers();
@@ -499,6 +501,51 @@ async function renderServers() {
     return `<button class="srv ${n === cur ? 'on' : ''}" type="button" data-srv="${n}" ${full ? 'disabled' : ''}><b>${n}</b><small>${full ? '가득' : `${v}명`}</small></button>`;
   }).join('')}</div><p class="fine">같은 번호 서버에 있는 친구끼리 보여요. 채팅은 없어요.</p>`;
   box.querySelectorAll('[data-srv]').forEach((b) => { b.onclick = () => { G.pickServer(+b.dataset.srv); closeAll(); }; });
+}
+
+// ---------- 📖 도감 자랑 카드 그림 (내 것 · 친구 것) ----------
+const cardTex = new Map();
+export function favCardTexture(id, stars = 1) {
+  const key = id + stars;
+  if (cardTex.has(key)) return cardTex.get(key);
+  const a = ANIMALS.find((x) => x.id === id); if (!a) return null;
+  const c = document.createElement('canvas'); c.width = 256; c.height = 340;
+  const x = c.getContext('2d'), R = RARITY[a.rarity];
+  const draw = (img) => {
+    x.clearRect(0, 0, 256, 340);
+    x.fillStyle = '#24342b'; x.beginPath(); x.roundRect(0, 0, 256, 340, 26); x.fill();
+    x.fillStyle = R.color; x.beginPath(); x.roundRect(8, 8, 240, 324, 20); x.fill();
+    x.fillStyle = '#ffffff'; x.beginPath(); x.roundRect(20, 20, 216, 200, 14); x.fill();
+    if (img) x.drawImage(img, 28, 24, 200, 192);
+    x.fillStyle = '#24342b'; x.font = '40px Jua, sans-serif'; x.textAlign = 'center'; x.fillText(a.name, 128, 270);
+    x.fillStyle = '#e8a500'; x.font = '34px sans-serif'; x.fillText('★'.repeat(stars) + '☆'.repeat(3 - stars), 128, 314);
+    t.needsUpdate = true;
+  };
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  draw(null);
+  const img = new Image(); img.onload = () => draw(img); img.src = portrait(a.model);
+  cardTex.set(key, t);
+  return t;
+}
+
+// ---------- ⚙️ 설정: 배경음 · 효과음 · 화질 · 사진 출처 ----------
+export function openSettings() {
+  const sw = (id, label, on, onT, offT) => `<div class="switch"><span>${label}</span><button type="button" id="${id}" class="${on ? 'on' : ''}">${on ? onT : offT}</button></div>`;
+  const sheet = panel('settings', '⚙️ 설정', `
+    ${sw('swBgm', '🎵 배경음', !S.bgmOff, '켜짐', '꺼짐')}
+    ${sw('swSfx', '🔔 효과음', !S.sfxOff, '켜짐', '꺼짐')}
+    ${sw('swLite', '⚡ 가벼운 화질', !!S.lite, '켜짐', '꺼짐')}
+    <p class="fine">휴대폰이 뜨겁거나 끊기면 가벼운 화질을 켜요 (그림자 · 풀 · 구름 · 물결을 줄여요).</p>
+    <div class="row"><button class="btn" type="button" id="creditsBtn">📷 도감 사진 출처</button></div>`, { cls: 'small' });
+  const flip = (id, get, set, onT = '켜짐', offT = '꺼짐') => { sheet.querySelector('#' + id).onclick = (e) => { set(!get()); save(); e.currentTarget.classList.toggle('on', get()); e.currentTarget.textContent = get() ? onT : offT; sfx('unlock'); }; };
+  flip('swBgm', () => !S.bgmOff, setBgm);
+  flip('swSfx', () => !S.sfxOff, setSfx);
+  flip('swLite', () => !!S.lite, (v) => G.setLite(v));
+  sheet.querySelector('#creditsBtn').onclick = () => openCredits();
+}
+function openCredits() {
+  const rows = ANIMALS.map((a) => { const p = DEX_PHOTOS[a.id]; return p ? `<li><b>${a.name}</b> · ${p.by} · ${p.license} · <a href="${p.link}" target="_blank" rel="noopener">원본</a></li>` : ''; }).join('');
+  panel('credits', '📷 도감 사진 출처', `<p class="fine">도감의 진짜 동물 사진은 모두 위키미디어 공용(Wikimedia Commons)에서 누구나 쓸 수 있게 허락된 사진이에요 (퍼블릭 도메인 · CC0 · CC BY). 작게 줄여서 썼어요.</p><ul class="credits">${rows}</ul>`);
 }
 
 // ---------- 표정 · 동작 ----------
@@ -532,31 +579,5 @@ export function showResult(r) {
   if (r.newDex && dexCount() === ANIMALS.length) setTimeout(() => toast('🏆 도감 완성! 동물 왕국의 사진 박사!', 'gold'), 600);
 }
 
-// ---------- 소리 (짧은 전자음, 파일 없음) ----------
-let ac = null;
-export function sfx(name) {
-  if (S.mute) return;
-  try {
-    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
-    if (ac.state === 'suspended') ac.resume();
-    const t = ac.currentTime;
-    const tone = (f, at, dur, type = 'sine', vol = 0.12) => {
-      const o = ac.createOscillator(), g = ac.createGain();
-      o.type = type; o.frequency.setValueAtTime(f, t + at);
-      g.gain.setValueAtTime(0, t + at); g.gain.linearRampToValueAtTime(vol, t + at + 0.01); g.gain.exponentialRampToValueAtTime(0.001, t + at + dur);
-      o.connect(g).connect(ac.destination); o.start(t + at); o.stop(t + at + dur + 0.02);
-    };
-    if (name === 'shutter') {
-      const b = ac.createBuffer(1, ac.sampleRate * 0.08, ac.sampleRate), d = b.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
-      const s = ac.createBufferSource(), g = ac.createGain(); g.gain.value = 0.25; s.buffer = b; s.connect(g).connect(ac.destination); s.start();
-      tone(1800, 0.05, 0.05, 'square', 0.04);
-    }
-    if (name === 'coin') { tone(988, 0, 0.1, 'square', 0.06); tone(1319, 0.08, 0.25, 'square', 0.06); }
-    if (name === 'fanfare') [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.11, 0.3, 'triangle', 0.12));
-    if (name === 'sparkle') [1568, 2093, 2637].forEach((f, i) => tone(f, i * 0.07, 0.2, 'sine', 0.06));
-    if (name === 'bus') { tone(330, 0, 0.25, 'square', 0.05); tone(330, 0.3, 0.25, 'square', 0.05); }
-    if (name === 'boat') tone(220, 0, 0.7, 'sawtooth', 0.04);
-    if (name === 'unlock') tone(880, 0, 0.12, 'triangle', 0.08);
-  } catch { /* 소리를 못 내도 괜찮아요 */ }
-}
+// ---------- 소리는 js/audio.js ----------
+export { sfx } from './audio.js';

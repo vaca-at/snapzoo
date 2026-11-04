@@ -10,6 +10,7 @@ import { Player } from './player.js';
 import { addPhoto } from './album.js';
 import * as UI from './ui.js';
 import { Net } from './net.js';
+import { unlock as audioUnlock, setAmbience, animalVoice } from './audio.js';
 
 const $ = (s) => document.querySelector(s);
 const FAST = new URLSearchParams(location.search).has('fast');   // 시험용: 동물이 10배 자주 나와요
@@ -178,7 +179,7 @@ function updateFriends(dt) {
     f.g.position.set(c.x, 0, c.z);
     f.p.root.position.y = c.y; f.p.root.rotation.y = c.r;
     f.p.moving = st.m ? 1 : 0; f.p.onGround = c.y < 0.05;
-    if (st.a !== f.lastA) { f.lastA = st.a; if (st.a) f.p.doAction(st.a); else f.p.action = null; }
+    if (st.a !== f.lastA) { f.lastA = st.a; if (st.a === 'show' && st.v) f.p.setCard(UI.favCardTexture(st.v, st.vs || 1)); if (st.a) f.p.doAction(st.a); else f.p.action = null; }
     f.p.sitting = !!st.s;
     f.p.animate(dt, clock);
     if (st.f !== f.lastF) {
@@ -193,7 +194,7 @@ function sendMe() {
   if (zoneId !== 'station' || !started) return;
   const r2 = (v) => Math.round(v * 100) / 100;
   net.send({ n: S.name, x: r2(pos.x), z: r2(pos.z), y: r2(pos.y), r: r2(((yaw % 6.2832) + 6.2832) % 6.2832), m: me.moving > 0.05 ? 1 : 0, s: me.sitting ? 1 : 0,
-    a: me.action?.id || '', f: clock < faceUntil ? faceIdx : -1, w: { b: S.wear.body, g: S.wear.gender, h: S.wear.hair, o: S.wear.outfit, i: S.wear.item }, c: S.camera }, performance.now());
+    a: me.action?.id || '', f: clock < faceUntil ? faceIdx : -1, v: me.action?.id === 'show' ? S.fav : '', vs: me.action?.id === 'show' ? (S.dex[S.fav]?.stars || 1) : 0, w: { b: S.wear.body, g: S.wear.gender, h: S.wear.hair, o: S.wear.outfit, i: S.wear.item }, c: S.camera }, performance.now());
 }
 
 // ---------- 장소 ----------
@@ -211,19 +212,8 @@ function enterZone(id) {
   live.length = 0;
   zoneId = id; Z = getZone(id);
   scene.add(Z.group);
-  // 장소 분위기: 하늘 · 해 (방향 · 높이 · 색) · 안개 · 빛 · 노출 (js/world.js 의 ATMO)
-  const A = ATMO[id] || ATMO.station;
-  scene.background = new THREE.Color(A.horizon);
-  scene.fog = new THREE.Fog(A.fog[0], A.fog[1], A.fog[2]);
-  hemi.color.set(A.hemi[0]); hemi.groundColor.set(A.hemi[1]); hemi.intensity = A.hemi[2];
-  sun.color.set(A.sun.color); sun.intensity = A.sun.i;
-  const az = THREE.MathUtils.degToRad(A.sun.az), el = THREE.MathUtils.degToRad(A.sun.el);
-  SUN_OFF.set(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)).multiplyScalar(32);
-  sunDisc.material.color.set(A.sun.disc); sunDisc.scale.setScalar(A.sun.size || 1);
-  renderer.toneMappingExposure = A.exp;
-  scene.environmentIntensity = A.dark ? 0.15 : 0.3;
+  applyAtmo();
   if (Z.grassMesh) Z.grassMesh.count = S.lite ? Math.floor(Z.grassN / 4) : Z.grassN;
-  setSky(A.top, A.horizon, !A.dark);
   pos.set(Z.spawn.x, 0, Z.spawn.z);
   yaw = Z.spawn.yaw; me.sitting = false; me.action = null;
   camBehind();
@@ -236,6 +226,8 @@ function enterZone(id) {
   for (const k in timers) delete timers[k];
   for (const sp of ANIMALS.filter((a) => a.zone === id)) {
     const R = RARITY[sp.rarity];
+    // 🌙 밤 동물: 밤에만 두 마리씩
+    if (sp.night) { if (phase === 'night') for (let i = 0; i < 2; i++) spawn(sp, false, i === 0); continue; }
     // 늘 있는 동물은 한 마리씩 입구 가까이 (처음에 금방 만나게)
     if (R.appear === 'always') { for (let i = 0; i < R.count; i++) spawn(sp, false, i === 0); continue; }
     const t = nowMs();
@@ -247,6 +239,57 @@ function enterZone(id) {
   if (id === 'station' && started) net.join(S.server); else net.close();
 }
 const boost = (r) => curCam().boost?.[r] || 1;
+
+// ---------- 실제 시간에 따라 하늘이 바뀌어요: 새벽(5~7시) · 낮 · 노을(17~19시) · 밤(19~5시) ----------
+// 시험: 주소에 ?hour=21 을 붙이면 그 시각으로
+const HOUR_Q = new URLSearchParams(location.search).get('hour');
+function hourNow() { if (HOUR_Q !== null) return +HOUR_Q; const d = new Date(); return d.getHours() + d.getMinutes() / 60; }
+function phaseOf(h) { return h >= 19 || h < 5 ? 'night' : h < 7 ? 'dawn' : h >= 17 ? 'dusk' : 'day'; }
+let phase = phaseOf(hourNow());
+const NIGHT = { top: '#0a1330', horizon: '#26365e', fog: '#1d2b4e', sun: { color: '#a9c2ff', i: 0.75, disc: '#f4f6ff', size: 26, el: 40 }, hemi: ['#7488c8', '#1a2030', 0.5], exp: 0.95 };
+const DUSK = { top: '#c9604a', horizon: '#ffc07a', fog: '#f0b47c', sun: { color: '#ffa860', i: 2.4, disc: '#fff0b0', size: 140, el: 9 }, hemi: ['#ffd2a0', '#7a5034', 0.9], exp: 1 };
+const DAWN = { top: '#8fa6d8', horizon: '#ffd8c0', fog: '#f6d6c6', sun: { color: '#ffd0b0', i: 2.0, disc: '#fff4e6', size: 110, el: 10 }, hemi: ['#ffe6e0', '#7a6a5a', 0.85], exp: 0.98 };
+const stars = (() => {
+  const n = 500, p = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, e = Math.random() * 1.3 + 0.12; p[i * 3] = Math.cos(a) * Math.cos(e) * 280; p[i * 3 + 1] = Math.sin(e) * 280; p[i * 3 + 2] = Math.sin(a) * Math.cos(e) * 280; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  const m = new THREE.Points(g, new THREE.PointsMaterial({ color: '#ffffff', size: 1.6, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.9 }));
+  m.visible = false; scene.add(m); return m;
+})();
+function applyAtmo() {
+  const A = ATMO[zoneId] || ATMO.station;
+  const P = A.dark ? null : { night: NIGHT, dusk: DUSK, dawn: DAWN }[phase];
+  const mixC = (a, b, k) => new THREE.Color(a).lerp(new THREE.Color(b), k);
+  const k = phase === 'night' ? 0.85 : 0.55;   // 장소 색을 얼마나 남길지
+  const top = P ? mixC(A.top, P.top, k) : new THREE.Color(A.top), hor = P ? mixC(A.horizon, P.horizon, k) : new THREE.Color(A.horizon);
+  const fogC = P ? mixC(A.fog[0], P.fog, k) : new THREE.Color(A.fog[0]);
+  scene.background = hor.clone();
+  scene.fog = new THREE.Fog(fogC, A.fog[1], phase === 'night' && !A.dark ? A.fog[2] * 0.7 : A.fog[2]);
+  const H = P ? P.hemi : A.hemi, SN = P ? { ...A.sun, ...P.sun } : A.sun;
+  hemi.color.set(H[0]); hemi.groundColor.set(H[1]); hemi.intensity = H[2];
+  sun.color.set(SN.color); sun.intensity = SN.i;
+  const az = THREE.MathUtils.degToRad(SN.az), el = THREE.MathUtils.degToRad(SN.el);
+  SUN_OFF.set(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)).multiplyScalar(32);
+  sunDisc.material.color.set(SN.disc); sunDisc.scale.setScalar(SN.size || 1);
+  renderer.toneMappingExposure = P ? P.exp : A.exp;
+  scene.environmentIntensity = A.dark || phase === 'night' ? 0.15 : 0.3;
+  setSky(top, hor, !A.dark);
+  stars.visible = phase === 'night' && !A.dark;
+  setAmbience(zoneId, phase === 'night');
+}
+// 1분마다 시간을 보고, 밤이 되거나 아침이 되면 하늘과 밤 동물을 바꿔요
+setInterval(() => {
+  const p = phaseOf(hourNow());
+  if (p === phase || !Z) return;
+  const wasNight = phase === 'night'; phase = p; applyAtmo();
+  if (wasNight !== (p === 'night')) {
+    for (const sp of ANIMALS.filter((a) => a.zone === zoneId && a.night)) {
+      if (p === 'night') { spawn(sp, false, true); spawn(sp); }
+      else live.filter((a) => a.sp === sp).forEach((a) => { a.until = clock; });
+    }
+    UI.toast(p === 'night' ? '🌙 밤이 됐어요! 밤에만 나오는 동물을 찾아봐요' : '☀️ 아침이 밝았어요');
+  }
+}, 60000);
 
 // 반짝이 별 그림
 const starTex = (() => {
@@ -346,8 +389,11 @@ function updateAnimals(dt) {
     const d = Math.hypot(a.x - pos.x, a.z - pos.z);
     if (sp.shy && d < 3.2 && a.act < 0) {
       const ux = (a.x - pos.x) / (d || 1), uz = (a.z - pos.z) / (d || 1);
-      a.tx = a.x + ux * 5; a.tz = a.z + uz * 5; a.flee = true; a.wait = 0;
+      a.tx = a.x + ux * 5; a.tz = a.z + uz * 5;
+      if (!a.flee) react(a, '💦');
+      a.flee = true; a.wait = 0;
     }
+    reactions(a, d, dt);
     if (a.act < 0) {
       if (a.wait > 0) { a.wait -= dt; a.moving = false; }
       else {
@@ -383,6 +429,42 @@ function updateAnimals(dt) {
     if (a.aura) { a.aura.material.opacity = 0.35 + Math.sin(clock * 3) * 0.15 + (shine ? 0.3 : 0); }
   }
 }
+// ---------- 동물 반응: 알아채기(❗) · 가만히 기다리면 다가와 특별한 순간(❤️) · 점프하면 깜짝(💦) ----------
+const emojiTex = {};
+function emojiSprite(e) {
+  if (!emojiTex[e]) { const c = document.createElement('canvas'); c.width = c.height = 96; const x = c.getContext('2d'); x.font = '76px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(e, 48, 54); emojiTex[e] = new THREE.CanvasTexture(c); emojiTex[e].colorSpace = THREE.SRGBColorSpace; }
+  return emojiTex[e];
+}
+function react(a, e, voice = true) {
+  if (!a.bubble) { a.bubble = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, fog: false })); a.g.add(a.bubble); }
+  a.bubble.material.map = emojiSprite(e); a.bubble.material.needsUpdate = true;
+  a.bubbleT = 1.8;
+  if (voice && Math.hypot(a.x - pos.x, a.z - pos.z) < 14) animalVoice(a.sp.model);
+}
+let stillT = 0, lastJumpVy = 0;
+function reactions(a, d, dt) {
+  if (a.bubble) {
+    a.bubbleT -= dt;
+    a.bubble.visible = a.bubbleT > 0;
+    const k = Math.max(0, a.bubbleT);
+    a.bubble.position.set(0, a.m.height + 0.45 + (1.8 - k) * 0.15, 0); a.bubble.scale.setScalar(0.7 * Math.min(1, (1.8 - k) * 6 + 0.3));
+  }
+  if (a.leaving || mode === 'photo') return;
+  a.cool = (a.cool || 0) - dt;
+  const near = d < 6;
+  // 처음 알아채면 ❗ 하고 잠깐 나를 쳐다봐요
+  if (near && !a.noticed && a.act < 0) { a.noticed = true; if (!a.sp.shy) { react(a, '❗'); a.wait = Math.max(a.wait, 1.5); a.moving = false; } }
+  if (d > 9) a.noticed = false;
+  // 내가 3초 넘게 가만히 있으면, 겁 없는 동물은 다가와 특별한 순간을 보여 줘요 (사진 찍기 좋은 때!)
+  if (!a.sp.shy && near && stillT > 3 && a.cool <= 0 && a.act < 0) {
+    a.cool = 12; react(a, '❤️');
+    if (d > 2.5) { a.tx = a.x + (pos.x - a.x) * 0.4; a.tz = a.z + (pos.z - a.z) * 0.4; a.wait = 0; }
+    a.nextAct = 1.2;
+  }
+  // 바로 옆에서 점프하면 깜짝!
+  if (d < 3.5 && me.vy > 4 && lastJumpVy <= 4 && a.cool <= 0) { a.cool = 4; react(a, '💦'); if (a.sp.shy || Math.random() < 0.5) { a.tx = a.x + (a.x - pos.x) * 1.5; a.tz = a.z + (a.z - pos.z) * 1.5; a.flee = true; a.wait = 0; } }
+}
+
 const angDiff = (a, b) => { let d = (b - a) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
 
 // ---------- 입력: 조이스틱 · 키보드 · 화면 끌기 ----------
@@ -607,6 +689,10 @@ export function eatIce(f) { closeSpot(true); me.play('icecream', f.color); turnC
 // ---------- 광장 동작 단추: 🪁 연날리기 · 🦋 곤충잡기 · 👋 손 흔들기 (다시 누르면 멈춰요) ----------
 export function act(id) {
   if (mode !== 'walk') return;
+  if (id === 'show') {
+    if (!S.fav || !S.dex[S.fav]) { UI.toast('📖 도감에서 동물을 눌러 ⭐ 자랑 카드를 먼저 골라요'); UI.openDex(); return; }
+    me.setCard(UI.favCardTexture(S.fav, S.dex[S.fav].stars || 1));
+  }
   if (me.sitting && id !== 'wave') standUp();
   const on = me.play(id);
   UI.syncActs(on ? id : null);
@@ -616,6 +702,7 @@ export function act(id) {
     if (f) { yaw = Math.atan2(f[0].cur.x - pos.x, f[0].cur.z - pos.z); UI.toast(`👋 ${f[0].st.n}에게 손을 흔들었어요`); }
     turnCameraToFace(5);
   }
+  if (on && id === 'show') { UI.toast('📖 내 자랑 카드를 친구들에게 보여 줘요'); turnCameraToFace(5); }
   if (on && id === 'kite') UI.toast('🪁 연을 날리며 광장을 한 바퀴!');
   if (on && id === 'bike') UI.toast('🚲 자전거를 타고 광장을 돌아요');
   if (on && ROAM[id]) { clearWalkTo(); roamPause = 0; camTurn = null; }
@@ -633,7 +720,7 @@ function placeMenu() {
 function updateCamera(dt) {
   // 해와 그림자가 나를 따라와요
   sun.position.copy(pos).add(SUN_OFF); sun.target.position.copy(pos);
-  sunDisc.position.copy(SUN_OFF).normalize().multiplyScalar(280).add(pos); sky.position.set(pos.x, 0, pos.z); clouds.position.set(pos.x * 0.6, 0, pos.z * 0.6);
+  sunDisc.position.copy(SUN_OFF).normalize().multiplyScalar(280).add(pos); stars.position.set(pos.x, 0, pos.z); sky.position.set(pos.x, 0, pos.z); clouds.position.set(pos.x * 0.6, 0, pos.z * 0.6);
   if (mode === 'photo') return;
   stepCameraTurn(dt);
   camHold -= dt;
@@ -903,7 +990,9 @@ function loop(now) {
   if (!document.hidden) clock += dt;
   if (Z) {
     if (mode === 'walk' && !UI.isOpen()) updateWalk(dt); else me.moving = 0;
+    stillT = me.speed > 0.1 || mode !== 'walk' ? 0 : stillT + dt;
     updateAnimals(dt);
+    lastJumpVy = me.vy;
     updateFriends(dt);
     if (mode === 'photo') updatePhoto(dt);
     me.root.position.copy(pos); me.root.rotation.y = yaw;
@@ -947,7 +1036,7 @@ requestAnimationFrame(loop);
   document.body.classList.add('playing');
   UI.setName(S.name);
   // 화면 꺼짐 막기 · 소리는 브라우저가 첫 터치 뒤에만 허락해요
-  addEventListener('pointerdown', () => { lockScreen(); UI.sfx('unlock'); }, { once: true });
+  addEventListener('pointerdown', () => { lockScreen(); audioUnlock(); UI.sfx('unlock'); }, { once: true });
   const z = S.zone && ZONES[S.zone] && (!ZONES[S.zone].ticket || S.tickets[ZONES[S.zone].ticket]) ? S.zone : 'station';
   if (z !== 'station') enterZone(z); else net.join(S.server);
   // 저장된 자리로 (같은 장소일 때만)

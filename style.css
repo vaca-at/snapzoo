@@ -27,6 +27,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---------- 위 알림판 ---------- */
 .hud { position: fixed; left: 0; right: 0; top: 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: calc(10px + var(--safe-t)) 12px 0; pointer-events: none; }
 .where { font-family: var(--display); font-size: 17px; background: var(--paper); border: 2px solid var(--ink); border-radius: 999px; padding: 6px 12px; box-shadow: 0 3px 0 var(--ink); white-space: nowrap; }
+.whererow { display: flex; align-items: center; gap: 6px; }
+.gear { pointer-events: auto; width: 42px; height: 42px; border-radius: 50%; background: var(--paper); border: 2px solid var(--ink); box-shadow: 0 3px 0 var(--ink); font-size: 20px; display: grid; place-items: center; }
+.switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 2px solid var(--ink); border-radius: 16px; background: #f6f8f2; font-family: var(--display); font-size: 17px; }
+.switch button { min-width: 92px; min-height: 46px; border-radius: 999px; border: 2px solid var(--ink); font-family: var(--display); font-size: 16px; background: #fff; }
+.switch button.on { background: var(--leaf); color: #fff; }
+.favbtn { min-height: 48px; padding: 6px 16px; border-radius: 999px; border: 2px solid var(--ink); background: #fff; font-family: var(--display); font-size: 16px; }
+.favbtn.on { background: var(--sun); }
+.card .fav { position: absolute; right: 4px; top: 2px; font-size: 16px; }
+.real a { color: inherit; }
 .left { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
 .goal { margin: 0; max-width: 58vw; font-family: var(--display); font-size: 14px; line-height: 1.35; background: var(--sun); color: var(--sun-ink); border: 2px solid var(--ink); border-radius: 12px; padding: 5px 10px; box-shadow: 0 2px 0 var(--ink); }
 .goal.bump { animation: bump .4s; }
