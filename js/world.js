@@ -349,6 +349,7 @@ function station() {
   const st = joint(g, 0, 0, -15.5);
   box(st, '#fff6e6', 18, 4.5, 2, 0, 2.25, 0);
   box(st, '#ff7a5c', 19, 0.8, 3, 0, 4.9, 0.3);
+  for (let i = 0; i < 19; i++) box(st, i % 2 ? '#ffffff' : '#ff9f6a', 1, 0.35, 0.5, -9 + i, 4.35, 1.85).rotation.x = 0.4;
   box(st, '#ffd23c', 19, 0.25, 3.1, 0, 4.4, 0.3);
   for (let i = -3; i <= 3; i++) { box(st, '#8fd3e8', 1.6, 1.6, 0.1, i * 2.4, 2.6, 1.01); box(st, '#ffffff', 1.7, 0.15, 0.12, i * 2.4, 1.75, 1.02); }
   for (let i = -4; i <= 4; i++) if (i) add(st, new THREE.CylinderGeometry(0.22, 0.26, 4.2, 12), '#fffaf0', i * 2.05, 2.1, 1.25);
@@ -368,7 +369,9 @@ function station() {
   box(bo, '#ff9f6a', 3.4, 2.6, 2, 0, 1.3, 0);
   box(bo, '#fffdf6', 2.4, 1, 0.1, 0, 1.6, 1.01);
   box(bo, '#5a3a24', 3.6, 0.15, 0.6, 0, 1.05, 1.2);
-  box(bo, '#ffd23c', 3.8, 0.4, 2.4, 0, 2.8, 0.1);
+  box(bo, '#ffd23c', 3.8, 0.3, 2.4, 0, 2.75, 0.1);
+  { const rf = add(bo, new THREE.CylinderGeometry(0.01, 2.0, 1.3, 4, 1), flat('#e2574c'), 0, 3.55, 0.1); rf.rotation.y = Math.PI / 4; rf.scale.set(1.35, 1, 0.85); }
+  add(bo, new THREE.SphereGeometry(0.16, 12, 10), '#ffd23c', 0, 4.25, 0.1);
   for (let i = 0; i < 5; i++) box(bo, i % 2 ? '#ff6b8a' : '#fffdf6', 0.76, 0.5, 0.2, -1.52 + i * 0.76, 2.4, 1.25);
   const bt = sign('🎫 매표소', 2.4, 0.8, '#fffdf6', '#24342b', 110); bt.position.set(0, 3.5, 0.5); bo.add(bt);
   Z.colliders.push({ x: 0, z: -9, r: 1.9 });
@@ -406,6 +409,7 @@ function station() {
   box(ic, '#c9844a', 3.8, 0.14, 0.6, 0, 1.0, 1.35);
   for (let i = 0; i < 6; i++) box(ic, i % 2 ? '#ff8fb0' : '#ffffff', 0.66, 0.16, 1.2, -1.65 + i * 0.66, 2.62, 1.5).rotation.x = 0.35;
   box(ic, '#ff8fb0', 3.8, 0.3, 2.4, 0, 2.55, 0);
+  { const rf = add(ic, new THREE.SphereGeometry(1, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2), '#ffc2d4', 0, 2.68, 0); rf.scale.set(2.0, 0.55, 1.3); }
   const cone = joint(ic, 0, 2.7, 0);
   add(cone, new THREE.ConeGeometry(0.55, 1.4, 16), '#e0a45a', 0, 0.75, 0).rotation.x = Math.PI;
   add(cone, new THREE.SphereGeometry(0.62, 18, 14), '#ffb3c7', 0, 1.65, 0);
@@ -473,21 +477,21 @@ function station() {
     const n = 9;
     for (let k = 1; k < n; k++) {
       const t = k / n, x = x0 + (x1 - x0) * t, z = z0 + (z1 - z0) * t, y = 3.5 - Math.sin(t * Math.PI) * 0.7;
-      const fl = box(g, flagCols[(i + k) % 5], 0.36, 0.42, 0.03, x, y - 0.22, z);
+      const fl = box(g, flagCols[(i + k) % 5], 0.24, 0.24, 0.03, x, y - 0.22, z);
       fl.rotation.y = -Math.atan2(z1 - z0, x1 - x0);
-      fl.rotation.z = Math.PI / 4; fl.scale.set(0.24, 0.24, 0.03);
+      fl.rotation.z = Math.PI / 4;
     }
   }
 
   // 꽃밭 · 나무 화분
   for (let i = 0; i < 10; i++) {
     const a = (i / 10) * Math.PI * 2 + 0.3, x = Math.cos(a) * 15.6, z = Math.sin(a) * 15.6 + 1;
-    if (z < -12 || (Math.abs(x) > 11 && z < 1 && z > -7)) continue;
+    if (z < -12 || (Math.abs(x) > 11 && z < 1 && z > -7) || (Math.abs(x) < 5 && z > 8)) continue;   // 시작 지점 뒤(카메라 자리)는 비워요
     box(g, '#a87a4a', 2.2, 0.4, 1.0, x, 0.2, z).rotation.y = -a;
     for (let k = 0; k < 5; k++) flower(g, x + Math.cos(-a + Math.PI / 2) * (k - 2) * 0.38, z + Math.sin(-a + Math.PI / 2) * (k - 2) * 0.38, flagCols[(i + k) % 5]);
     Z.colliders.push({ x, z, r: 0.9 });
   }
-  for (const [x, z] of [[-6, -11.8], [6, -11.8], [-15, 9], [15, 9], [0, 15.5]]) { box(g, '#c9844a', 1.2, 0.6, 1.2, x, 0.3, z); tree(g, '#4fae5a', x, z, 0.8); Z.colliders.push({ x, z, r: 0.7 }); }
+  for (const [x, z] of [[-6, -11.8], [6, -11.8], [-15, 9], [15, 9], [-4.5, 16.5], [4.5, 16.5]]) { box(g, '#c9844a', 1.2, 0.6, 1.2, x, 0.3, z); tree(g, '#4fae5a', x, z, 0.8); Z.colliders.push({ x, z, r: 0.7 }); }
   for (let i = 0; i < 30; i++) { const a = rnd() * 6.28, d = 17.5 + rnd() * 4; flower(g, Math.cos(a) * d, Math.sin(a) * d, flagCols[i % 5]); }
   for (let i = 0; i < 22; i++) { const a = (i / 22) * Math.PI * 2 + 0.1, d = 18.2 + rnd() * 1.2, x = Math.cos(a) * d, z = Math.sin(a) * d; if (x > 12 && Math.abs(z + 3) < 7) continue; bush(g, x, z, 0.8 + rnd() * 0.5); }
   // 곤충잡기: 꽃밭 주변을 나는 나비 · 잠자리
@@ -838,6 +842,8 @@ export function getZone(id) {
     const Z = BUILDERS[id]();
     grassField(Z);
     bake(Z.group);
+    // 카메라가 부딪힐 것: 합쳐 그린 건물 · 나무 · 바위 (풀 · 물 · 땅 · 먼 배경은 빼고)
+    Z.camHits = Z.group.children.filter((o) => o.isMesh && !o.isInstancedMesh && o.castShadow && !o.userData.keep);
     cache[id] = Z;
   }
   return cache[id];

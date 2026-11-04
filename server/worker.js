@@ -1,7 +1,7 @@
 // 동물 왕국 정거장 대기실 중계 서버.
 // 방(station-1 ~ station-12) 하나가 Durable Object 하나. 최대 100명이 웹소켓으로 붙어 서로의 위치 · 동작 · 표정을 나눠요.
 // 채팅은 없어요: 서버가 정해진 값(낱말 조합 이름, 목록에 있는 옷 · 동작 · 표정, 숫자)만 골라 넘기고 나머지는 버려요.
-// 아무것도 저장하지 않아요 (끊긴 분의 자리를 30초 남겨 두는 것만). (캠핑장 server/worker.js 와 같은 방식)
+// 저장하는 것은 숫자뿐이에요: 날짜별 방문 수 · 시간대 · 동시접속 최고 (누가 왔는지는 남기지 않아요). 관리자 대시보드(/admin)가 읽어요.
 import { DurableObject } from 'cloudflare:workers';
 import { NAME_A, NAME_B, LOOKS, BODIES, ANIMALS, CAMERAS, ACTIONS, FACES, SERVER_COUNT, SERVER_CAP } from '../js/data.js';
 
@@ -25,7 +25,24 @@ export default {
       if (!ROOM_RE.test(room)) return new Response('bad room', { status: 400 });
       return env.ROOMS.get(env.ROOMS.idFromName(room)).fetch(req);
     }
-    if (req.method === 'OPTIONS') return new Response(null, { headers: { ...cors(req), 'Access-Control-Allow-Methods': 'GET, OPTIONS', 'Access-Control-Max-Age': '86400' } });
+    if (req.method === 'OPTIONS') return new Response(null, { headers: { ...cors(req), 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Max-Age': '86400' } });
+    const stats = () => env.STATS.get(env.STATS.idFromName('stats'));
+    // 방문: 기기마다 하루 한 번 숫자만 +1 (게임이 보내요)
+    if (url.pathname === '/visit' && req.method === 'POST') {
+      const origin = req.headers.get('Origin');
+      if (origin && !ORIGINS.includes(origin)) return json(req, { error: 'forbidden' }, 403);
+      await stats().fetch('https://stats/visit', { method: 'POST' });
+      return json(req, { ok: true });
+    }
+    // 관리자: 비밀번호(ADMIN_PASSWORD)가 맞을 때만 숫자를 보여 줘요
+    if (url.pathname === '/admin/stats') {
+      const auth = (req.headers.get('Authorization') || '').replace(/^Bearer /, '').trim();
+      if (!env.ADMIN_PASSWORD || !(await same(auth, env.ADMIN_PASSWORD.trim()))) return json(req, { error: 'unauthorized' }, 401);
+      const s = await stats().fetch('https://stats/read').then((r) => r.json());
+      const rooms = await Promise.all(Array.from({ length: SERVER_COUNT }, (_, i) =>
+        env.ROOMS.get(env.ROOMS.idFromName(`station-${i + 1}`)).fetch('https://room/count').then((r) => r.json()).then((j) => j.n).catch(() => 0)));
+      return json(req, { ...s, rooms, online: rooms.reduce((a, b) => a + b, 0), now: Date.now() });
+    }
     // 서버별 인원 (숫자만)
     if (url.pathname === '/counts') {
       const counts = await Promise.all(Array.from({ length: SERVER_COUNT }, (_, i) =>
@@ -35,6 +52,45 @@ export default {
     return json(req, { ok: true, name: 'snapzoo-rooms' });
   },
 };
+
+// 비밀번호 비교: 해시끼리 (글자 수나 앞부분으로 알아낼 수 없게)
+async function same(a, b) {
+  const h = async (x) => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(x)));
+  const [x, y] = await Promise.all([h(a), h(b)]);
+  let d = 0; for (let i = 0; i < x.length; i++) d |= x[i] ^ y[i];
+  return d === 0;
+}
+const kstNow = () => new Date(Date.now() + 9 * 3600e3);
+const kstDay = () => kstNow().toISOString().slice(0, 10);
+
+// ---------- 숫자 세기 저장소 (하나뿐) ----------
+export class Stats extends DurableObject {
+  async fetch(req) {
+    const url = new URL(req.url);
+    const day = kstDay(), hour = kstNow().getUTCHours();
+    if (url.pathname === '/visit') {
+      const d = (await this.ctx.storage.get(`d:${day}`)) || { visits: 0, peak: 0, hours: Array(24).fill(0) };
+      d.visits++; d.hours[hour]++;
+      await this.ctx.storage.put(`d:${day}`, d);
+      await this.ctx.storage.put('total', ((await this.ctx.storage.get('total')) || 0) + 1);
+      return Response.json({ ok: true });
+    }
+    if (url.pathname === '/peak') {
+      const { n } = await req.json();
+      const d = (await this.ctx.storage.get(`d:${day}`)) || { visits: 0, peak: 0, hours: Array(24).fill(0) };
+      if (n > d.peak) { d.peak = n; await this.ctx.storage.put(`d:${day}`, d); }
+      const best = (await this.ctx.storage.get('best')) || { n: 0 };
+      if (n > best.n) await this.ctx.storage.put('best', { n, at: Date.now() });
+      return Response.json({ ok: true });
+    }
+    if (url.pathname === '/read') {
+      const all = await this.ctx.storage.list({ prefix: 'd:', reverse: true, limit: 60 });
+      const days = {}; for (const [k, v] of all) days[k.slice(2)] = v;
+      return Response.json({ days, today: day, total: (await this.ctx.storage.get('total')) || 0, best: (await this.ctx.storage.get('best')) || { n: 0 } });
+    }
+    return new Response('?', { status: 404 });
+  }
+}
 
 // ---------- 넘겨도 되는 값만 고르기 ----------
 const NAMES = new Set(NAME_A.flatMap((a) => NAME_B.map((b) => `${a} ${b}`)));
@@ -114,9 +170,12 @@ export class Room extends DurableObject {
     if (m.t !== 'st') return;
     const st = cleanState(m.d);
     if (!st) return;
+    const first = !a.st;
     a.st = st;
     ws.serializeAttachment(a);
     this.broadcast({ t: 'st', id: a.id, d: st }, ws);
+    // 처음 들어온 분이면 동시접속 최고 기록을 알려요 (숫자만)
+    if (first) { const n = this.members().length; this.ctx.waitUntil?.(this.env.STATS.get(this.env.STATS.idFromName('stats')).fetch('https://stats/peak', { method: 'POST', body: JSON.stringify({ n }) }).catch(() => {})); }
   }
 
   async webSocketClose(ws, code) {

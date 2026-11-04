@@ -17,6 +17,13 @@ const TAB_KEY = (() => {
   } catch { return Math.random().toString(36).slice(2, 14); }
 })();
 
+// 방문 세기: 기기마다 하루 한 번 숫자만 보내요 (누군지는 보내지 않아요)
+export function countVisit(S, save) {
+  const day = new Date().toDateString();
+  if (!RELAY || S.visitDay === day) return;
+  fetch(`${RELAY}/visit`, { method: 'POST' }).then((r) => { if (r.ok) { S.visitDay = day; save(); } }).catch(() => {});
+}
+
 export class Net {
   constructor(h) {
     this.h = h;            // onState(id, st) · onLeave(id) · onReset() · onStatus()

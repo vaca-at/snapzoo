@@ -9,7 +9,7 @@ import { getZone, collide, bakeJoints, WIND, animateWater, ATMO } from './world.
 import { Player } from './player.js';
 import { addPhoto } from './album.js';
 import * as UI from './ui.js';
-import { Net } from './net.js';
+import { Net, countVisit } from './net.js';
 import { unlock as audioUnlock, setAmbience, animalVoice } from './audio.js';
 
 const $ = (s) => document.querySelector(s);
@@ -918,7 +918,27 @@ function updateCoins(dt) {
   UI.updateHud();
 }
 // 다른 앱에 다녀오거나 새로고침해도 그 자리에서 이어 해요
-function keepPlace() { if (started && mode === 'walk') S.pos = { zone: zoneId, x: +pos.x.toFixed(2), z: +pos.z.toFixed(2), yaw: +yaw.toFixed(2) }; save(); }
+// 다시 들어오면 정확한 자리 대신, 장소를 몇 구역으로 나눈 시작 지점 중 가장 가까운 곳에서 출발해요
+function checkpoints(Zn) {
+  if (!Zn.checkpoints) {
+    const cps = [{ x: Zn.spawn.x, z: Zn.spawn.z, yaw: Zn.spawn.yaw }];
+    for (const deg of [200, 300, 60]) {
+      const a = THREE.MathUtils.degToRad(deg), r = Zn.radius * 0.55, q = { x: Math.cos(a) * r, z: Math.sin(a) * r };
+      collide(Zn, q, 0.6);
+      if (!Zn.wet?.(q.x, q.z)) cps.push({ x: q.x, z: q.z, yaw: Math.atan2(-q.x, -q.z) });   // 가운데를 보고 서요
+    }
+    Zn.checkpoints = cps;
+  }
+  return Zn.checkpoints;
+}
+function keepPlace() {
+  if (started && mode === 'walk') {
+    const cps = checkpoints(Z);
+    let i = 0, bd = Infinity; cps.forEach((c, k) => { const d = Math.hypot(c.x - pos.x, c.z - pos.z); if (d < bd) { bd = d; i = k; } });
+    S.pos = { zone: zoneId, cp: i };
+  }
+  save();
+}
 setInterval(() => { if (started) keepPlace(); }, 5000);
 document.addEventListener('visibilitychange', () => { if (document.hidden) keepPlace(); else lockScreen(); });
 window.addEventListener('pagehide', keepPlace);
@@ -975,6 +995,64 @@ function pointToGoal() {
   goalArrow.style.transform = `translate(${cx + dx * k}px, ${cy + dy * k}px) translate(-50%, -50%) rotate(${Math.atan2(dy, dx)}rad)`;
 }
 
+// ---------- 카메라 충돌: 나와 카메라 사이에 건물 · 나무가 끼면 그 앞으로 당겨서 그려요 ----------
+const camRay = new THREE.Raycaster(), camDir = new THREE.Vector3(), camKeep = new THREE.Vector3();
+let camPull = 99;
+function camAvoid() {
+  if (!Z?.camHits?.length) return null;
+  const t = controls.target;
+  camDir.copy(cam3.position).sub(t);
+  const dist = camDir.length(); if (dist < 0.5) return null;
+  camDir.divideScalar(dist);
+  camRay.set(t, camDir); camRay.far = dist;
+  const h = camRay.intersectObjects(Z.camHits, false)[0];
+  const want = h ? Math.max(1.2, h.distance - 0.35) : dist;
+  camPull = want < camPull ? want : Math.min(dist, camPull + 6 * 0.016);   // 당길 땐 바로, 풀 땐 천천히
+  if (camPull >= dist - 0.01) return null;
+  camKeep.copy(cam3.position);
+  cam3.position.copy(t).addScaledVector(camDir, camPull);
+  return camKeep;
+}
+
+// ---------- 휴대폰 성능을 보고 자동으로 가벼운 화질 (처음 한 번, 직접 고르면 그대로) ----------
+let perf = { t: 0, n: 0, slow: 0, done: !!S.liteChosen };
+function perfSample(dt) {
+  if (perf.done || !started) return;
+  perf.t += dt; perf.n++;
+  if (dt > 1 / 38) perf.slow++;
+  if (perf.t < 6) return;
+  perf.done = true;
+  const fps = perf.n / perf.t, weak = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3;
+  if (!S.lite && (fps < 42 || perf.slow / perf.n > 0.3 || (weak && fps < 52))) { setLite(true); UI.toast('⚡ 휴대폰에 맞춰 가벼운 화질로 바꿨어요 (⚙️ 설정에서 바꿀 수 있어요)'); }
+}
+
+// ---------- 희귀 · 전설 · 신화 동물이 화면 밖에 있으면 가장자리에 반짝 ----------
+const rareEl = $('#rareMark'), rareV = new THREE.Vector3();
+function rareEdge() {
+  if (mode !== 'walk' || UI.isOpen()) { rareEl.hidden = true; return; }
+  let best = null, bd = Infinity;
+  for (const a of live) {
+    if (a.leaving || !['rare', 'legend', 'mythic'].includes(a.sp.rarity)) continue;
+    const d = Math.hypot(a.x - pos.x, a.z - pos.z); if (d < bd) { bd = d; best = a; }
+  }
+  if (!best) { rareEl.hidden = true; return; }
+  rareV.set(best.x, best.y + 1, best.z).applyMatrix4(cam3.matrixWorldInverse);
+  const behind = rareV.z > 0, p = rareV.clone().applyMatrix4(cam3.projectionMatrix);
+  const w = window.innerWidth, h = window.innerHeight;
+  let x = (p.x + 1) / 2 * w, y = (1 - p.y) / 2 * h;
+  if (behind) { x = w - x; y = h * 0.75; }
+  const m = 40, top = 160, bottom = h - 270;
+  const inside = !behind && x > m && x < w - m && y > top && y < bottom;
+  rareEl.hidden = inside;
+  if (inside) return;
+  const cx = w / 2, cy = (top + bottom) / 2, dx = x - cx, dy = y - cy;
+  const k = Math.min((w / 2 - m) / Math.abs(dx || 1e-3), ((bottom - top) / 2) / Math.abs(dy || 1e-3));
+  rareEl.style.transform = `translate(${cx + dx * k - 32}px, ${cy + dy * k - 32}px)`;
+  rareEl.style.setProperty('--rc', RARITY[best.sp.rarity].color);
+  const label = `${RARITY[best.sp.rarity].name} ${S.dex[best.sp.id] ? best.sp.name : '???'}`;
+  if (rareEl.lastChild.textContent !== label) rareEl.lastChild.textContent = label;
+}
+
 // ---------- 머리 위 표정 · 이름표 위치 ----------
 const v3 = new THREE.Vector3();
 function updateTags() {
@@ -1008,10 +1086,14 @@ function loop(now) {
     if (marker.visible) { marker.position.y = 4.2 + Math.abs(Math.sin(clock * 3)) * 0.6; marker.rotation.y = clock * 2; }
     pointToGoal();
     placeMenu();
+    rareEdge();
     updateCoins(dt);
     sendMe();
     updateTags();
+    const keepCam = mode === 'walk' ? camAvoid() : null;
     renderer.render(scene, cam3);
+    if (keepCam) cam3.position.copy(keepCam);   // 손으로 고른 카메라 각도는 그대로
+    perfSample(dt);
   }
   requestAnimationFrame(loop);
 }
@@ -1033,6 +1115,7 @@ requestAnimationFrame(loop);
   if (first) S.name = randomName();
   save();
   started = true;
+  countVisit(S, save);
   document.body.classList.add('playing');
   UI.setName(S.name);
   // 화면 꺼짐 막기 · 소리는 브라우저가 첫 터치 뒤에만 허락해요
@@ -1040,9 +1123,9 @@ requestAnimationFrame(loop);
   const z = S.zone && ZONES[S.zone] && (!ZONES[S.zone].ticket || S.tickets[ZONES[S.zone].ticket]) ? S.zone : 'station';
   if (z !== 'station') enterZone(z); else net.join(S.server);
   // 저장된 자리로 (같은 장소일 때만)
-  if (S.pos && S.pos.zone === z && Number.isFinite(S.pos.x)) {
-    const q = { x: S.pos.x, z: S.pos.z }; collide(Z, q, 0.35);
-    pos.set(q.x, 0, q.z); yaw = S.pos.yaw || 0; camBehind();
+  if (S.pos && S.pos.zone === z && Number.isInteger(S.pos.cp)) {
+    const c = checkpoints(Z)[S.pos.cp] || checkpoints(Z)[0];
+    pos.set(c.x, 0, c.z); yaw = c.yaw; camBehind();
   }
   UI.updateHud(); updateGoal();
   UI.toast(first ? `🎉 반가워요, ${S.name}! 바닥을 누르면 걸어가요` : z === 'station' ? `🚏 ${S.name}, 다시 왔네요!` : `${ZONES[z].icon} ${ZONES[z].name}에서 이어 해요`);

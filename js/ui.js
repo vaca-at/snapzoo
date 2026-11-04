@@ -1,10 +1,10 @@
 // 화면: 위 알림판 · 아래 탭 다섯 칸 · 패널(도감 · 상점 · 표정 · 지도 · 매표소 · 버스/배) · 사진 결과 카드 · 소리
 import * as THREE from 'three';
-import { ANIMALS, RARITY, ZONES, ZONE_ORDER, CAMERAS, LOOKS, LOOK_TABS, BODIES, GENDERS, TICKETS, FACES, ACTIONS, PLAZA_ACTS, FLAVORS, DAILY_SECONDS, SERVER_COUNT, SERVER_CAP } from './data.js';
-import { S, save, perSec, secLeft, dexCount, camera as curCam, owns } from './state.js';
+import { NAME_A, NAME_B, ANIMALS, RARITY, ZONES, ZONE_ORDER, CAMERAS, LOOKS, LOOK_TABS, BODIES, GENDERS, TICKETS, FACES, ACTIONS, PLAZA_ACTS, FLAVORS, DAILY_SECONDS, SERVER_COUNT, SERVER_CAP } from './data.js';
+import { S, save, perSec, secLeft, dexCount, camera as curCam, owns, randomName, validName } from './state.js';
 import { Player } from './player.js';
 import { DEX_PHOTOS } from './dexphotos.js';
-import { setBgm, setSfx } from './audio.js';
+import { setBgm, setSfx, sfx } from './audio.js';
 import { buildAnimal } from './animals.js';
 import { getPhoto, listPhotos } from './album.js';
 
@@ -64,6 +64,7 @@ export function setGoal(t) {
   const g = $('#goal'); g.textContent = t; g.hidden = !t;
   if (t) bump(g);
 }
+export function setNameTag(n) { setName(n); }
 export function setName(n) { $('#nameTag .nm').textContent = n; }
 let lastCoins = -1;
 export function updateHud() {
@@ -377,7 +378,12 @@ export function openWardrobe() {
   if (G.inPhoto()) G.exitPhoto();
   const w = S.wear, block = w.body === 'block';
   const mine = (t) => LOOKS[t].filter((x) => owns(t, x.id));
-  const sheet = panel('wardrobe', '👤 캐릭터', `<div class="me">
+  const [na, nb] = S.name.split(' ');
+  const opts = (list, cur) => list.map((w) => `<option ${w === cur ? 'selected' : ''}>${w}</option>`).join('');
+  const sheet = panel('wardrobe', '👤 캐릭터', `<div class="namerow"><span>이름</span>
+      <select id="nameA" aria-label="이름 앞">${opts(NAME_A, na)}</select><select id="nameB" aria-label="이름 뒤">${opts(NAME_B, nb)}</select>
+      <button class="btn ghost" type="button" id="nameDice" aria-label="이름 뽑기">🎲</button></div>
+    <div class="me">
       <img class="mepic" src="${lookPreview()}" alt="내 모습">
       <div class="mesec"><p class="zonehead">몸<i></i></p><div class="opts two">${BODIES.map((b) => optBtn('data-body', b.id, b.icon, b.name, w.body === b.id)).join('')}</div>
       <p class="zonehead">성별<i></i></p><div class="opts two">${GENDERS.map((g) => optBtn('data-gender', g.id, g.icon, g.name, w.gender === g.id)).join('')}</div></div></div>
@@ -397,6 +403,10 @@ export function openWardrobe() {
   });
   for (const t of ['outfit', 'hair', 'item']) sheet.querySelectorAll(`[data-${t}]`).forEach((b) => { b.onclick = () => { wear(b.dataset[t], t); openWardrobe(); }; });
   $('#toStore').onclick = () => openShop('store');
+  // 이름 바꾸기: 정해진 낱말끼리만 (나쁜 말 · 개인정보 걱정 없음)
+  const setName = (n) => { if (!validName(n)) return; S.name = n; save(); setNameTag(n); G.renamed?.(); toast(`✏️ 이제 이름은 ${n}!`); };
+  $('#nameA').onchange = $('#nameB').onchange = () => setName(`${$('#nameA').value} ${$('#nameB').value}`);
+  $('#nameDice').onclick = () => { const n = randomName(); const [a, b] = n.split(' '); $('#nameA').value = a; $('#nameB').value = b; setName(n); sfx('pop'); };
 }
 function buyBtn(key, price) {
   const can = S.coins >= price;
@@ -540,7 +550,7 @@ export function openSettings() {
   const flip = (id, get, set, onT = '켜짐', offT = '꺼짐') => { sheet.querySelector('#' + id).onclick = (e) => { set(!get()); save(); e.currentTarget.classList.toggle('on', get()); e.currentTarget.textContent = get() ? onT : offT; sfx('unlock'); }; };
   flip('swBgm', () => !S.bgmOff, setBgm);
   flip('swSfx', () => !S.sfxOff, setSfx);
-  flip('swLite', () => !!S.lite, (v) => G.setLite(v));
+  flip('swLite', () => !!S.lite, (v) => { S.liteChosen = true; G.setLite(v); });
   sheet.querySelector('#creditsBtn').onclick = () => openCredits();
 }
 function openCredits() {
@@ -580,4 +590,4 @@ export function showResult(r) {
 }
 
 // ---------- 소리는 js/audio.js ----------
-export { sfx } from './audio.js';
+export { sfx };

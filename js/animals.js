@@ -3,6 +3,7 @@
 // buildAnimal(model) → { root, update(t, moving, act) , size, center }
 //   act: 특별한 순간이 시작된 뒤 지난 초 (아니면 -1)
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const MATS = new Map();
 export function mat(color, emissive = 0, opacity = 1) {
@@ -17,7 +18,24 @@ export function mat(color, emissive = 0, opacity = 1) {
 }
 const BOX = new THREE.BoxGeometry(1, 1, 1);
 const CONE = new THREE.ConeGeometry(0.5, 1, 4);
+// 둥근 모서리 상자: 동물 · 건물이 둥근 캐릭터와 로우폴리 배경에 어울리게 (크기마다 한 번만 만들어요)
+const RB = new Map();
+function roundGeo(w, h, d) {
+  const k = `${w.toFixed(3)},${h.toFixed(3)},${d.toFixed(3)}`;
+  if (!RB.has(k)) {
+    const r = Math.min(w, h, d) * 0.22;
+    RB.set(k, r < 0.012 ? BOX : new RoundedBoxGeometry(w, h, d, 2, r));
+  }
+  return RB.get(k);
+}
 export function box(parent, color, w, h, d, x = 0, y = 0, z = 0, glow = 0, opacity = 1) {
+  const m = new THREE.Mesh(roundGeo(w, h, d), typeof color === 'string' ? mat(color, glow, opacity) : color);
+  m.position.set(x, y, z);
+  parent.add(m);
+  return m;
+}
+// 각진 상자 (1번 네모 탐험가 · 얇은 판처럼 각이 있어야 하는 것)
+export function sharpBox(parent, color, w, h, d, x = 0, y = 0, z = 0, glow = 0, opacity = 1) {
   const m = new THREE.Mesh(BOX, typeof color === 'string' ? mat(color, glow, opacity) : color);
   m.scale.set(w, h, d);
   m.position.set(x, y, z);

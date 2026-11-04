@@ -2,7 +2,9 @@
 // 같은 관절(hips · legs · body · arms · head)을 써서 걷기 · 점프 · 앉기 · 🍦👋🪁 동작이 둘 다 돼요.
 // wear = { body, gender, hair, outfit, item: [] } (js/data.js 의 BODIES · LOOKS)
 import * as THREE from 'three';
-import { box, mat } from './animals.js';
+import { sharpBox, box as roundBox, mat } from './animals.js';
+// 네모 탐험가는 각진 상자, 콩알 탐험가 소품 · 자전거 · 아이스크림은 둥근 상자
+let box = sharpBox;
 import { bakeJoints } from './world.js';
 import { HOODS } from './data.js';
 

@@ -67,6 +67,12 @@ body:not(.playing) .hud, body:not(.playing) .walkui, body:not(.playing) .tabbar,
 .goalarrow { position: fixed; left: 0; top: 0; width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; background: var(--sun); color: var(--sun-ink); border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); font-size: 30px; font-weight: 700; pointer-events: none; animation: nudge .8s ease-in-out infinite alternate; }
 @keyframes nudge { to { filter: brightness(1.12); } }
 body:not(.playing) .goalarrow, body.photo .goalarrow { display: none; }
+/* 희귀 동물이 화면 밖에 있으면 가장자리에서 반짝 */
+.raremark { position: fixed; left: 0; top: 0; width: 64px; height: 64px; pointer-events: none; z-index: 6; display: grid; place-items: center; }
+.raremark i { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, var(--rc, #ffe0b0) 0 45%, transparent 70%); animation: rare 0.9s ease-in-out infinite alternate; font-style: normal; display: grid; place-items: center; font-size: 26px; }
+.raremark b { position: absolute; top: 60px; white-space: nowrap; font-family: var(--display); font-weight: 400; font-size: 13px; background: rgba(36,52,43,.85); color: #fff; padding: 2px 8px; border-radius: 999px; }
+@keyframes rare { from { transform: scale(.85); opacity: .75; } to { transform: scale(1.15); opacity: 1; } }
+body:not(.playing) .raremark, body.photo .raremark { display: none; }
 
 /* ---------- 걷기 화면 B ---------- */
 .walkui { position: fixed; left: 0; right: 0; bottom: calc(92px + var(--safe-b)); height: 128px; pointer-events: none; }
@@ -223,6 +229,9 @@ body.photo .toast { bottom: calc(150px + var(--safe-b)); }
 .subtabs { display: flex; gap: 6px; }
 .tabs.four { grid-template-columns: repeat(4, 1fr); gap: 5px; }
 .tabs.four .tab { font-size: 14px; min-height: 50px; padding: 0 2px; }
+.namerow { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 16px; }
+.namerow select { flex: 1; min-width: 0; min-height: 48px; font-family: var(--display); font-size: 17px; border: 2px solid var(--ink); border-radius: 14px; background: #fff; padding: 0 8px; color: var(--ink); }
+.credits { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.4; }
 .me { display: flex; gap: 12px; align-items: center; }
 .mepic { width: 120px; height: 120px; flex: none; border-radius: 18px; background: linear-gradient(#e6f4fb, #d7ecdf); border: 2px solid var(--ink); }
 .mesec { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
