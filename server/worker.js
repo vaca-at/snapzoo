@@ -3,7 +3,7 @@
 // 채팅은 없어요: 서버가 정해진 값(낱말 조합 이름, 목록에 있는 옷 · 동작 · 표정, 숫자)만 골라 넘기고 나머지는 버려요.
 // 저장하는 것은 숫자뿐이에요: 날짜별 방문 수 · 시간대 · 동시접속 최고 (누가 왔는지는 남기지 않아요). 관리자 대시보드(/admin)가 읽어요.
 import { DurableObject } from 'cloudflare:workers';
-import { NAME_A, NAME_B, LOOKS, BODIES, ANIMALS, CAMERAS, ACTIONS, FACES, SERVER_COUNT, SERVER_CAP } from '../js/data.js';
+import { NAME_A, NAME_B, LOOKS, BODIES, ANIMALS, CAMERAS, ACTIONS, FACES, SERVER_COUNT, SERVER_CAP } from '../kids/js/data.js';
 
 const GRACE = 30e3;   // 끊긴 분 자리를 남겨 두는 시간 (다른 앱에 잠깐 다녀오기, 화면 끄기)
 const ROOM_RE = new RegExp(`^station-([1-9]|1[0-9]|20)$`);

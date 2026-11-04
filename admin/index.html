@@ -94,7 +94,7 @@ button, input { font: inherit; }
 </div>
 
 <script type="module">
-import { RELAY_URL } from '../js/data.js';
+import { RELAY_URL } from '../kids/js/data.js';
 const q = new URLSearchParams(location.search).get('relay');
 const RELAY = (q && /^https?:\/\/[\w.:-]+$/.test(q) ? q : RELAY_URL).replace(/\/$/, '');
 const $ = (s) => document.querySelector(s);
