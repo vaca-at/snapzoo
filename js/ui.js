@@ -1,7 +1,8 @@
 // 화면: 위 알림판 · 아래 탭 다섯 칸 · 패널(도감 · 상점 · 표정 · 지도 · 매표소 · 버스/배) · 사진 결과 카드 · 소리
 import * as THREE from 'three';
-import { ANIMALS, RARITY, ZONES, ZONE_ORDER, CAMERAS, LOOKS, LOOK_TABS, TICKETS, FACES, ACTIONS, DAILY_SECONDS, SERVER_COUNT, SERVER_CAP } from './data.js';
-import { S, save, perSec, secLeft, dexCount, camera as curCam } from './state.js';
+import { ANIMALS, RARITY, ZONES, ZONE_ORDER, CAMERAS, LOOKS, LOOK_TABS, BODIES, GENDERS, TICKETS, FACES, ACTIONS, FLAVORS, DAILY_SECONDS, SERVER_COUNT, SERVER_CAP } from './data.js';
+import { S, save, perSec, secLeft, dexCount, camera as curCam, owns } from './state.js';
+import { Player } from './player.js';
 import { buildAnimal } from './animals.js';
 import { getPhoto, listPhotos } from './album.js';
 
@@ -102,6 +103,14 @@ function renderSpotMenu() {
     // 표가 없으면 여기서 바로 사요 (매표소까지 안 가도 돼요)
     const tk = TICKETS.find((t) => t.id === s.id);
     if (!S.tickets[tk.id]) body += buyTicket(tk);
+  } else if (s.id === 'icecream') {
+    head = '🍦 아이스크림 가게';
+    body = FLAVORS.map((f) => `<button class="sm-btn go" type="button" data-ice="${f.id}">${f.icon} ${f.name} <small>무료</small></button>`).join('');
+  } else if (s.id === 'shop') {
+    head = '🛒 상점';
+    body = `<button class="sm-btn go" type="button" data-shop="store">🛍️ 옷 가게</button>
+      <button class="sm-btn" type="button" data-shop="me">👤 내 모습 바꾸기</button>
+      <button class="sm-btn" type="button" data-shop="camera">📷 카메라</button>`;
   } else if (s.id === 'bench') {
     body = G.isSitting()
       ? '<button class="sm-btn" type="button" data-act="stand">🧍 일어나기</button>'
@@ -111,6 +120,8 @@ function renderSpotMenu() {
   el.hidden = false;
   el.querySelectorAll('[data-buy]').forEach((b) => { b.onclick = () => { if (buy(b.dataset.buy)) renderSpotMenu(); }; });
   el.querySelectorAll('[data-go]').forEach((b) => { b.onclick = () => G.travel(b.dataset.go); });
+  el.querySelectorAll('[data-ice]').forEach((b) => { b.onclick = () => G.eatIce(FLAVORS.find((f) => f.id === b.dataset.ice)); });
+  el.querySelectorAll('[data-shop]').forEach((b) => { b.onclick = () => { G.closeSpot(); openShop(b.dataset.shop); }; });
   el.querySelectorAll('[data-act]').forEach((b) => {
     b.onclick = () => {
       const a = b.dataset.act;
@@ -280,38 +291,78 @@ async function openAlbum() {
   panel('album', '🖼️ 내 사진 앨범', html + '<p class="fine">최근 80장까지 이 기기 안에만 보관해요.</p>');
 }
 
-// ---------- 상점 (카메라 · 꾸미기 · 표) ----------
-let shopTab = 'camera', lookTab = 'hair';
+// ---------- 상점: 내 모습 (가진 것 갈아입기) · 옷 가게 (사기) · 카메라 · 표 ----------
+let shopTab = 'me', lookTab = 'outfit';
+const SHOP_TABS = [['me', '👤 내 모습'], ['store', '🛍️ 옷 가게'], ['camera', '📷 카메라'], ['ticket', '🎫 표']];
+// 내 모습 미리보기 그림 (도감 그림과 같은 작은 그리기 판)
+const looksCache = new Map();
+function lookPreview() {
+  const key = JSON.stringify([S.wear, S.camera]);
+  if (looksCache.has(key)) return looksCache.get(key);
+  portrait('frog');   // 그리기 판 준비
+  const p = new Player();
+  p.build(S.wear, curCam().color);
+  p.animate(0.016, 1.2);
+  p.root.rotation.y = 0.45;
+  pr.sc.add(p.root);
+  const h = S.wear.body === 'bean' ? 1.45 : 1.9;
+  pr.cam.position.set(0.5, h * 0.62, h * 2.25); pr.cam.lookAt(0, h * 0.5, 0);
+  pr.r.render(pr.sc, pr.cam);
+  const url = pr.c.toDataURL('image/png');
+  pr.sc.remove(p.root);
+  looksCache.set(key, url);
+  return url;
+}
+const optBtn = (attr, id, icon, name, on, extra = '') => `<button class="opt ${on ? 'on' : ''}" type="button" ${attr}="${id}"><span>${icon}</span>${name}${extra}</button>`;
 export function openShop(tab) {
   if (tab) shopTab = tab;
-  const tabs = [['camera', '📷 카메라'], ['look', '👕 꾸미기'], ['ticket', '🎫 표']]
-    .map(([id, n]) => `<button class="tab ${shopTab === id ? 'on' : ''}" type="button" data-tab="${id}">${n}</button>`).join('');
+  const tabs = SHOP_TABS.map(([id, n]) => `<button class="tab ${shopTab === id ? 'on' : ''}" type="button" data-tab="${id}">${n}</button>`).join('');
   let body = '';
-  if (shopTab === 'camera') {
-    body = CAMERAS.map((c) => {
+  if (shopTab === 'me') {
+    const w = S.wear, block = w.body === 'block';
+    const mine = (t) => LOOKS[t].filter((x) => owns(t, x.id));
+    body = `<div class="me">
+      <img class="mepic" src="${lookPreview()}" alt="내 모습">
+      <div class="mesec"><p class="zonehead">몸<i></i></p><div class="opts two">${BODIES.map((b) => optBtn('data-body', b.id, b.icon, b.name, w.body === b.id)).join('')}</div>
+      <p class="zonehead">성별<i></i></p><div class="opts two">${GENDERS.map((g) => optBtn('data-gender', g.id, g.icon, g.name, w.gender === g.id)).join('')}</div></div></div>
+      <p class="zonehead">옷<i></i></p><div class="opts">${mine('outfit').map((x) => optBtn('data-outfit', x.id, x.icon, x.name, w.outfit === x.id)).join('')}</div>
+      <p class="zonehead">머리<i></i></p>${block
+        ? `<div class="opts">${mine('hair').map((x) => optBtn('data-hair', x.id, x.icon, x.name, w.hair === x.id)).join('')}</div>`
+        : '<p class="fine">콩알 탐험가는 남자는 삐죽 머리, 여자는 리본이에요.</p>'}
+      <p class="zonehead">아이템 <small>여러 개 할 수 있어요</small><i></i></p><div class="opts">${mine('item').map((x) => optBtn('data-item', x.id, x.icon, x.name, w.item.includes(x.id))).join('')}</div>
+      <div class="row"><button class="btn buy" type="button" data-tab="store">🛍️ 옷 가게에서 더 사기</button></div>`;
+  } else if (shopTab === 'store') {
+    const sub = LOOK_TABS.map((t) => `<button class="chipbtn ${lookTab === t.id ? 'on' : ''}" type="button" data-look="${t.id}">${t.icon} ${t.name}</button>`).join('');
+    body = `<div class="subtabs">${sub}</div><div class="list">` + LOOKS[lookTab].map((it) => {
+      const has = owns(lookTab, it.id);
+      const on = lookTab === 'item' ? S.wear.item.includes(it.id) : S.wear[lookTab] === it.id;
+      return `<div class="item"><span class="bigic">${it.icon}</span><span class="tx"><b>${it.name}</b><small>${it.price ? `🪙 ${fmt(it.price)}` : '기본으로 가져요'}</small></span>
+        ${!has ? buyBtn(`look:${lookTab}:${it.id}`, it.price) : on ? '<button class="btn" disabled>입는 중</button>' : `<button class="btn" type="button" data-${lookTab}="${it.id}">입기</button>`}</div>`;
+    }).join('') + `</div>${lookTab === 'hair' ? '<p class="fine">머리 모양은 네모 탐험가에게 보여요.</p>' : ''}<p class="fine">꾸미기는 모양만 바뀌어요. 점수 · 코인에는 영향 없어요.</p>`;
+  } else if (shopTab === 'camera') {
+    body = '<div class="list">' + CAMERAS.map((c) => {
       const has = S.cameras[c.id], using = S.camera === c.id;
       return `<div class="item" style="--cc:${c.color}"><span class="camic"><i></i></span>
         <span class="tx"><b>${c.name}</b><small>${c.effect}</small></span>
-        ${using ? '<button class="btn" disabled>쓰는 중</button>' : has ? `<button class="btn" data-use="${c.id}">쓰기</button>` : buyBtn(`cam:${c.id}`, c.price)}</div>`;
-    }).join('');
-  } else if (shopTab === 'look') {
-    const sub = LOOK_TABS.map((t) => `<button class="chipbtn ${lookTab === t.id ? 'on' : ''}" type="button" data-look="${t.id}">${t.icon} ${t.name}</button>`).join('');
-    body = `<div class="subtabs">${sub}</div>` + LOOKS[lookTab].map((it) => {
-      const has = it.price === 0 || S.looks[lookTab][it.id];
-      const on = lookTab === 'item' ? S.wear.item.includes(it.id) : S.wear[lookTab] === it.id;
-      return `<div class="item"><span class="tx"><b>${it.name}</b><small>${it.price ? `${fmt(it.price)} 포인트` : '무료'}</small></span>
-        ${!has ? buyBtn(`look:${lookTab}:${it.id}`, it.price) : on ? (lookTab === 'item' ? `<button class="btn on" data-wear="${it.id}">벗기</button>` : '<button class="btn" disabled>입는 중</button>') : `<button class="btn" data-wear="${it.id}">${lookTab === 'item' ? '하기' : '입기'}</button>`}</div>`;
-    }).join('') + '<p class="fine">꾸미기는 모양만 바뀌어요. 점수 · 코인에는 영향 없어요.</p>';
-  } else {
-    body = ticketList();
-  }
-  const sheet = panel('shop', '🛒 상점', `<div class="tabs">${tabs}</div><p class="wallet">🪙 <b>${fmt(S.coins)}</b></p><div class="list">${body}</div>`);
+        ${using ? '<button class="btn" disabled>쓰는 중</button>' : has ? `<button class="btn" type="button" data-use="${c.id}">쓰기</button>` : buyBtn(`cam:${c.id}`, c.price)}</div>`;
+    }).join('') + '</div>';
+  } else body = `<div class="list">${ticketList()}</div>`;
+  const sheet = panel('shop', '🛒 상점', `<div class="tabs four">${tabs}</div><p class="wallet">🪙 <b>${fmt(S.coins)}</b></p>${body}`);
   sheet.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => openShop(b.dataset.tab); });
   sheet.querySelectorAll('[data-look]').forEach((b) => { b.onclick = () => { lookTab = b.dataset.look; openShop(); }; });
   sheet.querySelectorAll('[data-use]').forEach((b) => { b.onclick = () => { S.camera = b.dataset.use; save(); G.dressUp(); openShop(); toast(`📷 ${curCam().name}를 들었어요`); }; });
-  sheet.querySelectorAll('[data-wear]').forEach((b) => { b.onclick = () => { wear(b.dataset.wear); openShop(); }; });
+  sheet.querySelectorAll('[data-body]').forEach((b) => { b.onclick = () => { S.wear.body = b.dataset.body; dressed(); }; });
+  sheet.querySelectorAll('[data-gender]').forEach((b) => {
+    b.onclick = () => {
+      S.wear.gender = b.dataset.gender;
+      if (S.wear.hair === 'short' || S.wear.hair === 'long') S.wear.hair = S.wear.gender === 'm' ? 'short' : 'long';
+      dressed();
+    };
+  });
+  for (const t of ['outfit', 'hair', 'item']) sheet.querySelectorAll(`[data-${t}]`).forEach((b) => { b.onclick = () => { wear(b.dataset[t], t); openShop(); }; });
   bindBuy(sheet, () => openShop());
 }
+function dressed() { save(); G.dressUp(); openShop(); }
 function buyBtn(key, price) {
   const can = S.coins >= price;
   return `<button class="btn buy" type="button" data-buy="${key}" ${can ? '' : 'disabled'}>🪙 ${fmt(price)}</button>`;
@@ -334,16 +385,17 @@ function buy(key) {
   if (S.coins < price) { toast('포인트가 조금 모자라요'); return false; }
   S.coins -= price;
   if (kind === 'cam') { S.cameras[a] = true; S.camera = a; G.dressUp(); }
-  if (kind === 'look') { S.looks[a][b] = true; wear(b, a); }
+  if (kind === 'look') { S.looks[a][b] = true; wear(b, a, true); }
   if (kind === 'ticket') S.tickets[a] = true;
   save(); updateHud(); sfx('coin');
-  toast(`🎉 ${name}${kind === 'ticket' ? '를 샀어요!' : '을(를) 샀어요!'}`);
+  toast(`🎉 ${name}${kind === 'ticket' ? '를 샀어요!' : '을(를) 샀어요! 바로 입었어요'}`);
   return true;
 }
-function wear(id, tab = lookTab) {
+// 입기 · 벗기 (아이템은 여러 개, 산 건 바로 입어요)
+function wear(id, tab, bought = false) {
   if (tab === 'item') {
     const i = S.wear.item.indexOf(id);
-    if (i >= 0) S.wear.item.splice(i, 1); else S.wear.item.push(id);
+    if (i >= 0 && !bought) S.wear.item.splice(i, 1); else if (i < 0) S.wear.item.push(id);
   } else S.wear[tab] = id;
   save(); G.dressUp();
 }
@@ -441,10 +493,10 @@ export function showResult(r) {
     <div class="bars">${bar('가운데', r.ev.center, 40)}${bar('알맞은 크기', r.ev.size, 30)}${bar('특별한 순간', r.ev.moment, 30)}</div>
     <p class="fine center">${tip}</p>
     <div class="reward">${r.prize ? `🪙 +${fmt(r.prize)}` : '상금은 처음 찍거나 최고 사진을 바꿀 때 받아요'}${r.newDex ? `<br><small>⏱️ 초당 포인트 +1 → 이제 1초에 <b>${r.perSec}</b></small>` : ''}</div>
-    <div class="row"><button class="btn big" type="button" id="againBtn">📷 다시 찍기</button><button class="btn" type="button" id="doneBtn">그만</button></div>`, { cls: 'result', noHead: true });
-  afterResult = null;
-  $('#againBtn').onclick = () => closeAll();
-  $('#doneBtn').onclick = () => { closeAll(); G.exitPhoto(); };
+    <div class="row"><button class="btn big" type="button" id="doneBtn">좋아요 ✓</button></div>`, { cls: 'result', noHead: true });
+  // 닫으면 사진 화면도 끝나요 (다른 동물은 📷 로 다시 찍으면 돼요)
+  afterResult = () => G.exitPhoto();
+  $('#doneBtn').onclick = () => closeAll();
   if (r.newDex && dexCount() === ANIMALS.length) setTimeout(() => toast('🏆 도감 완성! 동물 왕국의 사진 박사!', 'gold'), 600);
 }
 

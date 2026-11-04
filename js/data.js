@@ -85,31 +85,59 @@ export const CAMERAS = [
 ];
 
 // 꾸미기 (모양만 바뀌고 점수 · 코인에는 영향 없음)
+// 내 모습: 몸 2가지(둘 다 처음부터 가져요, 언제든 바꿔요) · 성별 · 머리 · 옷 · 아이템
+// price 0 은 처음부터 가진 기본, 나머지는 상점 '옷 가게'에서 사요. 꾸미기는 점수 · 코인에 영향 없음
+export const BODIES = [
+  { id: 'block', icon: '🧱', name: '네모 탐험가' },   // 시안 1번
+  { id: 'bean',  icon: '🫘', name: '콩알 탐험가' },   // 시안 8번
+];
+export const GENDERS = [
+  { id: 'm', icon: '👦', name: '남자' },
+  { id: 'f', icon: '👧', name: '여자' },
+];
 export const LOOKS = {
+  // 머리는 네모 탐험가만 (콩알은 남자 새싹 · 여자 리본)
   hair: [
-    { id: 'short',    name: '기본 짧은 머리', price: 0 },
-    { id: 'curly',    name: '곱슬머리',       price: 300 },
-    { id: 'ponytail', name: '포니테일',       price: 300 },
-    { id: 'braid',    name: '땋은 머리',      price: 500 },
+    { id: 'short',    icon: '💇', name: '짧은 머리',   price: 0 },
+    { id: 'long',     icon: '💇‍♀️', name: '긴 머리',     price: 0 },
+    { id: 'ponytail', icon: '🎀', name: '포니테일',    price: 300 },
+    { id: 'curly',    icon: '🌀', name: '곱슬머리',    price: 300 },
+    { id: 'braid',    icon: '🪢', name: '땋은 머리',   price: 500 },
   ],
   outfit: [
-    { id: 'explorer', name: '기본 탐험복',   price: 0 },
-    { id: 'safari',   name: '사파리 조끼',   price: 800 },
-    { id: 'wetsuit',  name: '잠수복',        price: 1500 },
-    { id: 'jacket',   name: '사진가 재킷',   price: 2000 },
+    { id: 'explorer', icon: '🧭', name: '탐험복',       price: 0 },     // 시안 1번 조끼
+    { id: 'tee',      icon: '👕', name: '민트 티셔츠',  price: 0 },     // 시안 2번
+    { id: 'overall',  icon: '👖', name: '하늘 멜빵',    price: 0 },     // 시안 4번
+    { id: 'plaid',    icon: '🏕️', name: '캠핑 체크',    price: 800 },   // 시안 5번
+    { id: 'raincoat', icon: '☔', name: '노란 우비',    price: 1200 },  // 시안 15번
+    { id: 'wetsuit',  icon: '🤿', name: '잠수복',       price: 1500 },  // 시안 13번
+    { id: 'frog',     icon: '🐸', name: '개구리 잠옷',  price: 1500 },  // 시안 14번
+    { id: 'jacket',   icon: '📸', name: '사진가 재킷',  price: 2000 },
+    { id: 'lion',     icon: '🦁', name: '사자 후드',    price: 3000 },  // 시안 3번
   ],
   item: [
-    { id: 'compass',   name: '나침반 목걸이', price: 800 },
-    { id: 'hat',       name: '탐험가 모자',   price: 1000 },
-    { id: 'bag',       name: '카메라 가방',   price: 1200 },
-    { id: 'binocular', name: '쌍안경',        price: 1500 },
-    { id: 'headlamp',  name: '헤드랜턴',      price: 2500 },
+    { id: 'hat',       icon: '🤠', name: '탐험가 모자',  price: 0 },    // 시안 2번
+    { id: 'sprout',    icon: '🌱', name: '새싹 머리핀',  price: 300 },  // 시안 11번
+    { id: 'compass',   icon: '🧭', name: '나침반 목걸이', price: 800 },
+    { id: 'goggles',   icon: '🥽', name: '물안경',       price: 1000 }, // 시안 13번
+    { id: 'bag',       icon: '🎒', name: '카메라 가방',  price: 1200 },
+    { id: 'binocular', icon: '🔭', name: '쌍안경',       price: 1500 },
+    { id: 'headlamp',  icon: '🔦', name: '헤드랜턴',     price: 2500 },
   ],
 };
+// 머리를 덮는 옷 (후드 · 우비 모자를 쓰면 머리 · 모자가 안 보여요)
+export const HOODS = ['frog', 'lion', 'raincoat'];
 export const LOOK_TABS = [
-  { id: 'hair', icon: '💇', name: '머리' },
   { id: 'outfit', icon: '👕', name: '옷' },
+  { id: 'hair', icon: '💇', name: '머리' },
   { id: 'item', icon: '🎒', name: '아이템' },
+];
+
+// 광장 아이스크림 가게 (무료, 먹는 동작의 맛 색)
+export const FLAVORS = [
+  { id: 'strawberry', icon: '🍓', name: '딸기',   color: '#ffb3c7' },
+  { id: 'choco',      icon: '🍫', name: '초코',   color: '#8a5a3a' },
+  { id: 'mint',       icon: '🌿', name: '민트',   color: '#a8ecd0' },
 ];
 
 // 이름은 정해진 낱말 조합으로만 (개인정보 · 나쁜 말 걱정 없음). '000 00' 모양: 세 글자 꾸밈말 + 두 글자 동물

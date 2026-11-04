@@ -70,7 +70,7 @@ const net = new Net({
     const f = friends.get(id) || addFriend(id, st);
     f.st = st;
     const key = JSON.stringify([st.w, st.c]);
-    if (key !== f.key) { f.key = key; f.p.build({ hair: st.w.h, outfit: st.w.o, item: st.w.i }, (CAMERAS.find((c) => c.id === st.c) || CAMERAS[0]).color); }
+    if (key !== f.key) { f.key = key; f.p.build({ body: st.w.b, gender: st.w.g, hair: st.w.h, outfit: st.w.o, item: st.w.i }, (CAMERAS.find((c) => c.id === st.c) || CAMERAS[0]).color); }
     UI.setFriends(net, friends.size);
   },
   onLeave(id) { removeFriend(id); UI.setFriends(net, friends.size); },
@@ -108,7 +108,7 @@ function sendMe() {
   if (zoneId !== 'station' || !started) return;
   const r2 = (v) => Math.round(v * 100) / 100;
   net.send({ n: S.name, x: r2(pos.x), z: r2(pos.z), y: r2(pos.y), r: r2(((yaw % 6.2832) + 6.2832) % 6.2832), m: me.moving > 0.05 ? 1 : 0, s: me.sitting ? 1 : 0,
-    a: me.action?.id || '', f: clock < faceUntil ? faceIdx : -1, w: { h: S.wear.hair, o: S.wear.outfit, i: S.wear.item }, c: S.camera }, performance.now());
+    a: me.action?.id || '', f: clock < faceUntil ? faceIdx : -1, w: { b: S.wear.body, g: S.wear.gender, h: S.wear.hair, o: S.wear.outfit, i: S.wear.item }, c: S.camera }, performance.now());
 }
 
 // ---------- 장소 ----------
@@ -134,6 +134,7 @@ function enterZone(id) {
   yaw = Z.spawn.yaw; camYaw = yaw + Math.PI; me.sitting = false; me.action = null;
   S.zone = id; save();
   if (typeof closeSpot === 'function' && menu) closeSpot();
+  if (typeof clearWalkTo === 'function' && walkTo) clearWalkTo();
   UI.setZone(ZONES[id]);
   if (typeof updateGoal === 'function' && started) updateGoal();
   // 동물: 늘 있는 동물은 바로, 가끔 나오는 동물은 시간표대로
@@ -366,35 +367,96 @@ function updateWalk(dt) {
     // 카메라가 천천히 내 뒤로 따라와요
     camYaw += angDiff(camYaw, yaw + Math.PI) * Math.min(1, dt * 0.9 * len);
     me.moving = len;
+    clearWalkTo();
+  } else if (walkTo && !me.sitting) {
+    // 누른 곳까지 걸어가요 (카메라는 그대로 두어 동그라미가 화면에서 흔들리지 않게)
+    const dx = walkTo.x - pos.x, dz = walkTo.z - pos.z, d = Math.hypot(dx, dz);
+    if (d < 0.25) clearWalkTo();
+    else {
+      const step = Math.min(d, 4.6 * dt);
+      const bx = pos.x, bz = pos.z;
+      pos.x += dx / d * step; pos.z += dz / d * step;
+      yaw += angDiff(yaw, Math.atan2(dx, dz)) * Math.min(1, dt * 12);
+      me.moving = 1;
+      walkTo.check = { bx, bz, step };
+    }
   } else me.moving = 0;
   // 점프 · 땅
   me.vy -= 16 * dt; pos.y += me.vy * dt;
   if (pos.y <= 0) { pos.y = 0; me.vy = 0; me.onGround = true; }
   const q = { x: pos.x, z: pos.z }; collide(Z, q, 0.35); pos.x = q.x; pos.z = q.z;
+  // 막혀서 못 가면 (분수 · 건물) 멈춰요
+  if (walkTo?.check) {
+    const c = walkTo.check, moved = Math.hypot(pos.x - c.bx, pos.z - c.bz);
+    walkTo.stuck = moved < c.step * 0.3 ? (walkTo.stuck || 0) + dt : 0;
+    walkTo.check = null;
+    if (walkTo.stuck > 0.4) clearWalkTo();
+  }
   // 가까운 곳 (버스 · 매표소 · 배 · 의자): 다가가면 그 위에 말풍선 메뉴, 멀어지면 닫혀요
   nearSpot = null;
   for (const s of Z.spots) if (Math.hypot(s.x - pos.x, s.z - pos.z) < s.r) { nearSpot = s; break; }
   if (me.sitting) return;
-  if (nearSpot && (!menu || menu.spot !== nearSpot)) openSpot(nearSpot, 'near');
+  if (dismissed && nearSpot !== dismissed) dismissed = null;   // 떠났다 다시 오면 또 떠요
+  if (nearSpot && nearSpot !== dismissed && (!menu || menu.spot !== nearSpot)) openSpot(nearSpot, 'near');
   else if (menu && menu.how === 'near' && !nearSpot) closeSpot();
   else if (menu && menu.how === 'tap' && nearSpot === menu.spot) menu.how = 'near';   // 누르고 걸어가서 도착한 뒤 떠나면 닫혀요
 }
 
 // ---------- 말풍선 메뉴 (매표소 · 버스 · 배 · 의자 바로 위) ----------
 let menu = null;            // { spot, how: 'near' | 'tap' }
+let dismissed = null;       // 직접 닫은 곳: 그 자리를 떠날 때까지 다시 안 띄워요
 function openSpot(s, how) { menu = { spot: s, how }; UI.showSpotMenu(s); }
-function closeSpot() { if (!menu) return; menu = null; UI.hideSpotMenu(); }
+function closeSpot(byUser = false) { if (!menu) return; if (byUser) dismissed = menu.spot; menu = null; UI.hideSpotMenu(); }
 const ray = new THREE.Raycaster(), tapV = new THREE.Vector2();
 function tapAt(x, y) {
-  if (mode !== 'walk' || UI.isOpen() || !Z?.hits?.length) { if (menu?.how === 'tap') closeSpot(); return; }
+  if (mode !== 'walk' || UI.isOpen() || !Z) return;
   tapV.set(x / window.innerWidth * 2 - 1, -(y / window.innerHeight) * 2 + 1);
   ray.setFromCamera(tapV, cam3);
-  const h = ray.intersectObjects(Z.hits, false)[0];
-  if (h) { openSpot(h.object.userData.spot, 'tap'); UI.sfx('unlock'); }
-  else if (menu && menu.how === 'tap') closeSpot();
+  const h = Z.hits?.length ? ray.intersectObjects(Z.hits, false)[0] : null;
+  if (h) {
+    // 가게 · 매표소 · 버스 · 배 · 의자: 그 위에 말풍선 + 그 앞까지 걸어가요
+    const s = h.object.userData.spot;
+    openSpot(s, 'tap'); UI.sfx('unlock');
+    if (Math.hypot(s.x - pos.x, s.z - pos.z) > s.r) setWalkTo(s.x, s.z);
+    return;
+  }
+  if (menu && menu.how === 'tap') closeSpot();
+  // 바닥을 누르면 그곳까지 걸어가요
+  if (ray.ray.intersectPlane(GROUND, hitP) && Math.hypot(hitP.x, hitP.z) < Z.radius - 0.4) {
+    me.sitting = false;
+    setWalkTo(hitP.x, hitP.z);
+  }
 }
-export function sitOn(s) { pos.set(s.x, 0, s.z); yaw = s.yaw; me.sitting = true; me.action = null; UI.toast('🪑 앉아서 쉬어요. 초당 포인트는 계속 쌓여요'); }
+
+// ---------- 누른 곳 표시: 동그라미 + 거기까지 점선 ----------
+const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hitP = new THREE.Vector3();
+let walkTo = null;
+const ring = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.48, 36), new THREE.MeshBasicMaterial({ color: '#ff6b4a', transparent: true, opacity: 0.95, depthWrite: false }));
+ring.rotation.x = -Math.PI / 2; ring.visible = false; ring.renderOrder = 2;
+const ringIn = new THREE.Mesh(new THREE.CircleGeometry(0.14, 20), ring.material); ringIn.position.z = 0.001; ring.add(ringIn);
+scene.add(ring);
+const DOT_MAX = 80, DOT_GAP = 0.42;
+const dots = new THREE.InstancedMesh(new THREE.CircleGeometry(0.095, 12), new THREE.MeshBasicMaterial({ color: '#ff6b4a', transparent: true, opacity: 0.9, depthWrite: false }), DOT_MAX);
+dots.count = 0; dots.frustumCulled = false; dots.renderOrder = 2; scene.add(dots);
+const dotM = new THREE.Matrix4(), dotQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)), dotP = new THREE.Vector3(), dotS = new THREE.Vector3(1, 1, 1);
+function setWalkTo(x, z) { walkTo = { x, z }; ring.position.set(x, 0.05, z); ring.visible = true; }
+function clearWalkTo() { walkTo = null; ring.visible = false; dots.count = 0; }
+function updatePath(t) {
+  if (!walkTo || mode !== 'walk') { ring.visible = false; dots.count = 0; return; }
+  ring.visible = true;
+  ring.scale.setScalar(1 + Math.sin(t * 7) * 0.1);
+  const dx = walkTo.x - pos.x, dz = walkTo.z - pos.z, d = Math.hypot(dx, dz);
+  const shift = (t * 1.6) % DOT_GAP;   // 점선이 목표 쪽으로 흘러가요
+  let n = 0;
+  for (let k = 0.55 + shift; k < d - 0.45 && n < DOT_MAX; k += DOT_GAP) {
+    dotP.set(pos.x + dx / d * k, 0.045, pos.z + dz / d * k);
+    dots.setMatrixAt(n++, dotM.compose(dotP, dotQ, dotS));
+  }
+  dots.count = n; dots.instanceMatrix.needsUpdate = true;
+}
+export function sitOn(s) { clearWalkTo(); pos.set(s.x, 0, s.z); yaw = s.yaw; me.sitting = true; me.action = null; UI.toast('🪑 앉아서 쉬어요. 초당 포인트는 계속 쌓여요'); }
 export function standUp() { me.sitting = false; }
+export function eatIce(f) { closeSpot(true); me.doAction('icecream', f.color); UI.toast(`${f.icon} ${f.name} 아이스크림, 냠냠!`); }
 const mv = new THREE.Vector3();
 function placeMenu() {
   if (!menu) return;
@@ -421,7 +483,7 @@ let zoom = 1, target = null;
 const frameEl = $('#frame');
 function enterPhoto() {
   if (mode === 'photo' || UI.isOpen()) return;
-  mode = 'photo'; me.sitting = false; me.action = null; closeSpot();
+  mode = 'photo'; me.sitting = false; me.action = null; closeSpot(); clearWalkTo();
   me.root.visible = false; me.shadow.visible = false;
   aim.yaw = yaw; aim.pitch = 0;
   zoom = Math.min(zoom, curCam().zoom);
@@ -664,6 +726,8 @@ function loop(now) {
     updateCamera(dt);
     if (Z.water && Z.foam) Z.foam.position.z = -2 + Math.sin(clock * 0.8) * 0.4;
     if (Z.snow) Z.snow.rotation.y = clock * 0.02;
+    Z.update?.(clock);
+    updatePath(clock);
     if (marker.visible) { marker.position.y = 4.2 + Math.abs(Math.sin(clock * 3)) * 0.6; marker.rotation.y = clock * 2; }
     pointToGoal();
     placeMenu();
@@ -678,7 +742,7 @@ function loop(now) {
 // ---------- 시작 ----------
 UI.init({
   enterPhoto, exitPhoto, shoot, zoomBy, travel, showFace, doAction, dressUp, pickServer, serverCounts, sitOn, standUp,
-  isSitting: () => me.sitting, closeSpot: () => closeSpot(),
+  isSitting: () => me.sitting, closeSpot: () => closeSpot(true), eatIce,
   zone: () => zoneId, inPhoto: () => mode === 'photo',
 });
 dressUp();
@@ -703,7 +767,7 @@ requestAnimationFrame(loop);
     pos.set(q.x, 0, q.z); yaw = S.pos.yaw || 0; camYaw = yaw + Math.PI;
   }
   UI.updateHud(); updateGoal();
-  UI.toast(first ? `🎉 반가워요, ${S.name}!` : z === 'station' ? `🚏 ${S.name}, 다시 왔네요!` : `${ZONES[z].icon} ${ZONES[z].name}에서 이어 해요`);
+  UI.toast(first ? `🎉 반가워요, ${S.name}! 바닥을 누르면 걸어가요` : z === 'station' ? `🚏 ${S.name}, 다시 왔네요!` : `${ZONES[z].icon} ${ZONES[z].name}에서 이어 해요`);
 })();
 // 테스트에서 상태를 볼 수 있게 (게임에는 영향 없음)
 window.__snapzoo = { S, live, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), get zone() { return zoneId; }, get pos() { return pos.clone(); }, tp: (x, z) => pos.set(x, 0, z), enterZone, spawn: (id) => spawn(ANIMALS.find((a) => a.id === id), true), dexCount };

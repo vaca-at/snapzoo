@@ -6,6 +6,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { box, mat, mulberry } from './animals.js';
 
 const BAKED = new THREE.MeshLambertMaterial({ vertexColors: true });
+const joint = (p, x = 0, y = 0, z = 0) => { const o = new THREE.Group(); o.position.set(x, y, z); p.add(o); return o; };
+const add = (p, geo, m, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(geo, typeof m === 'string' ? mat(m) : m); o.position.set(x, y, z); p.add(o); return o; };
 
 // 그룹 안의 불투명 · 빛나지 않는 상자들을 메시 하나로 합쳐요 (관절별로)
 export function bake(root, deep = true) {
@@ -16,6 +18,7 @@ export function bake(root, deep = true) {
     if (!o.isMesh || o === root) return;
     if (!deep && o.parent !== root) return;
     const m = o.material;
+    if (Array.isArray(m) || m.map) return;   // 얼굴 그림 · 무늬 천은 따로 그려요
     if (m.transparent || m.vertexColors || (m.emissive && m.emissiveIntensity > 0 && m.emissive.getHex() !== 0) || o.userData.keep) return;
     if (!o.geometry.index && !o.geometry.attributes.position) return;
     parts.push(o);
@@ -146,76 +149,169 @@ function hitBox(Z, spot, x, y, z, w, h, d) {
   Z.group.add(m); Z.hits.push(m);
 }
 
-// ================== 정거장 대기실 ==================
+// ================== 정거장 광장 ==================
+// 가운데 분수와 벤치, 뒤쪽 정거장 건물 · 매표소, 왼쪽 버스 · 오른쪽 배,
+// 앞쪽 양옆에 아이스크림 가게 · 상점. 가로등 사이에 깃발 줄, 꽃밭과 풍선 수레.
 // spots: 가까이 가거나 누르면 그 위에 말풍선 메뉴가 떠요 (ax, ay, az = 말풍선 자리)
 function station() {
   const g = new THREE.Group();
-  const Z = { group: g, radius: 15, colliders: [], spots: [], benches: [], hits: [], sky: '#bfe8f5', fog: ['#bfe8f5', 30, 70], spawn: { x: 0, z: 5, yaw: Math.PI } };
-  ground(g, '#a8d68a', Z.radius);
-  // 바닥 타일
-  const floor = new THREE.Group(); g.add(floor);
-  for (let i = -6; i <= 6; i++) for (let j = -6; j <= 5; j++) {
-    if (Math.hypot(i * 2, j * 2) > 14) continue;
-    box(floor, (i + j) % 2 ? '#f2e6c8' : '#e8d8b0', 1.96, 0.1, 1.96, i * 2, 0.05, j * 2);
-  }
+  const Z = { group: g, radius: 17, colliders: [], spots: [], benches: [], hits: [], sky: '#bfe8f5', fog: ['#bfe8f5', 34, 80], spawn: { x: 0, z: 8, yaw: Math.PI } };
+  const rnd = mulberry(2);
+  ground(g, '#9fd486', Z.radius);
+  // 바닥: 동그란 광장 돌길 (안쪽에서 바깥쪽으로 고리 무늬)
+  const disc = (r0, r1, c, y) => { const m = new THREE.Mesh(r0 ? new THREE.RingGeometry(r0, r1, 64) : new THREE.CircleGeometry(r1, 64), mat(c)); m.rotation.x = -Math.PI / 2; m.position.y = y; m.userData.keep = true; g.add(m); };
+  disc(0, Z.radius, '#f1e4c6', 0.02);
+  [[3.2, 3.6], [6.4, 6.9], [10.2, 10.8], [14.2, 14.8]].forEach(([r0, r1]) => disc(r0, r1, '#e2cc9c', 0.025));
+  for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; const t = box(g, '#e8d6ae', 0.3, 0.012, 13.4, Math.cos(a) * 9.7, 0.028, Math.sin(a) * 9.7); t.rotation.y = -a + Math.PI / 2; }
+
+  // 분수 (가운데)
+  const f = joint(g, 0, 0, -1);
+  add(f, new THREE.CylinderGeometry(2.5, 2.6, 0.55, 40), '#d9d2c3', 0, 0.28, 0);
+  add(f, new THREE.CylinderGeometry(2.25, 2.25, 0.08, 40), '#6fc3e8', 0, 0.5, 0);
+  add(f, new THREE.CylinderGeometry(0.3, 0.38, 1.3, 20), '#cfc6b4', 0, 1.0, 0);
+  add(f, new THREE.CylinderGeometry(0.95, 0.5, 0.32, 28), '#d9d2c3', 0, 1.7, 0);
+  add(f, new THREE.CylinderGeometry(0.85, 0.85, 0.05, 28), '#8fd6f0', 0, 1.85, 0);
+  add(f, new THREE.SphereGeometry(0.22, 16, 12), '#8fd6f0', 0, 2.05, 0);
+  const drops = [];
+  for (let i = 0; i < 14; i++) { const d = add(f, new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshLambertMaterial({ color: '#cdeefb', transparent: true, opacity: 0.9 }), 0, 2, 0); d.userData.keep = true; drops.push({ d, a: (i / 14) * Math.PI * 2, o: i / 14 }); }
+  Z.colliders.push({ x: 0, z: -1, r: 2.7 });
+  Z.update = (t) => drops.forEach(({ d, a, o }) => { const k = (t * 0.7 + o) % 1; const r = 0.3 + k * 1.6; d.position.set(Math.cos(a) * r, 2.05 + Math.sin(k * Math.PI) * 0.7 - k * 1.5, Math.sin(a) * r); });
+
   // 뒤쪽 정거장 건물
-  const st = new THREE.Group(); st.position.set(0, 0, -13); g.add(st);
+  const st = joint(g, 0, 0, -15.5);
   box(st, '#fff6e6', 18, 4.5, 2, 0, 2.25, 0);
   box(st, '#ff7a5c', 19, 0.8, 3, 0, 4.9, 0.3);
   box(st, '#ffd23c', 19, 0.25, 3.1, 0, 4.4, 0.3);
   for (let i = -3; i <= 3; i++) { box(st, '#8fd3e8', 1.6, 1.6, 0.1, i * 2.4, 2.6, 1.01); box(st, '#ffffff', 1.7, 0.15, 0.12, i * 2.4, 1.75, 1.02); }
   const title = sign('동물 왕국 정거장', 7, 1.2, '#3f8f5a', '#fffdf6', 76); title.position.set(0, 6.1, 0.9); st.add(title);
-  Z.colliders.push({ x: 0, z: -13, r: 0, w: 18, d: 3 });
-  // 왼쪽 버스 정류장
-  const bus = new THREE.Group(); bus.position.set(-10, 0, -3); g.add(bus);
-  box(bus, '#5a6b7a', 0.2, 3, 0.2, -1.4, 1.5, -1.2); box(bus, '#5a6b7a', 0.2, 3, 0.2, 1.4, 1.5, -1.2);
-  box(bus, '#ffd23c', 3.4, 0.2, 1.8, 0, 3, -0.6);
-  box(bus, '#8fd3e8', 3, 2.2, 0.1, 0, 1.6, -1.3, 0, 0.5);
-  const bs = sign('🚌 버스', 2, 0.8, '#ffd23c', '#24342b', 120); bs.position.set(0, 3.6, 0); bus.add(bs);
-  const busV = new THREE.Group(); busV.position.set(-3.2, 0, 1); busV.rotation.y = Math.PI / 2; bus.add(busV);
-  vehicleBus(busV);
-  Z.colliders.push({ x: -13.2, z: -2, r: 2.2 });
-  const busSpot = { id: 'bus', x: -10, z: -2, r: 2.8, ax: -11.2, ay: 4.4, az: -2.6 };
-  Z.spots.push(busSpot); hitBox(Z, busSpot, -11.6, 1.7, -2.4, 6.6, 3.8, 4.6);
-  // 가운데 매표소
-  const bo = new THREE.Group(); bo.position.set(0, 0, -6.5); g.add(bo);
+  Z.colliders.push({ x: 0, z: -15.5, r: 0, w: 18, d: 3 });
+
+  // 매표소 (뒤쪽 가운데)
+  const bo = joint(g, 0, 0, -9);
   box(bo, '#ff9f6a', 3.4, 2.6, 2, 0, 1.3, 0);
   box(bo, '#fffdf6', 2.4, 1, 0.1, 0, 1.6, 1.01);
   box(bo, '#5a3a24', 3.6, 0.15, 0.6, 0, 1.05, 1.2);
   box(bo, '#ffd23c', 3.8, 0.4, 2.4, 0, 2.8, 0.1);
   for (let i = 0; i < 5; i++) box(bo, i % 2 ? '#ff6b8a' : '#fffdf6', 0.76, 0.5, 0.2, -1.52 + i * 0.76, 2.4, 1.25);
   const bt = sign('🎫 매표소', 2.4, 0.8, '#fffdf6', '#24342b', 110); bt.position.set(0, 3.5, 0.5); bo.add(bt);
-  Z.colliders.push({ x: 0, z: -6.5, r: 1.9 });
-  const boothSpot = { id: 'booth', x: 0, z: -4.4, r: 2.4, ax: 0, ay: 4.1, az: -6.5 };
-  Z.spots.push(boothSpot); hitBox(Z, boothSpot, 0, 1.8, -6.3, 4, 3.8, 2.8);
+  Z.colliders.push({ x: 0, z: -9, r: 1.9 });
+  const boothSpot = { id: 'booth', x: 0, z: -6.9, r: 2.4, ax: 0, ay: 4.1, az: -9 };
+  Z.spots.push(boothSpot); hitBox(Z, boothSpot, 0, 1.8, -8.8, 4, 3.8, 2.8);
+
+  // 왼쪽 버스 정류장
+  const bus = joint(g, -12.5, 0, -3);
+  box(bus, '#5a6b7a', 0.2, 3, 0.2, -1.4, 1.5, -1.2); box(bus, '#5a6b7a', 0.2, 3, 0.2, 1.4, 1.5, -1.2);
+  box(bus, '#ffd23c', 3.4, 0.2, 1.8, 0, 3, -0.6);
+  box(bus, '#8fd3e8', 3, 2.2, 0.1, 0, 1.6, -1.3, 0, 0.5);
+  const bs = sign('🚌 버스', 2, 0.8, '#ffd23c', '#24342b', 120); bs.position.set(0, 3.6, 0); bus.add(bs);
+  const busV = joint(bus, -2.9, 0, 1.2); busV.rotation.y = Math.PI / 2; vehicleBus(busV);
+  Z.colliders.push({ x: -15.4, z: -1.8, r: 2.2 });
+  const busSpot = { id: 'bus', x: -12, z: -1.6, r: 2.8, ax: -13.6, ay: 4.4, az: -2.6 };
+  Z.spots.push(busSpot); hitBox(Z, busSpot, -14, 1.7, -2.4, 6.6, 3.8, 4.6);
+
   // 오른쪽 배 선착장
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(14, 12), mat('#5bbbe0', 0, 0.85));
-  water.rotation.x = -Math.PI / 2; water.position.set(17, 0.08, -3); g.add(water);
-  const dock = new THREE.Group(); dock.position.set(11, 0, -3); g.add(dock);
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(16, 12), mat('#5bbbe0', 0, 0.85));
+  water.rotation.x = -Math.PI / 2; water.position.set(21, 0.08, -3); g.add(water);
+  const dock = joint(g, 13.2, 0, -3);
   for (let i = 0; i < 6; i++) box(dock, i % 2 ? '#b88a5a' : '#a87a4a', 0.75, 0.25, 4, i * 0.8, 0.2, 0);
   for (const zz of [-1.8, 1.8]) box(dock, '#7a5532', 0.3, 1.2, 0.3, 4.6, 0.6, zz);
   const ds = sign('⛵ 배', 1.6, 0.8, '#4fb3ff', '#fffdf6', 120); ds.position.set(1.5, 2.6, -2.1); dock.add(ds);
   box(dock, '#7a5532', 0.15, 2.2, 0.15, 1.5, 1.1, -2.2);
-  const boat = new THREE.Group(); boat.position.set(7.5, 0, 0); dock.add(boat); vehicleBoat(boat);
-  Z.colliders.push({ x: 18.2, z: -3, w: 12, d: 12 });
-  const boatSpot = { id: 'boat', x: 11.5, z: -2.5, r: 2.8, ax: 15.5, ay: 3.3, az: -3 };
-  Z.spots.push(boatSpot); hitBox(Z, boatSpot, 15.2, 1.3, -3, 9.5, 3, 5.5);
-  // 쉬는 의자
-  for (const [x, z, ry] of [[-6, 3.5, 0.5], [6, 3.5, -0.5], [-4.5, 8.5, 0.2], [4.5, 8.5, -0.2]]) {
-    const b = new THREE.Group(); b.position.set(x, 0, z); b.rotation.y = ry + Math.PI; g.add(b);
+  const boat = joint(dock, 7.5, 0, 0); vehicleBoat(boat);
+  Z.colliders.push({ x: 20.4, z: -3, w: 12, d: 12 });
+  const boatSpot = { id: 'boat', x: 13.6, z: -2.5, r: 2.8, ax: 17.6, ay: 3.3, az: -3 };
+  Z.spots.push(boatSpot); hitBox(Z, boatSpot, 17.4, 1.3, -3, 9.5, 3, 5.5);
+
+  // 아이스크림 가게 (앞 왼쪽)
+  const ic = joint(g, -8.6, 0, 4.2);
+  box(ic, '#fff6fa', 3.6, 2.4, 2.2, 0, 1.2, 0);
+  box(ic, '#ffb3c7', 3.7, 0.3, 2.3, 0, 0.15, 0);
+  box(ic, '#8fd3e8', 2.4, 1, 0.06, 0, 1.5, 1.11);
+  box(ic, '#c9844a', 3.8, 0.14, 0.6, 0, 1.0, 1.35);
+  for (let i = 0; i < 6; i++) box(ic, i % 2 ? '#ff8fb0' : '#ffffff', 0.66, 0.16, 1.2, -1.65 + i * 0.66, 2.62, 1.5).rotation.x = 0.35;
+  box(ic, '#ff8fb0', 3.8, 0.3, 2.4, 0, 2.55, 0);
+  const cone = joint(ic, 0, 2.7, 0);
+  add(cone, new THREE.ConeGeometry(0.55, 1.4, 16), '#e0a45a', 0, 0.75, 0).rotation.x = Math.PI;
+  add(cone, new THREE.SphereGeometry(0.62, 18, 14), '#ffb3c7', 0, 1.65, 0);
+  add(cone, new THREE.SphereGeometry(0.5, 18, 14), '#a8ecd0', 0, 2.2, 0);
+  add(cone, new THREE.SphereGeometry(0.12, 10, 8), '#e23b52', 0.05, 2.75, 0);
+  const ics = sign('🍦 아이스크림', 2.6, 0.7, '#ffffff', '#c2185b', 100); ics.position.set(0, 2.15, 1.13); ic.add(ics);
+  for (const [x, c] of [[-0.9, '#ffb3c7'], [-0.3, '#8a5a3a'], [0.3, '#a8ecd0'], [0.9, '#fff2b0']]) add(ic, new THREE.SphereGeometry(0.16, 10, 8), c, x, 1.18, 1.35);
+  Z.colliders.push({ x: -8.6, z: 4.2, r: 0, w: 3.8, d: 2.4 });
+  const iceSpot = { id: 'icecream', x: -8.6, z: 6.4, r: 2.2, ax: -8.6, ay: 5.2, az: 4.6 };
+  Z.spots.push(iceSpot); hitBox(Z, iceSpot, -8.6, 2.2, 4.4, 3.8, 4.4, 2.8);
+  // 풍선 수레
+  const cart = joint(g, -4.8, 0, 7.4);
+  box(cart, '#4fb3ff', 1.1, 0.6, 0.7, 0, 0.6, 0); for (const sx of [-0.4, 0.4]) add(cart, new THREE.CylinderGeometry(0.18, 0.18, 0.1, 14), '#2b2b33', sx, 0.22, 0.38).rotation.x = Math.PI / 2;
+  [['#ff6b8a', -0.3, 2.6], ['#ffd23c', 0.1, 2.9], ['#4fb3ff', 0.4, 2.5], ['#a8ecd0', -0.1, 2.3], ['#c77dff', 0.25, 2.2]].forEach(([c, x, y]) => {
+    add(cart, new THREE.SphereGeometry(0.26, 14, 12), c, x, y, 0).scale.y = 1.15;
+    box(cart, '#ffffff', 0.015, y - 0.9, 0.015, x * 0.5, (y + 0.9) / 2, 0);
+  });
+  Z.colliders.push({ x: -4.8, z: 7.4, r: 0.8 });
+
+  // 상점 (앞 오른쪽): 옷 가게 · 카메라
+  const sh = joint(g, 8.6, 0, 4.2);
+  box(sh, '#fff8e8', 3.8, 2.6, 2.4, 0, 1.3, 0);
+  box(sh, '#3f8f5a', 4.2, 0.35, 2.8, 0, 2.75, 0);
+  add(sh, new THREE.ConeGeometry(2.9, 1.3, 4), '#3f8f5a', 0, 3.55, 0).rotation.y = Math.PI / 4;
+  for (let i = 0; i < 6; i++) box(sh, i % 2 ? '#4fb3ff' : '#ffffff', 0.68, 0.16, 1.1, -1.7 + i * 0.68, 2.3, 1.6).rotation.x = 0.35;
+  box(sh, '#8fd3e8', 1.4, 1.3, 0.06, -0.85, 1.3, 1.21); box(sh, '#8a5a34', 0.9, 1.7, 0.06, 0.95, 0.85, 1.21);
+  box(sh, '#ffd23c', 0.08, 0.08, 0.04, 1.25, 0.85, 1.25);
+  // 진열창 속 옷 (마네킹)
+  box(sh, '#e8d6ae', 0.08, 0.5, 0.08, -0.85, 0.95, 1.05); box(sh, '#5fc25a', 0.42, 0.42, 0.22, -0.85, 1.35, 1.05); box(sh, '#d2ae72', 0.5, 0.05, 0.4, -0.85, 1.72, 1.05);
+  const shs = sign('🛒 상점', 2.2, 0.7, '#3f8f5a', '#fffdf6', 110); shs.position.set(0, 2.1, 1.23); sh.add(shs);
+  Z.colliders.push({ x: 8.6, z: 4.2, r: 0, w: 4, d: 2.6 });
+  const shopSpot = { id: 'shop', x: 8.6, z: 6.5, r: 2.2, ax: 8.6, ay: 5.0, az: 4.6 };
+  Z.spots.push(shopSpot); hitBox(Z, shopSpot, 8.6, 2.2, 4.4, 4.2, 4.6, 3);
+
+  // 벤치: 분수를 둘러싸고 · 가게 앞
+  for (const [x, z, face] of [[-3.2, -4.3, 1], [3.2, -4.3, 1], [-3.4, 2.6, 1], [3.4, 2.6, 1], [-12.5, 6, 0], [12.5, 6, 0]]) {
+    const yaw = face ? Math.atan2(0 - x, -1 - z) : Math.atan2(-x, -z);
+    const b = joint(g, x, 0, z); b.rotation.y = yaw;
     box(b, '#c9844a', 2.2, 0.15, 0.7, 0, 0.5, 0);
     box(b, '#c9844a', 2.2, 0.6, 0.12, 0, 0.9, -0.32);
     for (const sx of [-0.9, 0.9]) box(b, '#5a6b7a', 0.12, 0.5, 0.6, sx, 0.25, 0);
-    Z.benches.push({ x, z, yaw: ry + Math.PI });
-    const bs = { id: 'bench', x, z, r: 1.4, ay: 1.9, yaw: ry };
-    Z.spots.push(bs); hitBox(Z, bs, x, 0.65, z, 2.4, 1.3, 1.1);
+    const spot = { id: 'bench', x, z, r: 1.4, ay: 1.9, yaw };
+    Z.benches.push(spot); Z.spots.push(spot); hitBox(Z, spot, x, 0.65, z, 2.4, 1.3, 1.6);
     Z.colliders.push({ x, z, r: 0.6 });
   }
-  // 꽃 화분 · 나무
-  const rnd = mulberry(2);
-  for (const [x, z] of [[-12, 6], [12, 6], [-8, -9], [8, -9], [-13, 1], [0, 13]]) { tree(g, '#4fae5a', x, z, 0.9); Z.colliders.push({ x, z, r: 0.6 }); }
-  for (let i = 0; i < 26; i++) { const a = rnd() * 6.28, d = 13 + rnd() * 3; flower(g, Math.cos(a) * d, Math.sin(a) * d, ['#ff8fab', '#ffd166', '#ffffff', '#c77dff'][i % 4]); }
-  rim(g, Z.radius + 1, ['#7fc46a', '#6ab45a'], 1.2, 3);
+
+  // 가로등 + 깃발 줄
+  const lamps = [];
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + Math.PI / 8, x = Math.cos(a) * 12.4, z = Math.sin(a) * 12.4 + 1;
+    if (z < -6 && Math.abs(x) < 6) continue;
+    box(g, '#3b4a5a', 0.16, 3.4, 0.16, x, 1.7, z);
+    box(g, '#3b4a5a', 0.5, 0.12, 0.5, x, 3.45, z);
+    box(g, '#fff3c0', 0.36, 0.42, 0.36, x, 3.72, z, 0.6);
+    box(g, '#3b4a5a', 0.46, 0.08, 0.46, x, 3.97, z);
+    lamps.push([x, z]);
+    Z.colliders.push({ x, z, r: 0.25 });
+  }
+  const flagCols = ['#ff6b8a', '#ffd23c', '#4fb3ff', '#5fc25a', '#c77dff'];
+  for (let i = 0; i < lamps.length; i++) {
+    const [x0, z0] = lamps[i], [x1, z1] = lamps[(i + 1) % lamps.length];
+    if (Math.hypot(x1 - x0, z1 - z0) > 11 || (z0 + z1) / 2 > 0) continue;   // 깃발 줄은 뒤쪽에만 (카메라 앞을 가리지 않게)
+    const n = 9;
+    for (let k = 1; k < n; k++) {
+      const t = k / n, x = x0 + (x1 - x0) * t, z = z0 + (z1 - z0) * t, y = 3.5 - Math.sin(t * Math.PI) * 0.7;
+      const fl = box(g, flagCols[(i + k) % 5], 0.36, 0.42, 0.03, x, y - 0.22, z);
+      fl.rotation.y = -Math.atan2(z1 - z0, x1 - x0);
+      fl.rotation.z = Math.PI / 4; fl.scale.set(0.24, 0.24, 0.03);
+    }
+  }
+
+  // 꽃밭 · 나무 화분
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 + 0.3, x = Math.cos(a) * 15.6, z = Math.sin(a) * 15.6 + 1;
+    if (z < -12 || (Math.abs(x) > 11 && z < 1 && z > -7)) continue;
+    box(g, '#a87a4a', 2.2, 0.4, 1.0, x, 0.2, z).rotation.y = -a;
+    for (let k = 0; k < 5; k++) flower(g, x + Math.cos(-a + Math.PI / 2) * (k - 2) * 0.38, z + Math.sin(-a + Math.PI / 2) * (k - 2) * 0.38, flagCols[(i + k) % 5]);
+    Z.colliders.push({ x, z, r: 0.9 });
+  }
+  for (const [x, z] of [[-6, -11.8], [6, -11.8], [-15, 9], [15, 9], [0, 15.5]]) { box(g, '#c9844a', 1.2, 0.6, 1.2, x, 0.3, z); tree(g, '#4fae5a', x, z, 0.8); Z.colliders.push({ x, z, r: 0.7 }); }
+  for (let i = 0; i < 30; i++) { const a = rnd() * 6.28, d = 17.5 + rnd() * 4; flower(g, Math.cos(a) * d, Math.sin(a) * d, flagCols[i % 5]); }
+  rim(g, Z.radius + 2.5, ['#7fc46a', '#6ab45a'], 1.4, 3);
   Z.water = water;
   Z.place = placer(Z);
   return Z;

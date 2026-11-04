@@ -197,6 +197,17 @@ body.photo .toast { bottom: calc(150px + var(--safe-b)); }
 .tab { min-height: 52px; font-family: var(--display); font-size: 17px; background: #eef2ea; border: 2px solid var(--ink); border-radius: 14px; white-space: nowrap; }
 .tab.on { background: var(--leaf); color: #fff; }
 .subtabs { display: flex; gap: 6px; }
+.tabs.four { grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.tabs.four .tab { font-size: 14px; min-height: 50px; padding: 0 2px; }
+.me { display: flex; gap: 12px; align-items: center; }
+.mepic { width: 120px; height: 120px; flex: none; border-radius: 18px; background: linear-gradient(#e6f4fb, #d7ecdf); border: 2px solid var(--ink); }
+.mesec { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.opts.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.opt { min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px; font-family: var(--display); font-size: 13px; line-height: 1.15; background: #fff; border: 2px solid var(--ink); border-radius: 14px; text-align: center; }
+.opt span { font-size: 22px; line-height: 1; }
+.opt.on { background: var(--sun); box-shadow: inset 0 0 0 2px var(--ink); }
+.zonehead small { font-family: var(--body); font-size: 12px; }
 .chipbtn { flex: 1; min-height: 46px; font-family: var(--display); font-size: 15px; background: #fff; border: 2px solid var(--ink); border-radius: 999px; }
 .chipbtn.on { background: var(--sun); }
 .list { display: flex; flex-direction: column; gap: 10px; }
