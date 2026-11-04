@@ -1,3 +1,9 @@
+@font-face {
+  font-family: 'OngleipUnz';   /* 온글잎 언즈체 (눈누 · 상업용 무료, 웹 임베딩 가능) */
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2406-1@1.0/Ownglyph_UNZ-Rg.woff2') format('woff2');
+  font-weight: normal;
+  font-display: swap;
+}
 /* 동물 왕국: 휴대폰 세로 · 한 손 · 엄지가 닿는 아래쪽에 큰 단추 (지름 56px 이상) */
 :root {
   --paper: #fffdf6;
@@ -9,7 +15,7 @@
   --sun-ink: #6b4a00;
   --coral: #ff6b4a;
   --shade: rgba(20, 40, 30, .55);
-  --display: "Jua", "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --display: "OngleipUnz", "Jua", "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   --body: "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);

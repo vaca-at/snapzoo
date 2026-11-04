@@ -167,6 +167,12 @@ export class Room extends DurableObject {
     if (now - a.w > 1000) { a.w = now; a.n = 0; }
     if (++a.n > 15) { ws.serializeAttachment(a); return; }
     let m; try { m = JSON.parse(msg); } catch { return; }
+    // 버스 · 배를 타고 떠나요: 자리를 남기지 않고 바로 '나갔어요'
+    if (m.t === 'bye') {
+      if (a.st) this.broadcast({ t: 'leave', id: a.id }, ws);
+      a.quiet = true; a.st = null; ws.serializeAttachment(a);
+      return;
+    }
     if (m.t !== 'st') return;
     const st = cleanState(m.d);
     if (!st) return;

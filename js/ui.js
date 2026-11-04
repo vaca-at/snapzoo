@@ -527,7 +527,7 @@ export function favCardTexture(id, stars = 1) {
     x.fillStyle = R.color; x.beginPath(); x.roundRect(8, 8, 240, 324, 20); x.fill();
     x.fillStyle = '#ffffff'; x.beginPath(); x.roundRect(20, 20, 216, 200, 14); x.fill();
     if (img) x.drawImage(img, 28, 24, 200, 192);
-    x.fillStyle = '#24342b'; x.font = '40px Jua, sans-serif'; x.textAlign = 'center'; x.fillText(a.name, 128, 270);
+    x.fillStyle = '#24342b'; x.font = '44px OngleipUnz, Jua, sans-serif'; x.textAlign = 'center'; x.fillText(a.name, 128, 270);
     x.fillStyle = '#e8a500'; x.font = '34px sans-serif'; x.fillText('★'.repeat(stars) + '☆'.repeat(3 - stars), 128, 314);
     t.needsUpdate = true;
   };

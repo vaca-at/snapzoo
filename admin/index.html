@@ -10,11 +10,17 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
 <style>
+@font-face {
+  font-family: 'OngleipUnz';   /* 온글잎 언즈체 (눈누 · 상업용 무료, 웹 임베딩 가능) */
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2406-1@1.0/Ownglyph_UNZ-Rg.woff2') format('woff2');
+  font-weight: normal;
+  font-display: swap;
+}
 /* 관리자 대시보드: 위에 숫자 카드, 가운데 14일 방문 막대 · 오늘 시간대, 아래 서버 12칸. 게임과 같은 색 */
 :root {
   --bg: #eef5ef; --card: #fffdf6; --ink: #24342b; --soft: #5d6d62; --line: #d5e3d8;
   --leaf: #3f8f5a; --leaf-2: #8fd3a8; --sun: #ffc93c; --coral: #ff6b4a;
-  --display: "Jua", "Apple SD Gothic Neo", sans-serif; --body: "Gowun Dodum", "Apple SD Gothic Neo", sans-serif;
+  --display: "OngleipUnz", "Jua", "Apple SD Gothic Neo", sans-serif; --body: "Gowun Dodum", "Apple SD Gothic Neo", sans-serif;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #141d17; --card: #1f2b23; --ink: #e8f1ea; --soft: #a3b6a8; --line: #33463a; --leaf: #7fd39b; --leaf-2: #3f8f5a; color-scheme: dark; } }
 :root[data-theme="dark"] { --bg: #141d17; --card: #1f2b23; --ink: #e8f1ea; --soft: #a3b6a8; --line: #33463a; --leaf: #7fd39b; --leaf-2: #3f8f5a; color-scheme: dark; }

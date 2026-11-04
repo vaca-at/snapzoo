@@ -289,16 +289,38 @@ const DUNE_GEO = new THREE.SphereGeometry(1, 28, 10, 0, Math.PI * 2, 0, Math.PI 
 let DUNE_MAT = null;
 function duneMat() { if (!DUNE_MAT) { const t = groundTex('sand').clone(); t.needsUpdate = true; t.repeat.set(3, 3); DUNE_MAT = new THREE.MeshStandardMaterial({ map: t, roughness: 1 }); } return DUNE_MAT; }
 
-// 글자 판 (캔버스 글씨)
+// 글자 판 (캔버스 글씨): 언즈체 손글씨 · 둥근 판 · 테두리와 그림자. 글꼴이 늦게 오면 다시 그려요
+export const SIGN_FONT = '"OngleipUnz", "Jua", "Apple SD Gothic Neo", sans-serif';
+const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
 function sign(text, w, h, bg = '#fffdf6', ink = '#24342b', size = 64) {
-  const c = document.createElement('canvas'); c.width = 512; c.height = Math.round(512 * h / w);
+  const c = document.createElement('canvas'); c.width = 768; c.height = Math.round(768 * h / w);
   const x = c.getContext('2d');
-  x.fillStyle = bg; x.fillRect(0, 0, c.width, c.height);
-  x.strokeStyle = ink; x.lineWidth = 12; x.strokeRect(6, 6, c.width - 12, c.height - 12);
-  x.fillStyle = ink; x.font = `${size}px Jua, "Apple SD Gothic Neo", sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
-  x.fillText(text, c.width / 2, c.height / 2 + 4);
-  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex }));
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const draw = () => {
+    const W = c.width, H = c.height, r = Math.min(H * 0.32, 60);
+    x.clearRect(0, 0, W, H);
+    x.fillStyle = ink; x.beginPath(); x.roundRect(4, 4, W - 8, H - 8, r); x.fill();          // 테두리
+    x.fillStyle = bg; x.beginPath(); x.roundRect(16, 14, W - 32, H - 34, r * 0.8); x.fill(); // 판
+    x.fillStyle = 'rgba(255,255,255,.22)'; x.beginPath(); x.roundRect(28, 22, W - 56, (H - 34) * 0.32, r * 0.5); x.fill();   // 윗면 빛
+    // 맨 앞 이모지는 이모지 글꼴로, 나머지 글자는 언즈체로
+    const m = /^(\p{Extended_Pictographic}️?)\s*(.*)$/u.exec(text);
+    const emo = m ? m[1] : '', word = m ? m[2] : text;
+    const fs = size * 1.5;
+    x.font = `${fs}px ${SIGN_FONT}`;
+    const ew = emo ? fs * 1.05 : 0, tw = x.measureText(word).width, total = ew + tw;
+    const scale = Math.min(1, (W - 70) / total);
+    x.save(); x.translate(W / 2, (H - 20) / 2 + 4); x.scale(scale, scale);
+    let px = -total / 2;
+    if (emo) { x.font = `${fs * 0.82}px ${EMOJI_FONT}`; x.textAlign = 'left'; x.textBaseline = 'middle'; x.fillText(emo, px, 2); px += ew; }
+    x.font = `${fs}px ${SIGN_FONT}`; x.textAlign = 'left'; x.textBaseline = 'middle';
+    x.lineJoin = 'round'; x.lineWidth = fs * 0.12; x.strokeStyle = 'rgba(0,0,0,.12)'; x.strokeText(word, px + 3, 6);
+    x.fillStyle = ink; x.fillText(word, px, 2);
+    x.restore();
+    tex.needsUpdate = true;
+  };
+  draw();
+  document.fonts?.load(`64px "OngleipUnz"`).then(draw).catch(() => {});
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
   m.userData.keep = true;
   return m;
 }
@@ -361,7 +383,7 @@ function station() {
   add(tw, new THREE.CylinderGeometry(0.85, 0.85, 0.12, 32), '#ffffff', 0, 1.5, 1.22).rotation.x = Math.PI / 2;
   add(tw, new THREE.TorusGeometry(0.85, 0.07, 8, 32), '#3f8f5a', 0, 1.5, 1.27);
   box(tw, '#24342b', 0.08, 0.55, 0.04, 0, 1.72, 1.3); box(tw, '#24342b', 0.42, 0.08, 0.04, 0.18, 1.5, 1.31);
-  const title = sign('동물 왕국 정거장', 7, 1.2, '#3f8f5a', '#fffdf6', 76); title.position.set(0, 4.35, 1.62); st.add(title);
+  const title = sign('동물 왕국 정거장', 6.4, 0.95, '#3f8f5a', '#fffdf6', 80); title.position.set(0, 4.95, 1.84); st.add(title);   // 지붕 앞면에
   Z.colliders.push({ x: 0, z: -15.5, r: 0, w: 18, d: 3 });
 
   // 매표소 (뒤쪽 가운데)
@@ -373,7 +395,7 @@ function station() {
   { const rf = add(bo, new THREE.CylinderGeometry(0.01, 2.0, 1.3, 4, 1), flat('#e2574c'), 0, 3.55, 0.1); rf.rotation.y = Math.PI / 4; rf.scale.set(1.35, 1, 0.85); }
   add(bo, new THREE.SphereGeometry(0.16, 12, 10), '#ffd23c', 0, 4.25, 0.1);
   for (let i = 0; i < 5; i++) box(bo, i % 2 ? '#ff6b8a' : '#fffdf6', 0.76, 0.5, 0.2, -1.52 + i * 0.76, 2.4, 1.25);
-  const bt = sign('🎫 매표소', 2.4, 0.8, '#fffdf6', '#24342b', 110); bt.position.set(0, 3.5, 0.5); bo.add(bt);
+  const bt = sign('🎫 매표소', 2.4, 0.8, '#fffdf6', '#24342b', 110); bt.position.set(0, 3.05, 1.9); bt.rotation.x = -0.12; bo.add(bt);   // 지붕 앞으로
   Z.colliders.push({ x: 0, z: -9, r: 1.9 });
   const boothSpot = { id: 'booth', x: 0, z: -6.9, r: 2.4, ax: 0, ay: 4.1, az: -9 };
   Z.spots.push(boothSpot); hitBox(Z, boothSpot, 0, 1.8, -8.8, 4, 3.8, 2.8);
@@ -415,7 +437,7 @@ function station() {
   add(cone, new THREE.SphereGeometry(0.62, 18, 14), '#ffb3c7', 0, 1.65, 0);
   add(cone, new THREE.SphereGeometry(0.5, 18, 14), '#a8ecd0', 0, 2.2, 0);
   add(cone, new THREE.SphereGeometry(0.12, 10, 8), '#e23b52', 0.05, 2.75, 0);
-  const ics = sign('🍦 아이스크림', 2.6, 0.7, '#ffffff', '#c2185b', 100); ics.position.set(0, 2.15, 1.13); ic.add(ics);
+  const ics = sign('🍦 아이스크림', 2.8, 0.55, '#ffffff', '#c2185b', 100); ics.position.set(0, 2.98, 1.55);   // 지붕 앞면 ic.add(ics);
   for (const [x, c] of [[-0.9, '#ffb3c7'], [-0.3, '#8a5a3a'], [0.3, '#a8ecd0'], [0.9, '#fff2b0']]) add(ic, new THREE.SphereGeometry(0.16, 10, 8), c, x, 1.18, 1.35);
   Z.colliders.push({ x: -8.6, z: 4.2, r: 0, w: 3.8, d: 2.4 });
   const iceSpot = { id: 'icecream', x: -8.6, z: 6.4, r: 2.2, ax: -8.6, ay: 5.2, az: 4.6 };
@@ -439,7 +461,7 @@ function station() {
   box(sh, '#ffd23c', 0.08, 0.08, 0.04, 1.25, 0.85, 1.25);
   // 진열창 속 옷 (마네킹)
   box(sh, '#e8d6ae', 0.08, 0.5, 0.08, -0.85, 0.95, 1.05); box(sh, '#5fc25a', 0.42, 0.42, 0.22, -0.85, 1.35, 1.05); box(sh, '#d2ae72', 0.5, 0.05, 0.4, -0.85, 1.72, 1.05);
-  const shs = sign('🛒 상점', 2.2, 0.7, '#3f8f5a', '#fffdf6', 110); shs.position.set(0, 2.1, 1.23); sh.add(shs);
+  const shs = sign('🛒 상점', 2.4, 0.5, '#3f8f5a', '#fffdf6', 110); shs.position.set(0, 2.62, 2.12); shs.rotation.x = -0.2;   // 지붕 앞면 sh.add(shs);
   Z.colliders.push({ x: 8.6, z: 4.2, r: 0, w: 4, d: 2.6 });
   const shopSpot = { id: 'shop', x: 8.6, z: 6.5, r: 2.2, ax: 8.6, ay: 5.0, az: 4.6 };
   Z.spots.push(shopSpot); hitBox(Z, shopSpot, 8.6, 2.2, 4.4, 4.2, 4.6, 3);
@@ -762,7 +784,7 @@ export const ATMO = {
   desert: { top: '#3f8fd8', horizon: '#ffe0aa', fog: ['#f7d9a8', 50, 250], sun: { az: 40, el: 34, color: '#ffe0b0', i: 2.8, disc: '#fff6d6', size: 80 }, hemi: ['#fff1d8', '#b07a4a', 0.95], exp: 0.95 },
   jungle: { top: '#5fa9a4', horizon: '#d6efcf', fog: ['#c3e2c4', 22, 140], sun: { az: 60, el: 40, color: '#fff3c8', i: 2.2, disc: '#fffbe6', size: 70 }, hemi: ['#e6fbe8', '#4a6a3a', 1.0], exp: 0.95 },
   beach: { top: '#2c8de0', horizon: '#c9efff', fog: ['#cdeeff', 50, 260], sun: { az: 20, el: 45, color: '#fff4dc', i: 2.7, disc: '#ffffff', size: 70 }, hemi: ['#f2fbff', '#c9a874', 0.95], exp: 0.95 },
-  deep: { top: '#061428', horizon: '#0b2340', fog: ['#0b2340', 6, 32], sun: { az: 0, el: 70, color: '#9fc8ff', i: 0.6, disc: '#000000', size: 0 }, hemi: ['#7fb0ff', '#0b2340', 0.6], exp: 0.92, dark: true },
+  deep: { top: '#061428', horizon: '#0d2a4c', fog: ['#0d2a4c', 10, 46], sun: { az: 0, el: 70, color: '#9fc8ff', i: 0.6, disc: '#000000', size: 0 }, hemi: ['#8ab8ff', '#16304e', 1.0], exp: 1.0, dark: true },
 };
 
 // ---------- 먼 배경: 겹겹이 산 · 메사 · 숲 실루엣 (빛 없이 색으로만, 멀수록 하늘에 녹아들게) ----------

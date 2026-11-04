@@ -760,9 +760,248 @@ const BUILD = {
   dumbo: () => dumbo(),
 };
 
+
+// =====================================================================
+// 🌊 깊은 바다 25종 (실제 심해 동물): 물고기 · 오징어 · 해파리 · 갑각류 · 바닥 생물
+// =====================================================================
+const glowMat = (c, k = 1.4) => skin(c, 0.3, { emissive: c, emissiveIntensity: k });
+const glass = (c, op = 0.45) => skin(c, 0.15, { transparent: true, opacity: op, emissive: c, emissiveIntensity: 0.15, depthWrite: false });
+function teeth(p, n, w, y, z, len, up = false) {
+  for (let i = 0; i < n; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(len * 0.18, len, 4), skin('#f4f0e6', 0.3)); c.position.set(-w / 2 + (i + 0.5) * w / n, y, z); c.rotation.x = up ? 0 : Math.PI; p.add(c); }
+}
+// 심해 물고기 공통: 길쭉한 몸 · 큰 눈 · 꼬리 흔들기 + 특별한 것 (o.extra 로)
+function deepFish(o) {
+  const root = new THREE.Group();
+  const body = joint(root);
+  const segs = [];
+  const N = o.segs || 1;
+  let prev = body;
+  for (let i = 0; i < N; i++) {
+    const s = joint(prev, 0, 0, i ? -o.l * 1.6 / N : 0); prev = s; segs.push(s);
+    const k = N > 1 ? 1 - i / N * 0.8 : 1;
+    E(s, o.color, o.w * k, o.h * k, N > 1 ? o.l * 0.95 / N : o.l);
+    if (o.belly) E(s, o.belly, o.w * k * 1.01, o.h * k * 0.5, (N > 1 ? o.l * 0.9 / N : o.l * 0.92), 0, -o.h * k * 0.45, 0, null, true);
+    if (o.dots) for (const sx of [-1, 1]) for (let d = 0; d < (N > 1 ? 1 : o.dots); d++) E(s, glowMat(o.dotColor || '#7df9ff'), 0.008, 0.008, 0.008, sx * o.w * k * 0.97, -o.h * k * 0.4, (N > 1 ? 0 : o.l * (0.6 - d * 1.2 / o.dots)), null, true);
+  }
+  const head = joint(body, 0, 0, o.l * 0.85);
+  const eyes = o.tubeEyes ? [] : eyePair(head, o.eye || o.h * 0.22, o.w * 0.75, o.h * 0.25, -o.l * 0.1, o.iris || null, 'round', 1.25);
+  const tail = joint(segs[N - 1], 0, 0, -o.l * (N > 1 ? 0.95 / N : 1));
+  fin(tail, o.fin || o.color, o.h * 0.9, o.h * 1.1, 0, 0, 0, [0, Math.PI / 2, 0], 0.85);
+  fin(tail, o.fin || o.color, o.h * 0.9, o.h * 1.1, 0, 0, 0, [Math.PI, Math.PI / 2, 0], 0.85);
+  const ex = o.extra ? o.extra({ root, body, head, segs, eyes, tail }) : {};
+  if (ex.eyes) eyes.push(...ex.eyes);
+  function update(t, moving, act) {
+    tail.rotation.y = sin(t * (moving ? 6 : 2.4)) * 0.4;
+    segs.forEach((s, i) => { if (i) s.rotation.y = sin(t * 2.6 - i) * 0.15; });
+    body.position.y = sin(t * 1.2) * 0.04;
+    blink(eyes, t + (o.l * 10));
+    ex.update?.(t, moving, act);
+  }
+  return { root, update };
+}
+function squid(o) {
+  const root = new THREE.Group();
+  const body = joint(root);
+  const mat = o.glass ? glass(o.color, 0.5) : skin(o.color, 0.45);
+  E(body, mat, o.r, o.r, o.len, 0, 0, -o.len * 0.6);   // 몸통(외투막) 뒤로 길게
+  if (o.fins) for (const sx of [-1, 1]) E(body, mat, o.r * 1.1, o.r * 0.12, o.r * 1.0, sx * o.r * 0.9, 0, -o.len * 1.35, [0, sx * 0.4, 0]);
+  if (o.glass) E(body, glowMat('#ffb84a', 0.6), o.r * 0.35, o.r * 0.35, o.r * 0.6, 0, 0, -o.len * 0.5);
+  const head = joint(body, 0, 0, o.r * 0.2);
+  E(head, mat, o.r * 0.85, o.r * 0.8, o.r * 0.7);
+  const eyes = eyePair(head, o.r * (o.eye || 0.32), o.r * 0.7, o.r * 0.1, o.r * 0.25, o.iris || null, 'round', 1.4);
+  const arms = [];
+  for (let i = 0; i < 8 + (o.long ? 2 : 0); i++) {
+    const an = (i / 8) * Math.PI * 2, longArm = i >= 8;
+    const a = joint(head, cos(an) * o.r * 0.45, sin(an) * o.r * 0.45, o.r * 0.5);
+    a.rotation.x = Math.PI / 2 - 0.15;
+    taper(a, longArm ? o.armColor || o.color : o.armColor || o.color, (longArm ? o.armL * 2.2 : o.armL), o.r * 0.12, o.r * 0.04, -1);
+    if (o.cape && !longArm) { const w = new THREE.Mesh(new THREE.PlaneGeometry(o.r * 0.9, o.armL * 0.85), skin(o.cape, 0.5, { side: THREE.DoubleSide, transparent: true, opacity: 0.85 })); w.position.set(0, -o.armL * 0.45, 0); w.rotation.y = an; a.add(w); }
+    a.userData.an = an; arms.push(a);
+  }
+  if (o.glowTips) for (const a of arms) E(a, glowMat('#6ef0ff'), o.r * 0.06, o.r * 0.06, o.r * 0.06, 0, -o.armL, 0, null, true);
+  function update(t, moving, act) {
+    const pulse = sin(t * (moving ? 5 : 2));
+    arms.forEach((a, i) => { a.rotation.z = sin(t * 2 + i) * 0.12; a.rotation.y = pulse * 0.1; });
+    body.position.z = act >= 0 ? -Math.abs(sin(act * 3)) * 0.3 : 0;
+    blink(eyes, t + 20);
+    if (act >= 0 && o.cape) arms.forEach((a) => { a.rotation.x = Math.PI / 2 - 0.15 - 1.4 * easeIn(act, 0.5); });   // 망토 뒤집어쓰기
+  }
+  return { root, update };
+}
+function jelly(o) {
+  const root = new THREE.Group();
+  const bell = joint(root, 0, o.h, 0);
+  const g = new THREE.Mesh(new THREE.SphereGeometry(o.r, 22, 12, 0, Math.PI * 2, 0, Math.PI * (o.comb ? 1 : 0.55)), glass(o.color, o.op || 0.5));
+  if (o.comb) g.scale.set(0.8, 1.3, 0.8);
+  bell.add(g);
+  if (o.ring) E(bell, glowMat(o.ring, 0.9), o.r * 0.55, o.r * 0.25, o.r * 0.55, 0, o.r * 0.15, 0);
+  if (o.comb) for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; for (let k = 0; k < 6; k++) { const yy = (k / 5 - 0.5) * o.r * 2.2; const rr = o.r * 0.8 * Math.sqrt(Math.max(0.05, 1 - (yy / (o.r * 1.3)) ** 2)); E(bell, glowMat(['#ff5af0', '#5af0ff', '#f0ff5a', '#5aff8a'][(i + k) % 4], 1.2), 0.012, 0.012, 0.012, cos(a) * rr, yy, sin(a) * rr, null, true); } }
+  const tents = [];
+  if (!o.comb) for (let i = 0; i < o.n; i++) { const a = (i / o.n) * Math.PI * 2; const tt = joint(bell, cos(a) * o.r * 0.85, 0, sin(a) * o.r * 0.85); taper(tt, glass(o.tent || o.color, 0.6), o.tl, o.r * 0.04, o.r * 0.015); tt.userData.a = a; tents.push(tt); }
+  function update(t, moving, act) {
+    const p = sin(t * (act >= 0 ? 6 : 2.2));
+    bell.scale.set(1 + p * 0.08, 1 - p * 0.08, 1 + p * 0.08);
+    bell.position.y = o.h + sin(t * 1.1) * 0.08;
+    tents.forEach((tt, i) => { tt.rotation.x = sin(t * 1.5 + i) * 0.25; tt.rotation.z = cos(t * 1.3 + i) * 0.2; });
+    if (o.comb) bell.rotation.y = t * 0.5;
+  }
+  return { root, update };
+}
+function shrimp(o) {
+  const root = new THREE.Group(), list = [];
+  const rnd = mulberry(o.seed || 31);
+  for (let n = 0; n < (o.swarm || 1); n++) {
+    const p = joint(root, o.swarm ? (rnd() - 0.5) * 0.9 : 0, o.swarm ? 0.3 + (rnd() - 0.5) * 0.4 : o.y || 0.25, o.swarm ? (rnd() - 0.5) * 0.9 : 0);
+    const segs = [];
+    let prev = p;
+    for (let i = 0; i < 6; i++) { const s = joint(prev, 0, 0, i ? -o.s * 0.9 : 0); prev = s; s.rotation.x = 0.18; E(s, o.color, o.s * 0.55 * (1 - i * 0.08), o.s * 0.6 * (1 - i * 0.08), o.s * 0.6); segs.push(s); }
+    fin(segs[5], o.color, o.s * 0.8, o.s * 0.6, 0, 0, -o.s * 0.3, [-Math.PI / 2, 0, 0]);
+    const eyes = eyePair(p, o.s * 0.16, o.s * 0.35, o.s * 0.3, o.s * 0.5, null, 'round', 0.8);
+    for (const sx of [-1, 1]) { const an = joint(p, sx * o.s * 0.15, o.s * 0.2, o.s * 0.5); an.rotation.set(-1.2, sx * 0.4, 0); taper(an, o.color, o.s * 3, o.s * 0.04, o.s * 0.02, 1); }
+    for (let i = 0; i < 5; i++) for (const sx of [-1, 1]) { const l = joint(segs[Math.min(i, 2)], sx * o.s * 0.3, -o.s * 0.4, -i * o.s * 0.2); l.rotation.z = sx * 0.4; taper(l, o.color, o.s * 0.7, o.s * 0.04, o.s * 0.02); }
+    if (o.glow) E(p, glowMat('#7df9ff'), o.s * 0.08, o.s * 0.08, o.s * 0.08, 0, -o.s * 0.3, 0, null, true);
+    list.push({ p, segs, eyes, ph: rnd() * 6, base: p.position.clone() });
+  }
+  function update(t, moving, act) {
+    list.forEach((k) => {
+      k.segs.forEach((s, i) => { s.rotation.x = 0.18 + (act >= 0 ? sin(act * 14) * 0.35 : sin(t * 3 + k.ph) * 0.05); });
+      k.p.position.y = k.base.y + sin(t * 1.6 + k.ph) * 0.04;
+      blink(k.eyes, t + k.ph);
+    });
+    if (o.swarm && act >= 0) root.rotation.y = act * 2.5;
+  }
+  return { root, update };
+}
+function isopod() {
+  const root = new THREE.Group();
+  const body = joint(root, 0, 0.1, 0);
+  for (let i = 0; i < 8; i++) { const w = 0.16 - Math.abs(i - 3) * 0.012; E(body, i % 2 ? '#c8bca8' : '#d8cdb8', w, 0.08, 0.05, 0, 0, 0.18 - i * 0.05); }
+  const head = joint(body, 0, 0, 0.22); E(head, '#c8bca8', 0.12, 0.07, 0.06);
+  const eyes = eyePair(head, 0.03, 0.08, 0.02, 0.02, '#2a2a2a', 'round', 1.2);
+  for (const sx of [-1, 1]) { const an = joint(head, sx * 0.05, 0.02, 0.05); an.rotation.set(-1.0, sx * 0.6, 0); taper(an, '#b8ac98', 0.18, 0.008, 0.004, 1); }
+  const legs = [];
+  for (let i = 0; i < 7; i++) for (const sx of [-1, 1]) { const l = joint(body, sx * 0.14, -0.03, 0.15 - i * 0.05); l.rotation.z = sx * 0.9; taper(l, '#b8ac98', 0.1, 0.012, 0.008); legs.push(l); }
+  fin(body, '#c8bca8', 0.12, 0.1, 0, 0, -0.22, [-Math.PI / 2, 0, 0]);
+  function update(t, moving, act) {
+    legs.forEach((l, i) => { l.rotation.x = moving ? sin(t * 14 + i) * 0.4 : 0; });
+    body.rotation.x = act >= 0 ? -0.9 * easeIn(act, 0.4) : 0;   // 몸 말기
+    blink(eyes, t);
+  }
+  return { root, update };
+}
+function seaPig() {
+  const root = new THREE.Group();
+  const body = joint(root, 0, 0.12, 0);
+  E(body, skin('#f0b8c0', 0.35, { transparent: true, opacity: 0.85 }), 0.13, 0.11, 0.24);
+  const legs = [];
+  for (let i = 0; i < 5; i++) for (const sx of [-1, 1]) { const l = joint(body, sx * 0.1, -0.07, 0.15 - i * 0.07); taper(l, '#f4c8d0', 0.07, 0.022, 0.016); legs.push(l); }
+  for (let i = 0; i < 3; i++) { const a = joint(body, (i - 1) * 0.04, 0.1, 0.14); a.rotation.x = -0.3; taper(a, '#f4c8d0', 0.1, 0.015, 0.008, 1); }
+  const eyes = eyePair(body, 0.012, 0.05, 0.03, 0.22, null, 'round', 0.5);
+  function update(t, moving, act) {
+    legs.forEach((l, i) => { l.rotation.x = moving ? sin(t * 6 + i) * 0.4 : 0; });
+    body.scale.y = 1 + (act >= 0 ? sin(act * 8) * 0.15 : sin(t * 1.5) * 0.03);
+  }
+  return { root, update };
+}
+function tubeworms() {
+  const root = new THREE.Group(), rnd = mulberry(41), plumes = [];
+  for (let i = 0; i < 9; i++) {
+    const x = (rnd() - 0.5) * 0.5, z = (rnd() - 0.5) * 0.5, h = 0.4 + rnd() * 0.5;
+    const tb = joint(root, x, 0, z); tb.rotation.z = (rnd() - 0.5) * 0.2;
+    taper(tb, '#efe8dc', h, 0.035, 0.03, 1);
+    const pl = joint(tb, 0, h, 0); E(pl, '#d8243a', 0.05, 0.08, 0.05, 0, 0.05, 0); plumes.push(pl);
+  }
+  function update(t, moving, act) { plumes.forEach((p, i) => { const k = act >= 0 ? Math.max(0.05, 1 - easeIn(act, 0.2)) : 1 + sin(t * 2 + i) * 0.1; p.scale.setScalar(k); }); }
+  return { root, update };
+}
+function seaSpider() {
+  const root = new THREE.Group();
+  const body = joint(root, 0, 0.35, 0);
+  for (let i = 0; i < 4; i++) E(body, '#d8603a', 0.03, 0.03, 0.04, 0, 0, 0.08 - i * 0.05);
+  const eyes = eyePair(body, 0.01, 0.02, 0.03, 0.1, null, 'round', 0.6);
+  const legs = [];
+  for (let i = 0; i < 4; i++) for (const sx of [-1, 1]) {
+    const l = joint(body, sx * 0.03, 0, 0.06 - i * 0.05); l.rotation.z = sx * 1.1; l.rotation.y = sx * (0.5 - i * 0.35);
+    taper(l, '#e0703a', 0.32, 0.01, 0.008);
+    const k = joint(l, 0, -0.32, 0); k.rotation.z = sx * -1.6; taper(k, '#e0703a', 0.4, 0.008, 0.005);
+    legs.push(l);
+  }
+  function update(t, moving, act) { legs.forEach((l, i) => { l.rotation.x = (moving || act >= 0) ? sin(t * 5 + i) * 0.3 : 0; }); blink(eyes, t); }
+  return { root, update };
+}
+function blobfish() {
+  const root = new THREE.Group();
+  const body = joint(root, 0, 0.15, 0);
+  E(body, skin('#f0b0a8', 0.5), 0.17, 0.14, 0.2);
+  const head = joint(body, 0, 0.0, 0.14);
+  E(head, skin('#f4bcb4', 0.5), 0.15, 0.13, 0.12);
+  E(head, skin('#e8a098', 0.5), 0.07, 0.06, 0.06, 0, -0.03, 0.12);   // 처진 코
+  E(head, '#b8706a', 0.07, 0.012, 0.02, 0, -0.1, 0.09, [0, 0, 0], true);   // 시무룩한 입
+  const eyes = eyePair(head, 0.02, 0.08, 0.04, 0.09, null, 'round', 0.6);
+  const tail = joint(body, 0, 0, -0.2); fin(tail, '#e8a098', 0.12, 0.1, 0, 0, 0, [0, Math.PI / 2, 0]);
+  function update(t, moving, act) { tail.rotation.y = sin(t * 2) * 0.3; body.scale.set(1, 1 + (act >= 0 ? sin(act * 6) * 0.12 : 0), 1); blink(eyes, t); }
+  return { root, update };
+}
+function casper() {
+  const root = new THREE.Group();
+  const body = joint(root, 0, 0.25, 0);
+  E(body, skin('#f6f2ee', 0.3, { transparent: true, opacity: 0.85 }), 0.13, 0.15, 0.12);
+  const eyes = eyePair(body, 0.025, 0.06, 0.0, 0.1, null, 'round', 0.5);
+  const arms = [];
+  for (let i = 0; i < 8; i++) { const an = (i / 8) * Math.PI * 2; const a = joint(body, cos(an) * 0.07, -0.1, sin(an) * 0.07); taper(a, '#f6f2ee', 0.24, 0.022, 0.008); a.userData.an = an; arms.push(a); }
+  function update(t, moving, act) { arms.forEach((a) => { const k = 0.6 + sin(t * 1.5) * 0.1 + (act >= 0 ? 0.4 : 0); a.rotation.x = Math.sin(a.userData.an) * k; a.rotation.z = -Math.cos(a.userData.an) * k; }); body.position.y = 0.25 + (act >= 0 ? Math.abs(sin(act * 3)) * 0.2 : 0); blink(eyes, t); }
+  return { root, update };
+}
+function tripod() {
+  const m = deepFish({ l: 0.22, w: 0.05, h: 0.07, color: '#5a5a62', belly: '#7a7a82', fin: '#5a5a62', eye: 0.012 });
+  const legs = [];
+  for (const [x, z] of [[-0.06, 0.05], [0.06, 0.05], [0, -0.3]]) { const l = joint(m.root, x, 0, z); taper(l, '#6a6a72', 0.45, 0.008, 0.006); legs.push(l); }
+  m.root.children[0].position.y = 0.45;
+  return m;
+}
+
+// 깊은 바다 동물 모습 (data.js 의 model 이름)
+Object.assign(BUILD, {
+  lanternfish: () => deepFish({ l: 0.12, w: 0.03, h: 0.045, color: '#3a4a6a', belly: '#9aa8c8', dots: 5, eye: 0.02 }),
+  krill: () => shrimp({ s: 0.04, color: '#f08a7a', swarm: 14, glow: true }),
+  combjelly: () => jelly({ r: 0.14, h: 0.6, color: '#e8f4ff', comb: true, op: 0.35 }),
+  redshrimp: () => shrimp({ s: 0.07, color: '#e0342a', y: 0.2 }),
+  hatchetfish: () => deepFish({ l: 0.08, w: 0.025, h: 0.1, color: '#c8d4e4', belly: '#e8eef8', dots: 4, eye: 0.025, iris: '#5a6a8a', fin: '#9aa8b8' }),
+  snailfish: () => deepFish({ l: 0.2, w: 0.06, h: 0.08, color: skin('#f4d4d4', 0.3, { transparent: true, opacity: 0.8 }), belly: '#f8e4e4', segs: 3, eye: 0.018, fin: '#f0d0d0' }),
+  tubeworm: () => tubeworms(),
+  seapig: () => seaPig(),
+  isopod: () => isopod(),
+  glasssquid: () => squid({ r: 0.07, len: 0.2, color: '#e8f4ff', glass: true, armL: 0.12, eye: 0.4, fins: true }),
+  fangtooth: () => deepFish({ l: 0.18, w: 0.09, h: 0.13, color: '#2a2224', belly: '#3a3234', eye: 0.02, extra: ({ head }) => { E(head, '#120c0e', 0.08, 0.04, 0.03, 0, -0.04, 0.03); teeth(head, 5, 0.12, -0.02, 0.04, 0.06); teeth(head, 4, 0.1, -0.07, 0.04, 0.05, true); return {}; } }),
+  atolla: () => jelly({ r: 0.2, h: 0.5, color: '#c8243a', n: 14, tl: 0.3, ring: '#5af0ff', op: 0.7 }),
+  yeticrab: () => { const m = crab('#f2ece0', '#f8f4ec', 1.1, false, 1.1); m.root.traverse((o) => { if (o.isMesh && o.scale.x < 0.03) o.scale.x *= 1.6; }); return m; },
+  seaspider: () => seaSpider(),
+  blobfish: () => blobfish(),
+  vampsquid: () => squid({ r: 0.1, len: 0.15, color: '#6a1a2a', armL: 0.2, eye: 0.38, iris: '#4ab8e8', cape: '#4a0e1a', glowTips: true, fins: true }),
+  viperfish: () => deepFish({ l: 0.3, w: 0.04, h: 0.07, color: '#2a3a4a', belly: '#4a5a6a', dots: 8, eye: 0.02, extra: ({ head }) => { teeth(head, 3, 0.05, -0.04, 0.12, 0.12, true); teeth(head, 2, 0.04, 0.01, 0.12, 0.1); return {}; } }),
+  gulpereel: () => deepFish({ l: 0.5, w: 0.04, h: 0.05, color: '#1a1a24', segs: 6, eye: 0.012, extra: ({ head, segs }) => { E(head, '#120e18', 0.13, 0.11, 0.14, 0, -0.03, 0.08); E(segs[5], glowMat('#ff5a8a'), 0.02, 0.02, 0.02, 0, 0, -0.1, null, true); return { update(t, mv, act) { head.scale.setScalar(act >= 0 ? 1 + 0.4 * easeIn(act, 0.3) : 1); } }; } }),
+  chimaera: () => deepFish({ l: 0.32, w: 0.07, h: 0.1, color: '#b8b4c8', belly: '#d8d4e4', segs: 4, eye: 0.035, iris: '#3a7a5a', extra: ({ body }) => { for (const sx of [-1, 1]) { const f = joint(body, sx * 0.07, -0.03, 0.12); fin(f, '#a8a4b8', 0.22, 0.12, 0, 0, 0, [Math.PI / 2, 0, sx > 0 ? 0 : Math.PI]); } return {}; } }),
+  tripodfish: () => tripod(),
+  barreleye: () => deepFish({ l: 0.18, w: 0.05, h: 0.07, color: '#3a4040', belly: '#5a6060', tubeEyes: true, extra: ({ head }) => {
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), glass('#d8f4ff', 0.3)); dome.position.set(0, 0.05, -0.04); dome.scale.set(1, 1.2, 1.6); head.add(dome);
+    const eyes = [-1, 1].map((s) => { const e = joint(head, s * 0.02, 0.06, -0.04); E(e, glowMat('#3ae85a', 0.6), 0.018, 0.03, 0.018); return e; });
+    return { eyes };
+  } }),
+  goblinshark: () => deepFish({ l: 0.6, w: 0.11, h: 0.14, color: '#e8b8b4', belly: '#f2d4d0', eye: 0.015, extra: ({ head }) => {
+    const sn = joint(head, 0, 0.04, 0.1); E(sn, '#e4aca8', 0.06, 0.03, 0.22, 0, 0, 0.12);   // 길고 납작한 주둥이
+    const jaw = joint(head, 0, -0.07, 0.02); teeth(jaw, 6, 0.1, 0, 0.06, 0.04, true);
+    return { update(t, mv, act) { jaw.position.z = 0.02 + (act >= 0 ? 0.08 * easeIn(act, 0.15) : 0); } };
+  } }),
+  frilledshark: () => deepFish({ l: 0.7, w: 0.06, h: 0.07, color: '#5a4a42', belly: '#7a6a62', segs: 7, eye: 0.018, extra: ({ head }) => { for (let i = 0; i < 6; i++) E(head, '#8a5a52', 0.065, 0.06, 0.008, 0, -0.01, -0.08 - i * 0.02, null, true); teeth(head, 5, 0.06, -0.04, 0.08, 0.025); return {}; } }),
+  giantsquid: () => squid({ r: 0.22, len: 0.55, color: '#c8483a', armColor: '#d8584a', armL: 0.7, eye: 0.45, long: true, fins: true }),
+  casper: () => casper(),
+});
+
+const SHOW_SCALE = { lanternfish: 2.4, krill: 2, hatchetfish: 2.4, redshrimp: 2.2, snailfish: 1.8, combjelly: 1.8, seaspider: 1.6, isopod: 1.9, seapig: 1.8, glasssquid: 2, fangtooth: 2, tubeworm: 1.6, yeticrab: 1.6, blobfish: 1.8, casper: 1.8, tripodfish: 1.5, viperfish: 1.8, barreleye: 2.2, chimaera: 1.5, atolla: 1.5, gulpereel: 1.5, clione: 1.6, dragonfish: 1.6, angler: 1.4 };
 const _box = new THREE.Box3(), _v = new THREE.Vector3();
 export function buildAnimal(model) {
   const m = (BUILD[model] || BUILD.capybara)();
+  if (SHOW_SCALE[model]) m.root.scale.setScalar(SHOW_SCALE[model]);   // 아주 작은 심해 동물은 찾기 좋게 크게
   m.update(0, false, -1);
   m.root.updateMatrixWorld(true);
   _box.setFromObject(m.root);

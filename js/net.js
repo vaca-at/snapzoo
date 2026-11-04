@@ -98,8 +98,14 @@ export class Net {
     this.ws.send(JSON.stringify({ t: 'st', d: st }));
   }
 
+  // keepServer = 서버를 바꾸거나 다시 붙을 때 (잠깐 끊김). 그 밖(버스 · 배를 타고 떠날 때)은 '잘 가요'를 먼저 보내
+  // 서버가 30초 기다리지 않고 친구들 화면에서 나를 바로 지우게 해요
   close(keepServer) {
-    if (this.ws) { const ws = this.ws; this.ws = null; ws.onclose = null; try { ws.close(); } catch {} }
+    if (this.ws) {
+      const ws = this.ws; this.ws = null; ws.onclose = null;
+      try { if (ws.readyState === 1) ws.send(JSON.stringify({ t: 'bye' })); } catch {}
+      try { ws.close(1000, 'bye'); } catch {}
+    }
     clearInterval(this.pinger);
     this.online = false;
     if (!keepServer) this.server = 0;

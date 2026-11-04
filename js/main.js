@@ -142,7 +142,7 @@ const faceTex = {};
 function addFriend(id, st) {
   const p = new Player();
   const g = new THREE.Group(); g.add(p.root, p.shadow);
-  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex(st.n, 320, 72, '34px Jua, sans-serif', true), depthWrite: false }));
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex(st.n, 320, 72, '38px OngleipUnz, Jua, sans-serif', true), depthWrite: false }));
   tag.scale.set(1.9, 0.43, 1); tag.position.y = 2.45; g.add(tag);
   const face = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false })); face.scale.setScalar(0.8); face.position.y = 3.15; face.visible = false; g.add(face);
   const f = { g, p, tag, face, st, cur: { x: st.x, z: st.z, y: st.y, r: st.r }, key: '', lastA: '', lastF: -1 };
@@ -229,7 +229,7 @@ function enterZone(id) {
     // 🌙 밤 동물: 밤에만 두 마리씩
     if (sp.night) { if (phase === 'night') for (let i = 0; i < 2; i++) spawn(sp, false, i === 0); continue; }
     // 늘 있는 동물은 한 마리씩 입구 가까이 (처음에 금방 만나게)
-    if (R.appear === 'always') { for (let i = 0; i < R.count; i++) spawn(sp, false, i === 0); continue; }
+    if (R.appear === 'always') { for (let i = 0; i < (sp.count ?? R.count); i++) spawn(sp, false, i === 0); continue; }
     const t = nowMs();
     if (!S.next[sp.id]) S.next[sp.id] = t + R.first * 1000 * TIME_X * (0.6 + Math.random() * 0.8) * boost(sp.rarity);
     // 없는 동안 때가 지났으면 들어오고 조금 뒤에
@@ -256,6 +256,9 @@ const stars = (() => {
   const m = new THREE.Points(g, new THREE.PointsMaterial({ color: '#ffffff', size: 1.6, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.9 }));
   m.visible = false; scene.add(m); return m;
 })();
+// 깊은 바다에서 내 머리 위를 따라다니는 잠수부 불빛 (주변 동물이 환하게 보여요)
+const diver = new THREE.PointLight('#bfe4ff', 14, 16, 1.4);
+diver.visible = false; scene.add(diver);
 function applyAtmo() {
   const A = ATMO[zoneId] || ATMO.station;
   const P = A.dark ? null : { night: NIGHT, dusk: DUSK, dawn: DAWN }[phase];
@@ -275,6 +278,7 @@ function applyAtmo() {
   scene.environmentIntensity = A.dark || phase === 'night' ? 0.15 : 0.3;
   setSky(top, hor, !A.dark);
   stars.visible = phase === 'night' && !A.dark;
+  diver.visible = !!A.dark;   // 깊은 바다: 잠수부 불빛
   setAmbience(zoneId, phase === 'night');
 }
 // 1분마다 시간을 보고, 밤이 되거나 아침이 되면 하늘과 밤 동물을 바꿔요
@@ -720,7 +724,8 @@ function placeMenu() {
 function updateCamera(dt) {
   // 해와 그림자가 나를 따라와요
   sun.position.copy(pos).add(SUN_OFF); sun.target.position.copy(pos);
-  sunDisc.position.copy(SUN_OFF).normalize().multiplyScalar(280).add(pos); stars.position.set(pos.x, 0, pos.z); sky.position.set(pos.x, 0, pos.z); clouds.position.set(pos.x * 0.6, 0, pos.z * 0.6);
+  sunDisc.position.copy(SUN_OFF).normalize().multiplyScalar(280).add(pos); stars.position.set(pos.x, 0, pos.z);
+  if (diver.visible) diver.position.set(pos.x, pos.y + 3, pos.z); sky.position.set(pos.x, 0, pos.z); clouds.position.set(pos.x * 0.6, 0, pos.z * 0.6);
   if (mode === 'photo') return;
   stepCameraTurn(dt);
   camHold -= dt;
@@ -1131,4 +1136,4 @@ requestAnimationFrame(loop);
   UI.toast(first ? `🎉 반가워요, ${S.name}! 바닥을 누르면 걸어가요` : z === 'station' ? `🚏 ${S.name}, 다시 왔네요!` : `${ZONES[z].icon} ${ZONES[z].name}에서 이어 해요`);
 })();
 // 테스트에서 상태를 볼 수 있게 (게임에는 영향 없음)
-window.__snapzoo = { S, live, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), get zone() { return zoneId; }, get pos() { return pos.clone(); }, get walk() { return walkTo && { ...walkTo }; }, get cam() { return [cam3.position.x, cam3.position.y, cam3.position.z].map((v) => +v.toFixed(2)); }, tp: (x, z) => pos.set(x, 0, z), enterZone, spawn: (id) => spawn(ANIMALS.find((a) => a.id === id), true), dexCount };
+window.__snapzoo = { S, live, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), get zone() { return zoneId; }, get pos() { return pos.clone(); }, get walk() { return walkTo && { ...walkTo }; }, get cam() { return [cam3.position.x, cam3.position.y, cam3.position.z].map((v) => +v.toFixed(2)); }, tp: (x, z) => pos.set(x, 0, z), look: (px, py, pz, tx, ty, tz) => { cam3.position.set(px, py, pz); controls.target.set(tx, ty, tz); camHold = 99; }, enterZone, spawn: (id) => spawn(ANIMALS.find((a) => a.id === id), true), dexCount };
