@@ -24,7 +24,7 @@ function roundGeo(w, h, d) {
   const k = `${w.toFixed(3)},${h.toFixed(3)},${d.toFixed(3)}`;
   if (!RB.has(k)) {
     const r = Math.min(w, h, d) * 0.22;
-    RB.set(k, r < 0.012 ? BOX : new RoundedBoxGeometry(w, h, d, 2, r));
+    RB.set(k, r < 0.012 ? new THREE.BoxGeometry(w, h, d) : new RoundedBoxGeometry(w, h, d, 2, r));   // 아주 작은 부품은 각진 채로 (크기는 그대로)
   }
   return RB.get(k);
 }
