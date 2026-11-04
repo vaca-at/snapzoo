@@ -8,7 +8,7 @@ const MATS = new Map();
 export function mat(color, emissive = 0, opacity = 1) {
   const k = `${color}|${emissive}|${opacity}`;
   if (!MATS.has(k)) {
-    const m = new THREE.MeshLambertMaterial({ color });
+    const m = new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0 });
     if (emissive) { m.emissive = new THREE.Color(color); m.emissiveIntensity = emissive; }
     if (opacity < 1) { m.transparent = true; m.opacity = opacity; m.depthWrite = false; }
     MATS.set(k, m);

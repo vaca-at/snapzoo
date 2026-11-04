@@ -71,6 +71,16 @@ body:not(.playing) .goalarrow, body.photo .goalarrow { display: none; }
 .tabbar .cam { width: 84px; height: 84px; margin: -34px auto 0; border-radius: 50%; background: var(--coral); border: 4px solid var(--ink); box-shadow: 0 5px 0 var(--ink); }
 .tabbar .cam span { font-size: 38px; }
 
+/* 광장 동작 단추 (캠핑장처럼 오른쪽에 세로로) */
+.actbar { position: fixed; right: 14px; bottom: calc(92px + 128px + 14px + var(--safe-b)); display: flex; flex-direction: column; align-items: flex-end; gap: 8px; z-index: 5; }
+.actbtn { min-height: 50px; display: flex; align-items: center; gap: 6px; padding: 4px 14px 4px 8px; font-family: var(--display); font-size: 16px; background: rgba(255,253,246,.94); border: 2.5px solid var(--ink); border-radius: 999px; box-shadow: 0 3px 0 var(--ink); }
+.actbtn span { width: 36px; height: 36px; display: grid; place-items: center; font-size: 22px; background: #eef6ea; border-radius: 50%; }
+.actbtn[aria-pressed="true"] { background: var(--sun); color: var(--sun-ink); }
+.actbtn[aria-pressed="true"] span { background: #fff; animation: pop .3s; }
+.actbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+body.photo .actbar, body:not(.playing) .actbar { display: none; }
+@media (max-height: 700px) { .actbar { bottom: calc(80px + 128px + 8px + var(--safe-b)); gap: 6px; } .actbtn { min-height: 44px; } .actbtn span { width: 30px; height: 30px; font-size: 18px; } }
+
 /* 말풍선 메뉴: 매표소 · 버스 · 배 · 의자 바로 위 */
 .spotmenu { position: fixed; left: 0; top: 0; z-index: 15; width: max-content; max-width: min(300px, calc(100vw - 20px)); background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px; animation: pop .2s; --tail: 50%; }
 .spotmenu::after { content: ""; position: absolute; left: var(--tail); bottom: -13px; width: 18px; height: 18px; background: var(--paper); border-right: 3px solid var(--ink); border-bottom: 3px solid var(--ink); transform: translateX(-50%) rotate(45deg); }

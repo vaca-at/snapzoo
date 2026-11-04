@@ -150,10 +150,13 @@ export const NAME_B = ['수달', '펭귄', '토끼', '여우', '판다', '고래
 // 표정 · 동작
 export const FACES = ['😊', '😆', '😮', '😍', '😴', '👍'];
 export const ACTIONS = [
-  { id: 'icecream', icon: '🍦', name: '아이스크림' },
-  { id: 'wave',     icon: '👋', name: '손 흔들기' },
   { id: 'kite',     icon: '🪁', name: '연날리기' },
+  { id: 'bugs',     icon: '🦋', name: '곤충잡기' },
+  { id: 'wave',     icon: '👋', name: '손 흔들기' },
+  { id: 'icecream', icon: '🍦', name: '아이스크림' },
 ];
+// 광장 동작 단추 (아래쪽 오른편)
+export const PLAZA_ACTS = ['kite', 'bugs', 'wave'];
 
 // 친구와 같이 (정거장 대기실): 방 중계 서버 (server/ 폴더, Cloudflare Durable Objects)
 // 서버가 아직 없거나 닿지 않으면 혼자 놀기로 그대로 동작해요.

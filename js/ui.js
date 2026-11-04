@@ -1,6 +1,6 @@
 // 화면: 위 알림판 · 아래 탭 다섯 칸 · 패널(도감 · 상점 · 표정 · 지도 · 매표소 · 버스/배) · 사진 결과 카드 · 소리
 import * as THREE from 'three';
-import { ANIMALS, RARITY, ZONES, ZONE_ORDER, CAMERAS, LOOKS, LOOK_TABS, BODIES, GENDERS, TICKETS, FACES, ACTIONS, FLAVORS, DAILY_SECONDS, SERVER_COUNT, SERVER_CAP } from './data.js';
+import { ANIMALS, RARITY, ZONES, ZONE_ORDER, CAMERAS, LOOKS, LOOK_TABS, BODIES, GENDERS, TICKETS, FACES, ACTIONS, PLAZA_ACTS, FLAVORS, DAILY_SECONDS, SERVER_COUNT, SERVER_CAP } from './data.js';
 import { S, save, perSec, secLeft, dexCount, camera as curCam, owns } from './state.js';
 import { Player } from './player.js';
 import { buildAnimal } from './animals.js';
@@ -28,7 +28,19 @@ export function init(game) {
 }
 
 // ---------- 위 알림판 ----------
-export function setZone(z) { $('#zoneName').textContent = `${z.icon} ${z.name}`; }
+export function setZone(z) {
+  $('#zoneName').textContent = `${z.icon} ${z.name}`;
+  // 광장 동작 단추는 정거장 광장에서만
+  const bar = $('#actbar');
+  bar.hidden = z !== ZONES.station;
+  if (!bar.innerHTML) {
+    bar.innerHTML = PLAZA_ACTS.map((id) => ACTIONS.find((a) => a.id === id)).map((a) => `<button class="actbtn" type="button" data-pa="${a.id}" aria-pressed="false"><span>${a.icon}</span>${a.name}</button>`).join('');
+    bar.querySelectorAll('[data-pa]').forEach((b) => { b.onclick = () => G.act(b.dataset.pa); });
+  }
+  syncActs(null);
+}
+// 하고 있는 동작 단추에 불을 켜요
+export function syncActs(id) { document.querySelectorAll('[data-pa]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pa === id))); }
 // 친구 수 (정거장에서만)
 export function setFriends(net, n) {
   const el = $('#friends');

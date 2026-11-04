@@ -1,5 +1,7 @@
 // 동물 왕국 (snapzoo) 혼자 놀기 판: 걷기 · 점프 · 사진(화면 C) · 점수 · 도감 · 초당 포인트 · 상점 · 매표소 · 버스 · 배
 import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ANIMALS, RARITY, ZONES, CAMERAS, SCORE, STAR_RATE, BEST_RATE, FACES, starsOf } from './data.js';
 import { S, save, perSec, secLeft, tickSecond, dexCount, camera as curCam, randomName, validName } from './state.js';
 import { buildAnimal } from './animals.js';
@@ -13,17 +15,49 @@ const $ = (s) => document.querySelector(s);
 const FAST = new URLSearchParams(location.search).has('fast');   // 시험용: 동물이 10배 자주 나와요
 const TIME_X = FAST ? 0.1 : 1;
 
-// ---------- 그리기 준비 (낮은 화질: 배터리 · 발열) ----------
+// ---------- 그리기 준비 (캠핑장 · 큰법당과 같은 화질: 그림자 · ACES 색감 · 주변 빛 반사) ----------
 const canvas = $('#scene');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'low-power' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.92;
 const scene = new THREE.Scene();
-const cam3 = new THREE.PerspectiveCamera(55, 1, 0.1, 200);
-const hemi = new THREE.HemisphereLight('#ffffff', '#8a9a7a', 1.6);
-const sun = new THREE.DirectionalLight('#fff4e0', 1.6);
-sun.position.set(8, 14, 6);
-scene.add(hemi, sun);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.3;
+const cam3 = new THREE.PerspectiveCamera(50, 1, 0.1, 400);
+const hemi = new THREE.HemisphereLight('#f4f8ff', '#9a8a68', 0.9);
+const sun = new THREE.DirectionalLight('#fff1d6', 2.6);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 70 });
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+scene.add(hemi, sun, sun.target);
+const SUN_OFF = new THREE.Vector3(14, 26, 10);
+
+// 하늘: 위는 진하고 지평선은 옅은 그라데이션 + 뭉게구름 (안개를 받지 않아요)
+const sky = new THREE.Mesh(new THREE.SphereGeometry(300, 32, 16), new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
+sky.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(sky.geometry.attributes.position.count * 3), 3));
+const clouds = new THREE.Group();
+{
+  const cm = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1, emissive: '#ffffff', emissiveIntensity: 0.35, fog: false });
+  const cg = new THREE.SphereGeometry(1, 14, 10);
+  for (let i = 0; i < 14; i++) {
+    const c = new THREE.Group(), a = (i / 14) * Math.PI * 2 + Math.random() * 0.3, r = 120 + Math.random() * 60;
+    c.position.set(Math.cos(a) * r, 45 + Math.random() * 30, Math.sin(a) * r);
+    for (let k = 0; k < 5; k++) { const m = new THREE.Mesh(cg, cm); m.position.set((k - 2) * 5 + Math.random() * 2, Math.random() * 2, Math.random() * 3); m.scale.set(6 + Math.random() * 4, 3.5 + Math.random() * 2, 5); c.add(m); }
+    c.lookAt(0, c.position.y, 0); clouds.add(c);
+  }
+}
+scene.add(sky, clouds);
+function setSky(top, horizon, show = true) {
+  const col = sky.geometry.attributes.color, p = sky.geometry.attributes.position, a = new THREE.Color(top), b = new THREE.Color(horizon), c = new THREE.Color();
+  for (let i = 0; i < p.count; i++) { const h = Math.max(0, p.getY(i) / 300); c.copy(b).lerp(a, Math.pow(h, 0.6)); col.setXYZ(i, c.r, c.g, c.b); }
+  col.needsUpdate = true; sky.visible = show; clouds.visible = show;
+}
 
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
@@ -34,12 +68,46 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
+// ---------- 카메라: 손가락으로 돌리기 · 두 손가락으로 확대 (캠핑장처럼 OrbitControls, 부드럽게 멈춰요) ----------
+const controls = new OrbitControls(cam3, canvas);
+controls.enablePan = false;
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minPolarAngle = 0.3;
+controls.maxPolarAngle = 1.45;
+controls.minDistance = 3;
+controls.maxDistance = 16;
+controls.rotateSpeed = 0.7;
+
 // ---------- 나 ----------
 const me = new Player();
-scene.add(me.root, me.shadow);
+scene.add(me.root);
 const pos = new THREE.Vector3();
 let yaw = Math.PI;              // 내가 바라보는 방향
-let camYaw = 0, camPitch = 0.36, camDist = 7.5;
+// 카메라를 내 뒤에 두기
+function camBehind(dist = 7, h = 3.4) {
+  controls.target.set(pos.x, pos.y + 1.1, pos.z);
+  cam3.position.set(pos.x - Math.sin(yaw) * dist, pos.y + h, pos.z - Math.cos(yaw) * dist);
+  camTurn = null;
+  controls.update();
+}
+// 앉거나 제자리 동작을 하면 카메라가 옆으로 천천히 돌아 얼굴을 비춰요 (끌면 바로 멈춰요)
+let camTurn = null;
+function turnCameraToFace(dist = 5) {
+  const off = cam3.position.clone().sub(controls.target);
+  camTurn = { t: 0, from: { yaw: Math.atan2(off.x, off.z), r: Math.hypot(off.x, off.z), y: off.y, at: controls.target.clone() },
+    to: { yaw: yaw + 0.5, r: dist * 1.15, y: dist * 0.42, at: pos.clone().add(new THREE.Vector3(0, me.wear.body === 'bean' ? 0.7 : 1.0, 0)) } };
+}
+function stepCameraTurn(dt) {
+  if (!camTurn) return;
+  camTurn.t = Math.min(1, camTurn.t + dt / 1.4);
+  const e = camTurn.t * camTurn.t * (3 - 2 * camTurn.t), { from, to } = camTurn;
+  const y = from.yaw + Math.atan2(Math.sin(to.yaw - from.yaw), Math.cos(to.yaw - from.yaw)) * e, r = from.r + (to.r - from.r) * e;
+  controls.target.lerpVectors(from.at, to.at, e);
+  cam3.position.set(controls.target.x + Math.sin(y) * r, controls.target.y + from.y + (to.y - from.y) * e, controls.target.z + Math.cos(y) * r);
+  if (camTurn.t >= 1) camTurn = null;
+}
+controls.addEventListener('start', () => { camTurn = null; });
 export function dressUp() { me.build(S.wear, curCam().color); }
 
 // ---------- 친구 (정거장 대기실에서만, 채팅 없음) ----------
@@ -128,10 +196,13 @@ function enterZone(id) {
   scene.add(Z.group);
   scene.background = new THREE.Color(Z.sky);
   scene.fog = new THREE.Fog(Z.fog[0], Z.fog[1], Z.fog[2]);
-  hemi.intensity = Z.dark ? 0.7 : 1.6; sun.intensity = Z.dark ? 0.5 : 1.6;
-  hemi.color.set(Z.dark ? '#7fb0ff' : '#ffffff');
+  hemi.intensity = Z.dark ? 0.6 : 0.9; sun.intensity = Z.dark ? 0.6 : 2.6;
+  hemi.color.set(Z.dark ? '#7fb0ff' : '#f4f8ff');
+  scene.environmentIntensity = Z.dark ? 0.15 : 0.3;
+  setSky(Z.dark ? '#061428' : new THREE.Color(Z.sky).offsetHSL(0.02, 0.1, -0.18), Z.fog[0], !Z.dark);
   pos.set(Z.spawn.x, 0, Z.spawn.z);
-  yaw = Z.spawn.yaw; camYaw = yaw + Math.PI; me.sitting = false; me.action = null;
+  yaw = Z.spawn.yaw; me.sitting = false; me.action = null;
+  camBehind();
   S.zone = id; save();
   if (typeof closeSpot === 'function' && menu) closeSpot();
   if (typeof clearWalkTo === 'function' && walkTo) clearWalkTo();
@@ -166,9 +237,7 @@ const glowTex = (() => {
   gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 })();
-const SPEED = { sloth: 0.35, turtle: 0.7, capybara: 0.8, flounder: 0.6, clione: 0.5, dumbo: 0.6, oarfish: 0.7, angler: 0.6, cheetah: 2.4, kangaroorat: 1.8, shark: 1.6, sardine: 1.8, frog: 1.2 };
-const BLOB = new THREE.CircleGeometry(1, 14);
-const BLOB_MAT = new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.16, depthWrite: false });
+const ANIMAL_SPEED = { sloth: 0.35, turtle: 0.7, capybara: 0.8, flounder: 0.6, clione: 0.5, dumbo: 0.6, oarfish: 0.7, angler: 0.6, cheetah: 2.4, kangaroorat: 1.8, shark: 1.6, sardine: 1.8, frog: 1.2 };
 
 function spawn(sp, timed = false, near = false) {
   const m = buildAnimal(sp.model);
@@ -182,7 +251,7 @@ function spawn(sp, timed = false, near = false) {
     const from = near && !timed ? Z.spawn : pos;
     for (let i = 0; i < 40; i++) { const q = Z.place(kind); const d = Math.hypot(q.x - from.x, q.z - from.z); if (d > 7 && d < 16) { p = q; break; } }
   }
-  if (!sp.swim) { const sh = new THREE.Mesh(BLOB, BLOB_MAT); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.03; sh.scale.setScalar(m.size * 0.45); g.add(sh); }
+  m.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   // 반짝이: 특별한 순간에 · 전설 · 신화는 늘 은은하게
   const sparks = new THREE.Group(); g.add(sparks);
   const rc = RARITY[sp.rarity].color;
@@ -202,7 +271,7 @@ function spawn(sp, timed = false, near = false) {
     tx: p.x, tz: p.z, wait: Math.random() * 2, moving: false,
     act: -1, nextAct: 3 + Math.random() * 8, flee: false,
     until: timed ? clock + RARITY[sp.rarity].stay : Infinity, leaving: 0, grow: timed ? 0 : 1,
-    speed: (SPEED[sp.model] || 1.2) * (sp.swim ? 0.8 : 1),
+    speed: (ANIMAL_SPEED[sp.model] || 1.2) * (sp.swim ? 0.8 : 1),
   };
   g.position.set(a.x, a.y, a.z);
   scene.add(g);
@@ -330,7 +399,6 @@ canvas.addEventListener('pointermove', (e) => {
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
   drag.moved += Math.abs(dx) + Math.abs(dy);
   if (mode === 'photo') { aim.yaw -= dx * 0.004 / zoom; aim.pitch = clampN(aim.pitch - dy * 0.004 / zoom, -0.6, 0.8); manualAim = 1.8; }
-  else { camYaw -= dx * 0.008; camPitch = clampN(camPitch + dy * 0.005, 0.05, 1.1); }
 });
 const endDrag = () => { drag = null; };
 // 짧게 '톡' 누르면: 매표소 · 버스 · 배 · 의자를 눌렀는지 봐요
@@ -339,7 +407,7 @@ canvas.addEventListener('pointerup', (e) => {
   if (d && d.moved < 12 && performance.now() - d.t < 450) tapAt(e.clientX, e.clientY);
 });
 canvas.addEventListener('pointercancel', endDrag);
-canvas.addEventListener('wheel', (e) => { if (mode === 'photo') zoomBy(e.deltaY < 0 ? 1 : -1); else camDist = clampN(camDist + Math.sign(e.deltaY) * 0.6, 4, 10); }, { passive: true });
+canvas.addEventListener('wheel', (e) => { if (mode === 'photo') zoomBy(e.deltaY < 0 ? 1 : -1); }, { passive: true });
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
 
 $('#jumpBtn').addEventListener('click', () => me.jump());
@@ -347,52 +415,65 @@ $('#jumpBtn').addEventListener('click', () => me.jump());
 // ---------- 걷기 ----------
 let mode = 'walk';    // walk | photo
 let nearSpot = null;
+const SPEED = 2.7, RUN_SPEED = 5.4, SEAT_SPEED = 1.8;   // 캠핑장과 같은 걷기 · 뛰기 · 자리로 가기 속도
+const tmpV = new THREE.Vector3();
 function updateWalk(dt) {
   let jx = joy.x, jy = joy.y;
   if (keys.has('KeyA') || keys.has('ArrowLeft')) jx -= 1;
   if (keys.has('KeyD') || keys.has('ArrowRight')) jx += 1;
   if (keys.has('KeyW') || keys.has('ArrowUp')) jy -= 1;
   if (keys.has('KeyS') || keys.has('ArrowDown')) jy += 1;
-  const len = Math.min(1, Math.hypot(jx, jy));
-  if (len > 0.08) {
-    if (me.sitting) me.sitting = false;
-    if (me.action && me.action.id !== 'kite') me.action = null;
-    const fx = -Math.sin(camYaw), fz = -Math.cos(camYaw), rx = Math.cos(camYaw), rz = -Math.sin(camYaw);
-    let mx = rx * jx + fx * -jy, mz = rz * jx + fz * -jy;
-    const ml = Math.hypot(mx, mz); mx /= ml; mz /= ml;
-    const sp = 4.6 * len;
-    pos.x += mx * sp * dt; pos.z += mz * sp * dt;
-    const want = Math.atan2(mx, mz);
-    yaw += angDiff(yaw, want) * Math.min(1, dt * 12);
-    // 카메라가 천천히 내 뒤로 따라와요
-    camYaw += angDiff(camYaw, yaw + Math.PI) * Math.min(1, dt * 0.9 * len);
-    me.moving = len;
+  let dx = 0, dz = 0, speed = 0;
+  const before = pos.clone();
+  if (Math.hypot(jx, jy) > 0.15) {
     clearWalkTo();
+    if (me.sitting) standUp();
+    // 조이스틱 방향은 카메라가 보는 쪽 기준
+    const cy = Math.atan2(cam3.position.x - controls.target.x, cam3.position.z - controls.target.z), sn = Math.sin(cy), cs = Math.cos(cy);
+    dx = jx * cs + jy * sn; dz = -jx * sn + jy * cs;
+    const l = Math.hypot(dx, dz); if (l > 1) { dx /= l; dz /= l; }
+    speed = Math.hypot(joy.x, joy.y) > 0.92 || keys.has('ShiftLeft') || keys.has('ShiftRight') ? RUN_SPEED : SPEED;
   } else if (walkTo && !me.sitting) {
-    // 누른 곳까지 걸어가요 (카메라는 그대로 두어 동그라미가 화면에서 흔들리지 않게)
-    const dx = walkTo.x - pos.x, dz = walkTo.z - pos.z, d = Math.hypot(dx, dz);
-    if (d < 0.25) clearWalkTo();
-    else {
-      const step = Math.min(d, 4.6 * dt);
-      const bx = pos.x, bz = pos.z;
-      pos.x += dx / d * step; pos.z += dz / d * step;
-      yaw += angDiff(yaw, Math.atan2(dx, dz)) * Math.min(1, dt * 12);
-      me.moving = 1;
-      walkTo.check = { bx, bz, step };
+    tmpV.set(walkTo.x - pos.x, 0, walkTo.z - pos.z);
+    const d = tmpV.length();
+    if (d < (walkTo.arrive || 0.2)) { const w = walkTo; clearWalkTo(); w.onArrive?.(); }
+    else { dx = tmpV.x / d; dz = tmpV.z / d; speed = Math.min(walkTo.speed && d < 4 ? walkTo.speed : SPEED, d / dt); }   // 의자 4m 앞부터 천천히
+  }
+  if (speed > 0) {
+    // 누른 곳 · 의자로 갈 때 분수 · 가게에 막히면 옆으로 돌아서 가요
+    if (walkTo) {
+      const step = speed * dt, tryDir = (ang) => {
+        const c = Math.cos(ang), sn = Math.sin(ang), x = dx * c + dz * sn, z = -dx * sn + dz * c;
+        const q = { x: pos.x + x * step, z: pos.z + z * step }; collide(Z, q, 0.35);
+        return { x, z, moved: Math.hypot(q.x - pos.x, q.z - pos.z) };
+      };
+      let best = tryDir(0);
+      if (best.moved < step * 0.6) {
+        const sides = walkTo.side ? [walkTo.side] : [1, -1];
+        for (const sd of sides) for (const ang of [0.6, 1.0, 1.4]) { const r = tryDir(ang * sd); if (r.moved > best.moved + 1e-4) { best = r; walkTo.side = sd; } }
+      } else if (walkTo.side && best.moved >= step * 0.95) walkTo.side = 0;
+      dx = best.x; dz = best.z;
     }
-  } else me.moving = 0;
+    pos.x += dx * speed * dt; pos.z += dz * speed * dt;
+    yaw += angDiff(yaw, Math.atan2(dx, dz)) * Math.min(1, dt * 10);
+    if (me.action && !['kite', 'bugs'].includes(me.action.id)) { me.action = null; UI.syncActs(null); }
+  }
   // 점프 · 땅
-  me.vy -= 16 * dt; pos.y += me.vy * dt;
+  me.vy -= 15 * dt; pos.y += me.vy * dt;
   if (pos.y <= 0) { pos.y = 0; me.vy = 0; me.onGround = true; }
   const q = { x: pos.x, z: pos.z }; collide(Z, q, 0.35); pos.x = q.x; pos.z = q.z;
-  // 막혀서 못 가면 (분수 · 건물) 멈춰요
-  if (walkTo?.check) {
-    const c = walkTo.check, moved = Math.hypot(pos.x - c.bx, pos.z - c.bz);
-    walkTo.stuck = moved < c.step * 0.3 ? (walkTo.stuck || 0) + dt : 0;
-    walkTo.check = null;
-    if (walkTo.stuck > 0.4) clearWalkTo();
+  const moved = Math.hypot(pos.x - before.x, pos.z - before.z);
+  me.speed = moved / Math.max(dt, 1e-4);
+  me.moving = me.speed > 0.05 ? 1 : 0;
+  // 분수 · 건물에 막히면 멈춰요 (의자 가까이면 그냥 앉아요)
+  if (walkTo && speed > 0 && moved < speed * dt * 0.25) {
+    walkTo.stuck = (walkTo.stuck || 0) + dt;
+    if (walkTo.stuck > 0.35) { const w = walkTo; clearWalkTo(); if (w.onArrive && Math.hypot(w.x - pos.x, w.z - pos.z) < 1.6) w.onArrive(); }
   }
-  // 가까운 곳 (버스 · 매표소 · 배 · 의자): 다가가면 그 위에 말풍선 메뉴, 멀어지면 닫혀요
+  // 카메라는 내가 움직인 만큼 같이 (높이는 빼고: 점프할 때 출렁이지 않게)
+  cam3.position.x += pos.x - before.x; cam3.position.z += pos.z - before.z;
+  controls.target.x += pos.x - before.x; controls.target.z += pos.z - before.z;
+  // 가까운 곳 (버스 · 매표소 · 배 · 가게): 다가가면 그 위에 말풍선 메뉴, 멀어지면 닫혀요
   nearSpot = null;
   for (const s of Z.spots) if (Math.hypot(s.x - pos.x, s.z - pos.z) < s.r) { nearSpot = s; break; }
   if (me.sitting) return;
@@ -400,6 +481,29 @@ function updateWalk(dt) {
   if (nearSpot && nearSpot !== dismissed && (!menu || menu.spot !== nearSpot)) openSpot(nearSpot, 'near');
   else if (menu && menu.how === 'near' && !nearSpot) closeSpot();
   else if (menu && menu.how === 'tap' && nearSpot === menu.spot) menu.how = 'near';   // 누르고 걸어가서 도착한 뒤 떠나면 닫혀요
+}
+
+// ---------- 의자: 누르면 천천히 걸어가서 저절로 앉아요 (캠핑장처럼, 단추 없이) ----------
+function walkToSeat(seat) {
+  closeSpot();
+  if (me.sitting && Math.hypot(seat.x - pos.x, seat.z - pos.z) < 0.3) return;
+  if (me.sitting) standUp();
+  me.action = null; UI.syncActs(null);
+  setWalkTo(seat.x, seat.z, { speed: SEAT_SPEED, arrive: 1.15, onArrive: () => sitOn(seat) });
+}
+export function sitOn(s) {
+  clearWalkTo();
+  const bx = pos.x, bz = pos.z;
+  pos.set(s.x, 0, s.z); yaw = s.yaw;
+  cam3.position.x += pos.x - bx; cam3.position.z += pos.z - bz; controls.target.x += pos.x - bx; controls.target.z += pos.z - bz;
+  me.sitting = true; me.action = null; UI.syncActs(null);
+  turnCameraToFace(5);
+}
+// 일어나면 의자 앞으로 한 걸음
+export function standUp() {
+  if (!me.sitting) return;
+  me.sitting = false; camTurn = null;
+  pos.x += Math.sin(yaw) * 0.8; pos.z += Math.cos(yaw) * 0.8;
 }
 
 // ---------- 말풍선 메뉴 (매표소 · 버스 · 배 · 의자 바로 위) ----------
@@ -413,8 +517,9 @@ function tapAt(x, y) {
   tapV.set(x / window.innerWidth * 2 - 1, -(y / window.innerHeight) * 2 + 1);
   ray.setFromCamera(tapV, cam3);
   const h = Z.hits?.length ? ray.intersectObjects(Z.hits, false)[0] : null;
+  if (h?.object.userData.seat) { walkToSeat(h.object.userData.seat); return; }
   if (h) {
-    // 가게 · 매표소 · 버스 · 배 · 의자: 그 위에 말풍선 + 그 앞까지 걸어가요
+    // 가게 · 매표소 · 버스 · 배: 그 위에 말풍선 + 그 앞까지 걸어가요
     const s = h.object.userData.spot;
     openSpot(s, 'tap'); UI.sfx('unlock');
     if (Math.hypot(s.x - pos.x, s.z - pos.z) > s.r) setWalkTo(s.x, s.z);
@@ -423,7 +528,7 @@ function tapAt(x, y) {
   if (menu && menu.how === 'tap') closeSpot();
   // 바닥을 누르면 그곳까지 걸어가요
   if (ray.ray.intersectPlane(GROUND, hitP) && Math.hypot(hitP.x, hitP.z) < Z.radius - 0.4) {
-    me.sitting = false;
+    standUp();
     setWalkTo(hitP.x, hitP.z);
   }
 }
@@ -439,7 +544,7 @@ const DOT_MAX = 80, DOT_GAP = 0.42;
 const dots = new THREE.InstancedMesh(new THREE.CircleGeometry(0.095, 12), new THREE.MeshBasicMaterial({ color: '#ff6b4a', transparent: true, opacity: 0.9, depthWrite: false }), DOT_MAX);
 dots.count = 0; dots.frustumCulled = false; dots.renderOrder = 2; scene.add(dots);
 const dotM = new THREE.Matrix4(), dotQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)), dotP = new THREE.Vector3(), dotS = new THREE.Vector3(1, 1, 1);
-function setWalkTo(x, z) { walkTo = { x, z }; ring.position.set(x, 0.05, z); ring.visible = true; }
+function setWalkTo(x, z, opt = {}) { walkTo = { x, z, ...opt }; ring.position.set(x, 0.05, z); ring.visible = true; }
 function clearWalkTo() { walkTo = null; ring.visible = false; dots.count = 0; }
 function updatePath(t) {
   if (!walkTo || mode !== 'walk') { ring.visible = false; dots.count = 0; return; }
@@ -454,9 +559,39 @@ function updatePath(t) {
   }
   dots.count = n; dots.instanceMatrix.needsUpdate = true;
 }
-export function sitOn(s) { clearWalkTo(); pos.set(s.x, 0, s.z); yaw = s.yaw; me.sitting = true; me.action = null; UI.toast('🪑 앉아서 쉬어요. 초당 포인트는 계속 쌓여요'); }
-export function standUp() { me.sitting = false; }
-export function eatIce(f) { closeSpot(true); me.doAction('icecream', f.color); UI.toast(`${f.icon} ${f.name} 아이스크림, 냠냠!`); }
+export function eatIce(f) { closeSpot(true); me.play('icecream', f.color); turnCameraToFace(5); UI.syncActs('icecream'); UI.toast(`${f.icon} ${f.name} 아이스크림, 냠냠!`); }
+
+// ---------- 광장 동작 단추: 🪁 연날리기 · 🦋 곤충잡기 · 👋 손 흔들기 (다시 누르면 멈춰요) ----------
+let bugsCaught = 0;
+export function act(id) {
+  if (mode !== 'walk') return;
+  if (me.sitting && id !== 'wave') standUp();
+  const on = me.play(id);
+  UI.syncActs(on ? id : null);
+  if (on && id === 'wave') {
+    // 4m 안에 친구가 있으면 그쪽을 보고 인사해요
+    const f = [...friends.values()].map((x) => [x, Math.hypot(x.cur.x - pos.x, x.cur.z - pos.z)]).filter(([, d]) => d < 4).sort((a, b) => a[1] - b[1])[0];
+    if (f) { yaw = Math.atan2(f[0].cur.x - pos.x, f[0].cur.z - pos.z); UI.toast(`👋 ${f[0].st.n}에게 손을 흔들었어요`); }
+    turnCameraToFace(5);
+  }
+  if (on && id === 'kite') UI.toast('🪁 연이 하늘 높이! 걸어 다녀도 돼요');
+  if (on && id === 'bugs') UI.toast(Z.bugs?.length ? '🦋 꽃밭의 나비 · 잠자리 가까이에서 휘둘러요' : '🦋 채집망을 휘둘러요');
+  UI.sfx('unlock');
+}
+// 곤충잡기: 채집망을 휘두르는 동안 1.5m 앞의 곤충을 잡았다가 놓아줘요
+function updateBugs(dt) {
+  if (!Z.bugs) return;
+  const swinging = me.action?.id === 'bugs';
+  const fx = pos.x + Math.sin(yaw) * 1.1, fz = pos.z + Math.cos(yaw) * 1.1;
+  for (const b of Z.bugs) {
+    if (b.away > 0) { b.away -= dt; b.g.visible = b.away <= 0; continue; }
+    if (swinging && Math.hypot(b.g.position.x - fx, b.g.position.z - fz) < 1.3 && b.g.position.y < 2.6) {
+      b.away = 8; b.g.visible = false; bugsCaught++;
+      UI.toast(`${b.kind === 'dragonfly' ? '🪰 잠자리' : '🦋 나비'}를 잡았다가 놓아줬어요! (${bugsCaught}마리)`, 'gold');
+      UI.sfx('sparkle');
+    }
+  }
+}
 const mv = new THREE.Vector3();
 function placeMenu() {
   if (!menu) return;
@@ -467,24 +602,26 @@ function placeMenu() {
 }
 
 function updateCamera(dt) {
+  // 해와 그림자가 나를 따라와요
+  sun.position.copy(pos).add(SUN_OFF); sun.target.position.copy(pos);
   if (mode === 'photo') return;
-  const head = pos.y * 0.5 + 1.3;
-  const cx = pos.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist;
-  const cz = pos.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist;
-  const cy = head + Math.sin(camPitch) * camDist;
-  cam3.position.lerp(new THREE.Vector3(cx, cy, cz), Math.min(1, dt * 10));
-  cam3.lookAt(pos.x, head, pos.z);
-  if (cam3.fov !== 55) { cam3.fov = 55; cam3.updateProjectionMatrix(); }
+  stepCameraTurn(dt);
+  controls.update();
+  if (cam3.fov !== 50) { cam3.fov = 50; cam3.updateProjectionMatrix(); }
 }
 
 // ---------- 사진 (화면 C) ----------
 const aim = { yaw: 0, pitch: 0 };
+let savedCam = null;
 let zoom = 1, target = null;
 const frameEl = $('#frame');
 function enterPhoto() {
   if (mode === 'photo' || UI.isOpen()) return;
-  mode = 'photo'; me.sitting = false; me.action = null; closeSpot(); clearWalkTo();
-  me.root.visible = false; me.shadow.visible = false;
+  standUp();
+  mode = 'photo'; me.action = null; UI.syncActs(null); closeSpot(); clearWalkTo();
+  controls.enabled = false; camTurn = null;
+  savedCam = { p: cam3.position.clone(), t: controls.target.clone() };
+  me.root.visible = false;
   aim.yaw = yaw; aim.pitch = 0;
   zoom = Math.min(zoom, curCam().zoom);
   target = pickTarget();
@@ -494,8 +631,10 @@ function enterPhoto() {
 }
 function exitPhoto() {
   if (mode !== 'photo') return;
-  mode = 'walk'; me.root.visible = true; me.shadow.visible = true;
-  yaw = aim.yaw; camYaw = yaw + Math.PI;
+  mode = 'walk'; me.root.visible = true;
+  yaw = aim.yaw;
+  controls.enabled = true;
+  camBehind(); savedCam = null;
   UI.photoMode(false);
 }
 function zoomBy(dir) {
@@ -721,12 +860,12 @@ function loop(now) {
     updateFriends(dt);
     if (mode === 'photo') updatePhoto(dt);
     me.root.position.copy(pos); me.root.rotation.y = yaw;
-    me.shadow.position.set(pos.x, 0.03, pos.z);
     me.animate(dt, clock);
     updateCamera(dt);
     if (Z.water && Z.foam) Z.foam.position.z = -2 + Math.sin(clock * 0.8) * 0.4;
     if (Z.snow) Z.snow.rotation.y = clock * 0.02;
-    Z.update?.(clock);
+    Z.update?.(clock, dt);
+    updateBugs(dt);
     updatePath(clock);
     if (marker.visible) { marker.position.y = 4.2 + Math.abs(Math.sin(clock * 3)) * 0.6; marker.rotation.y = clock * 2; }
     pointToGoal();
@@ -742,7 +881,7 @@ function loop(now) {
 // ---------- 시작 ----------
 UI.init({
   enterPhoto, exitPhoto, shoot, zoomBy, travel, showFace, doAction, dressUp, pickServer, serverCounts, sitOn, standUp,
-  isSitting: () => me.sitting, closeSpot: () => closeSpot(true), eatIce,
+  isSitting: () => me.sitting, closeSpot: () => closeSpot(true), eatIce, act,
   zone: () => zoneId, inPhoto: () => mode === 'photo',
 });
 dressUp();
@@ -764,10 +903,10 @@ requestAnimationFrame(loop);
   // 저장된 자리로 (같은 장소일 때만)
   if (S.pos && S.pos.zone === z && Number.isFinite(S.pos.x)) {
     const q = { x: S.pos.x, z: S.pos.z }; collide(Z, q, 0.35);
-    pos.set(q.x, 0, q.z); yaw = S.pos.yaw || 0; camYaw = yaw + Math.PI;
+    pos.set(q.x, 0, q.z); yaw = S.pos.yaw || 0; camBehind();
   }
   UI.updateHud(); updateGoal();
   UI.toast(first ? `🎉 반가워요, ${S.name}! 바닥을 누르면 걸어가요` : z === 'station' ? `🚏 ${S.name}, 다시 왔네요!` : `${ZONES[z].icon} ${ZONES[z].name}에서 이어 해요`);
 })();
 // 테스트에서 상태를 볼 수 있게 (게임에는 영향 없음)
-window.__snapzoo = { S, live, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), get zone() { return zoneId; }, get pos() { return pos.clone(); }, tp: (x, z) => pos.set(x, 0, z), enterZone, spawn: (id) => spawn(ANIMALS.find((a) => a.id === id), true), dexCount };
+window.__snapzoo = { S, live, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), get zone() { return zoneId; }, get pos() { return pos.clone(); }, get walk() { return walkTo && { ...walkTo }; }, tp: (x, z) => pos.set(x, 0, z), enterZone, spawn: (id) => spawn(ANIMALS.find((a) => a.id === id), true), dexCount };

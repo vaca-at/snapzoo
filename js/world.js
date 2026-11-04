@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { box, mat, mulberry } from './animals.js';
 
-const BAKED = new THREE.MeshLambertMaterial({ vertexColors: true });
+const BAKED = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 });
 const joint = (p, x = 0, y = 0, z = 0) => { const o = new THREE.Group(); o.position.set(x, y, z); p.add(o); return o; };
 const add = (p, geo, m, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(geo, typeof m === 'string' ? mat(m) : m); o.position.set(x, y, z); p.add(o); return o; };
 
@@ -38,7 +38,9 @@ export function bake(root, deep = true) {
   geos.forEach((g) => g.dispose());
   if (!merged) return;
   parts.forEach((o) => o.parent.remove(o));
-  root.add(new THREE.Mesh(merged, BAKED));
+  const baked = new THREE.Mesh(merged, BAKED);
+  baked.castShadow = true; baked.receiveShadow = true;
+  root.add(baked);
 }
 
 // 움직이는 동물 · 사람은 관절(그룹)마다 따로 합쳐요
@@ -51,7 +53,7 @@ export function bakeJoints(root) {
 function ground(g, color, r) {
   const m = new THREE.Mesh(new THREE.CircleGeometry(r + 40, 48), mat(color));
   m.rotation.x = -Math.PI / 2;
-  m.userData.keep = true;
+  m.userData.keep = true; m.receiveShadow = true;
   g.add(m);
   return m;
 }
@@ -145,7 +147,7 @@ const HIT_MAT = new THREE.MeshBasicMaterial({ visible: false });
 function hitBox(Z, spot, x, y, z, w, h, d) {
   const m = new THREE.Mesh(HIT_GEO, HIT_MAT);
   m.position.set(x, y, z); m.scale.set(w, h, d);
-  m.userData.keep = true; m.userData.spot = spot;
+  m.userData.keep = true; if (spot) m.userData.spot = spot;
   Z.group.add(m); Z.hits.push(m);
 }
 
@@ -159,10 +161,10 @@ function station() {
   const rnd = mulberry(2);
   ground(g, '#9fd486', Z.radius);
   // 바닥: 동그란 광장 돌길 (안쪽에서 바깥쪽으로 고리 무늬)
-  const disc = (r0, r1, c, y) => { const m = new THREE.Mesh(r0 ? new THREE.RingGeometry(r0, r1, 64) : new THREE.CircleGeometry(r1, 64), mat(c)); m.rotation.x = -Math.PI / 2; m.position.y = y; m.userData.keep = true; g.add(m); };
-  disc(0, Z.radius, '#f1e4c6', 0.02);
-  [[3.2, 3.6], [6.4, 6.9], [10.2, 10.8], [14.2, 14.8]].forEach(([r0, r1]) => disc(r0, r1, '#e2cc9c', 0.025));
-  for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; const t = box(g, '#e8d6ae', 0.3, 0.012, 13.4, Math.cos(a) * 9.7, 0.028, Math.sin(a) * 9.7); t.rotation.y = -a + Math.PI / 2; }
+  const disc = (r0, r1, c, y) => { const m = new THREE.Mesh(r0 ? new THREE.RingGeometry(r0, r1, 64) : new THREE.CircleGeometry(r1, 64), mat(c)); m.rotation.x = -Math.PI / 2; m.position.y = y; m.userData.keep = true; m.receiveShadow = true; g.add(m); };
+  disc(0, Z.radius, '#d9c49a', 0.02);
+  [[3.2, 3.6], [6.4, 6.9], [10.2, 10.8], [14.2, 14.8]].forEach(([r0, r1]) => disc(r0, r1, '#b89a6a', 0.025));
+  for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; const t = box(g, '#c9b084', 0.3, 0.012, 13.4, Math.cos(a) * 9.7, 0.028, Math.sin(a) * 9.7); t.rotation.y = -a + Math.PI / 2; }
 
   // 분수 (가운데)
   const f = joint(g, 0, 0, -1);
@@ -271,8 +273,10 @@ function station() {
     box(b, '#c9844a', 2.2, 0.15, 0.7, 0, 0.5, 0);
     box(b, '#c9844a', 2.2, 0.6, 0.12, 0, 0.9, -0.32);
     for (const sx of [-0.9, 0.9]) box(b, '#5a6b7a', 0.12, 0.5, 0.6, sx, 0.25, 0);
-    const spot = { id: 'bench', x, z, r: 1.4, ay: 1.9, yaw };
-    Z.benches.push(spot); Z.spots.push(spot); hitBox(Z, spot, x, 0.65, z, 2.4, 1.3, 1.6);
+    // 의자: 말풍선 없이, 누르면 걸어가서 저절로 앉아요 (앉는 자리는 의자 가운데 · 의자가 보는 쪽)
+    const seat = { id: 'bench', x: x + Math.sin(yaw) * 0.05, z: z + Math.cos(yaw) * 0.05, yaw };
+    Z.benches.push(seat);
+    hitBox(Z, null, x, 0.65, z, 2.4, 1.3, 1.6); Z.hits[Z.hits.length - 1].userData.seat = seat;
     Z.colliders.push({ x, z, r: 0.6 });
   }
 
@@ -311,7 +315,50 @@ function station() {
   }
   for (const [x, z] of [[-6, -11.8], [6, -11.8], [-15, 9], [15, 9], [0, 15.5]]) { box(g, '#c9844a', 1.2, 0.6, 1.2, x, 0.3, z); tree(g, '#4fae5a', x, z, 0.8); Z.colliders.push({ x, z, r: 0.7 }); }
   for (let i = 0; i < 30; i++) { const a = rnd() * 6.28, d = 17.5 + rnd() * 4; flower(g, Math.cos(a) * d, Math.sin(a) * d, flagCols[i % 5]); }
+  // 곤충잡기: 꽃밭 주변을 나는 나비 · 잠자리
+  Z.bugs = [];
+  const wingGeo = new THREE.CircleGeometry(0.1, 10);
+  for (let i = 0; i < 9; i++) {
+    const dragon = i % 3 === 2;
+    const b = new THREE.Group();
+    const col = dragon ? '#7fd3ff' : ['#ffd23c', '#ff8fb0', '#ffffff', '#c77dff'][i % 4];
+    const wm = new THREE.MeshStandardMaterial({ color: col, side: THREE.DoubleSide, roughness: 0.6, transparent: dragon, opacity: dragon ? 0.7 : 1 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.02, dragon ? 0.34 : 0.16, 6), mat(dragon ? '#2f6aa8' : '#3a2a20'));
+    body.rotation.x = Math.PI / 2; b.add(body);
+    const wings = [];
+    for (const sx of [-1, 1]) {
+      const w = new THREE.Group(); b.add(w);
+      const m = new THREE.Mesh(wingGeo, wm); m.position.x = sx * 0.12; m.rotation.x = -Math.PI / 2; m.scale.set(dragon ? 1.4 : 1, dragon ? 0.5 : 1, 1); w.add(m);
+      wings.push([w, sx]);
+    }
+    b.traverse((o) => { o.userData.keep = true; if (o.isMesh) o.castShadow = true; });
+    const a0 = (i / 9) * Math.PI * 2, home = { x: Math.cos(a0) * (7 + (i % 3) * 2.5), z: Math.sin(a0) * (7 + (i % 3) * 2.5) + 1 };
+    b.position.set(home.x, 1, home.z); g.add(b);
+    Z.bugs.push({ g: b, wings, home, ph: i * 1.7, kind: dragon ? 'dragonfly' : 'butterfly', away: 0 });
+  }
+  const fountainUpdate = Z.update;
+  Z.update = (t, dt) => {
+    fountainUpdate(t);
+    for (const b of Z.bugs) {
+      const k = t * (b.kind === 'dragonfly' ? 0.5 : 0.3) + b.ph;
+      const nx = b.home.x + Math.sin(k) * 2.4 + Math.sin(k * 2.3) * 0.6, nz = b.home.z + Math.cos(k * 0.8) * 2.4;
+      const y = 0.9 + Math.sin(k * 3.1) * 0.35 + (b.kind === 'dragonfly' ? 0.6 : 0);
+      b.g.rotation.y = Math.atan2(nx - b.g.position.x, nz - b.g.position.z);
+      b.g.position.set(nx, y, nz);
+      const flap = Math.sin(t * (b.kind === 'dragonfly' ? 40 : 18) + b.ph) * (b.kind === 'dragonfly' ? 0.35 : 0.9);
+      for (const [w, sx] of b.wings) w.rotation.z = sx * flap;
+    }
+  };
   rim(g, Z.radius + 2.5, ['#7fc46a', '#6ab45a'], 1.4, 3);
+  // 광장 밖 멀리 둘러싼 나무숲 (빈 들판처럼 보이지 않게)
+  for (let i = 0; i < 40; i++) {
+    const a = (i / 40) * Math.PI * 2 + rnd() * 0.1, d = 23 + rnd() * 9, x = Math.cos(a) * d, z = Math.sin(a) * d;
+    if (x > 14 && Math.abs(z + 3) < 7) continue;   // 배 선착장 바다 쪽은 비워요
+    const s2 = 1 + rnd() * 0.8;
+    box(g, '#7a5532', 0.5 * s2, 2.2 * s2, 0.5 * s2, x, 1.1 * s2, z);
+    box(g, i % 3 ? '#4f9e52' : '#3f8f45', 2.6 * s2, 2.2 * s2, 2.6 * s2, x, 3.1 * s2, z);
+    box(g, '#5fb35f', 1.7 * s2, 1.3 * s2, 1.7 * s2, x + 0.2, 4.4 * s2, z - 0.2);
+  }
   Z.water = water;
   Z.place = placer(Z);
   return Z;
