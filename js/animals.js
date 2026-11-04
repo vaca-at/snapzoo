@@ -42,671 +42,676 @@ export function sharpBox(parent, color, w, h, d, x = 0, y = 0, z = 0, glow = 0, 
   parent.add(m);
   return m;
 }
-function cone(parent, color, r, h, x, y, z, rx = 0, rz = 0) {
-  const m = new THREE.Mesh(CONE, mat(color));
-  m.scale.set(r * 2, h, r * 2);
-  m.position.set(x, y, z);
-  m.rotation.set(rx, Math.PI / 4, rz);
-  parent.add(m);
+// =====================================================================
+// 진짜 동물처럼: 실제 몸 비율 · 털 색 · 무늬를 매끈한 3D 로 (도감의 진짜 사진과 어울리게)
+// 모든 동물은 +z 쪽을 바라봐요. BUILD[model]() → { root, update(t, moving, act) }
+// =====================================================================
+const sin = Math.sin, cos = Math.cos;
+const SPH = new THREE.SphereGeometry(1, 14, 10);   // 휴대폰에 맞게 면 수는 적당히
+const SPH_LO = new THREE.SphereGeometry(1, 7, 5);
+const SMATS = new Map();
+// 털 · 피부 재료 (살짝 거칠게), 눈은 반짝이게
+function skin(c, rough = 0.75, extra = {}) {
+  const k = c + rough + JSON.stringify(extra);
+  if (!SMATS.has(k)) SMATS.set(k, new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: 0, ...extra }));
+  return SMATS.get(k);
+}
+function joint(parent, x = 0, y = 0, z = 0) { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; }
+// 타원 몸통 조각
+function E(p, c, rx, ry, rz, x = 0, y = 0, z = 0, rot = null, lo = false) {
+  const m = new THREE.Mesh(lo ? SPH_LO : SPH, typeof c === 'string' ? skin(c) : c);
+  m.scale.set(rx, ry, rz); m.position.set(x, y, z);
+  if (rot) m.rotation.set(rot[0] || 0, rot[1] || 0, rot[2] || 0);
+  p.add(m); return m;
+}
+// 가늘어지는 원기둥 (다리 · 목 · 꼬리): 관절 아래로 len 만큼
+const CYLS = new Map();
+function taper(p, c, len, r0, r1, dir = -1) {
+  const k = `${len.toFixed(3)}${r0.toFixed(3)}${r1.toFixed(3)}`;
+  if (!CYLS.has(k)) { const g = new THREE.CylinderGeometry(r1, r0, len, 8, 1); CYLS.set(k, g); }
+  const m = new THREE.Mesh(CYLS.get(k), typeof c === 'string' ? skin(c) : c);
+  m.position.y = dir * len / 2; if (dir > 0) m.rotation.x = Math.PI;
+  p.add(m);
+  E(p, c, r1, r1, r1, 0, dir * len, 0);   // 끝을 둥글게
   return m;
 }
-// 관절: 회전축이 되는 빈 그룹
-function joint(parent, x, y, z) {
-  const g = new THREE.Group();
-  g.position.set(x, y, z);
-  parent.add(g);
+// 진짜 같은 눈: 까만 눈동자(가끔 색 홍채) + 작은 반짝
+function eye(p, r, x, y, z, iris = null, pupil = 'round') {
+  const g = joint(p, x, y, z);
+  if (iris) {
+    E(g, skin(iris, 0.2), r, r, r * 0.8);
+    E(g, skin('#0b0b0f', 0.1), pupil === 'slit' ? r * 0.25 : r * 0.55, r * 0.8, r * 0.5, 0, 0, r * 0.45);
+  } else E(g, skin('#120d0b', 0.12), r, r, r * 0.8);
+  E(g, skin('#ffffff', 0.1), r * 0.28, r * 0.28, r * 0.2, -r * 0.3, r * 0.35, r * 0.7, null, true);
   return g;
 }
-// 큰 눈 두 개 (흰자 · 까만 눈동자 · 반짝 점). s 는 눈 크기, gap 은 두 눈 사이 반 거리
-function eyes(parent, s, gap, y, z, side = false) {
-  for (const sx of [-1, 1]) {
-    const e = new THREE.Group();
-    if (side) { e.position.set(sx * gap, y, z); e.rotation.y = sx * 0.9; } else e.position.set(sx * gap, y, z);
-    parent.add(e);
-    box(e, '#ffffff', s, s, s * 0.3, 0, 0, 0);
-    box(e, '#1b1b22', s * 0.66, s * 0.72, s * 0.12, 0, -s * 0.06, s * 0.17);
-    box(e, '#ffffff', s * 0.22, s * 0.22, s * 0.05, s * 0.14 * -sx, s * 0.14, s * 0.24);
+const eyePair = (p, r, gap, y, z, iris, pupil, turn = 0.5) => [-1, 1].map((sx) => { const e = eye(p, r, sx * gap, y, z, iris, pupil); e.rotation.y = sx * turn; return e; });
+// 무늬: 타원 표면 위에 납작한 점을 붙여요 (where 로 자리 고르기)
+function spotsOn(p, cfg, rnd) {
+  const { rx, ry, rz, cx = 0, cy = 0, cz = 0, n, color, size, where = () => true, flat = 0.25, stretch = 1 } = cfg;
+  const q = new THREE.Vector3(), nrm = new THREE.Vector3();
+  let made = 0, tries = 0;
+  while (made < n && tries++ < n * 20) {
+    const u = rnd() * 2 - 1, th = rnd() * Math.PI * 2, s = Math.sqrt(1 - u * u);
+    const nx = s * cos(th), ny = u, nz = s * sin(th);
+    if (!where(nx, ny, nz)) continue;
+    q.set(cx + nx * rx * 0.99, cy + ny * ry * 0.99, cz + nz * rz * 0.99);
+    nrm.set(nx / rx, ny / ry, nz / rz).normalize();
+    const k = size * (0.6 + rnd() * 0.7);
+    const m = E(p, color, k * stretch, k, k * flat, q.x, q.y, q.z, null, true);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nrm);
+    made++;
   }
 }
-function cheeks(parent, w, y, z, color = '#ff9aa8') {
-  box(parent, color, w * 0.18, w * 0.1, 0.02, -w * 0.36, y, z);
-  box(parent, color, w * 0.18, w * 0.1, 0.02, w * 0.36, y, z);
-}
-const sin = Math.sin;
+const easeIn = (a, d = 0.3) => Math.min(1, a / d);
 
-// ---------- 네 발 동물 (카피바라 · 하이에나 · 사자 · 치타 · 표범 · 낙타 · 사막여우) ----------
-function quad(o) {
+// ---------------- 네 발 짐승 (사자 · 치타 · 표범 · 하이에나 · 카피바라 · 낙타 · 사막여우 · 땅돼지 · 고슴도치) ----------------
+function quadruped(o) {
+  const rnd = mulberry(o.seed || 7);
   const root = new THREE.Group();
-  const body = joint(root, 0, o.leg + o.bh / 2, 0);
-  box(body, o.color, o.bw, o.bh, o.bd);
-  if (o.belly) box(body, o.belly, o.bw * 0.8, 0.04, o.bd * 0.8, 0, -o.bh / 2 - 0.01, 0);
-  if (o.spots) {
-    const r = mulberry(o.seed || 3);
-    for (let i = 0; i < o.spots.n; i++) {
-      const sx = (r() - 0.5) * o.bd * 0.85, side = r() < 0.5 ? -1 : 1;
-      const top = r() < 0.4;
-      const s = o.spots.s * (0.7 + r() * 0.6);
-      if (top) box(body, o.spots.c, s, 0.02, s, (r() - 0.5) * o.bw * 0.7, o.bh / 2 + 0.005, sx);
-      else box(body, o.spots.c, 0.02, s, s, side * (o.bw / 2 + 0.005), (r() - 0.3) * o.bh * 0.6, sx);
-    }
+  const [bx, by, bz] = o.body, H = o.leg + by * 0.55;
+  const body = joint(root, 0, H, 0);
+  const torso = joint(body);
+  E(torso, o.color, bx, by, bz);
+  if (o.chest) E(torso, o.chest, bx * 0.82, by * 0.95, bz * 0.5, 0, 0.02, bz * 0.45);   // 가슴은 조금 더 두툼
+  if (o.belly) E(torso, o.belly, bx * 0.86, by * 0.55, bz * 0.88, 0, -by * 0.45, 0);
+  if (o.rump) E(torso, o.color, bx * 0.95, by * 0.92, bz * 0.45, 0, o.rump, -bz * 0.5);
+  if (o.hump) E(torso, o.color, bx * 0.6, o.hump, bz * 0.38, 0, by * 0.75, -bz * 0.05);
+  if (o.spots) spotsOn(torso, { rx: bx, ry: by, rz: bz, n: o.spots.n, color: o.spots.c, size: o.spots.s, where: (nx, ny) => ny > -0.35, stretch: o.spots.stretch || 1 }, rnd);
+  if (o.spines) for (let i = 0; i < o.spines; i++) {
+    const u = rnd(), th = rnd() * Math.PI * 2, s = Math.sqrt(1 - u * u), nx = s * cos(th), nz = s * sin(th), ny = u;
+    if (ny < 0.05 || nz > 0.85) continue;
+    const c = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.13, 5), skin(i % 3 ? '#6e5a44' : '#e8dcc6'));
+    c.position.set(nx * bx, ny * by, nz * bz); c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(nx / bx, ny / by, nz / bz).normalize());
+    torso.add(c);
   }
-  if (o.hump) box(body, o.color, o.bw * 0.7, o.hump, o.bd * 0.4, 0, o.bh / 2 + o.hump / 2 - 0.02, -o.bd * 0.05);
-  // 목과 머리
-  const neck = joint(body, 0, o.bh * 0.25, o.bd / 2);
-  if (o.neck) { box(neck, o.color, o.hs * 0.38, o.neck, o.hs * 0.38, 0, o.neck / 2, 0.02); }
-  const head = joint(neck, 0, (o.neck || 0) + o.hs * 0.35, o.hs * 0.25);
-  if (o.mane) box(head, o.mane, o.hs * 1.45, o.hs * 1.4, o.hs * 0.6, 0, -o.hs * 0.02, -o.hs * 0.35);
-  box(head, o.color, o.hs, o.hs * 0.9, o.hs * 0.85);
-  box(head, o.snout || o.belly || o.color, o.hs * 0.5, o.hs * 0.34, o.hs * 0.22, 0, -o.hs * 0.22, o.hs * 0.5);
-  box(head, '#2b2020', o.hs * 0.18, o.hs * 0.1, o.hs * 0.05, 0, -o.hs * 0.12, o.hs * 0.62);
-  if (o.tear) for (const sx of [-1, 1]) box(head, o.tear, o.hs * 0.05, o.hs * 0.28, 0.02, sx * o.hs * 0.27, -o.hs * 0.18, o.hs * 0.43);
-  eyes(head, o.hs * 0.24, o.hs * 0.24, o.hs * 0.06, o.hs * 0.43);
-  cheeks(head, o.hs, -o.hs * 0.2, o.hs * 0.43);
-  const ears = [];
-  for (const sx of [-1, 1]) {
-    const e = joint(head, sx * o.hs * 0.33, o.hs * 0.45, -o.hs * 0.1);
-    const ew = o.ear === 'big' ? o.hs * 0.42 : o.hs * 0.24, eh = o.ear === 'big' ? o.hs * 0.85 : o.ear === 'pointy' ? o.hs * 0.36 : o.hs * 0.18;
-    box(e, o.earColor || o.color, ew, eh, o.hs * 0.08, 0, eh / 2 - 0.02, 0);
-    if (o.ear === 'big') box(e, '#ffc9c0', ew * 0.6, eh * 0.75, 0.02, 0, eh / 2, 0.045);
-    e.rotation.z = sx * (o.ear === 'big' ? -0.35 : -0.1);
-    ears.push(e);
+  // 다리: 어깨 · 엉덩이에서 아래로, 끝에 발
+  const legs = [[-1, 1], [1, 1], [-1, -1], [1, -1]].map(([sx, sz]) => {
+    const l = joint(root, sx * bx * 0.55, H - by * 0.25, sz * bz * 0.6);
+    const len = o.leg + by * 0.3;
+    E(l, o.color, o.legR * 1.5, by * 0.45, o.legR * 1.6, 0, -by * 0.05, 0);   // 허벅지
+    taper(l, o.legColor || o.color, len, o.legR * 1.1, o.legR * 0.75);
+    E(l, o.foot || o.legColor || o.color, o.legR * 1.05, o.legR * 0.7, o.legR * 1.4, 0, -len + o.legR * 0.2, o.legR * 0.35);
+    return l;
+  });
+  // 목 · 머리
+  const neck = joint(body, 0, by * 0.35, bz * 0.82);
+  neck.rotation.x = (o.neckTilt ?? 0.75);   // 앞으로 기울인 목
+  const [nl, nr] = o.neck || [by * 0.9, by * 0.55];
+  taper(neck, o.color, nl, nr, nr * 0.8, 1);
+  if (o.mane) E(neck, o.mane, nr * 1.25, nl * 0.6, nr * 1.2, 0, nl * 0.45, -nr * 0.1);   // 목 갈기
+  const head = joint(neck, 0, nl, 0);
+  const headX = -(o.neckTilt ?? 0.75) + (o.headTilt || 0);   // 머리는 다시 앞을 보게
+  head.rotation.x = headX;
+  const [hx, hy, hz] = o.head;
+  E(head, o.headColor || o.color, hx, hy, hz);
+  if (o.mane) {
+    // 갈기: 얼굴 둘레를 감싸는 털 (얼굴은 앞으로 보이게)
+    for (let i = 0; i < 18; i++) { const a = (i / 18) * Math.PI * 2; E(head, i % 2 ? o.mane : o.mane2 || o.mane, hx * 0.42, hx * 0.42, hz * 0.5, cos(a) * hx * 1.05, sin(a) * hy * 1.05 + hy * 0.05, -hz * 0.25); }
+    E(head, o.mane, hx * 1.25, hy * 1.2, hz * 0.8, 0, 0.02, -hz * 0.55);
   }
-  // 다리
-  const legs = [];
-  for (const [lx, lz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
-    const l = joint(root, lx * o.bw * 0.3, o.leg, lz * o.bd * 0.32);
-    box(l, o.legColor || o.color, o.lw || 0.14, o.leg, o.lw || 0.14, 0, -o.leg / 2, 0);
-    legs.push(l);
-  }
+  const [sx_, sy_, sz_, sc] = o.snout;
+  E(head, sc || o.headColor || o.color, sx_, sy_, sz_, 0, -hy * 0.25, hz * 0.85);
+  if (o.lip) E(head, o.lip, sx_ * 0.85, sy_ * 0.45, sz_ * 0.9, 0, -hy * 0.25 - sy_ * 0.6, hz * 0.85);
+  E(head, o.nose || '#2a1d18', sx_ * 0.45, sy_ * 0.35, sy_ * 0.3, 0, -hy * 0.2 + sy_ * 0.35, hz * 0.85 + sz_ * 0.92);
+  if (o.tear) for (const s of [-1, 1]) E(head, o.tear, hx * 0.06, hy * 0.42, 0.01, s * hx * 0.38, -hy * 0.2, hz * 0.78, [0, s * 0.5, s * 0.15]);
+  const eyes = eyePair(head, hx * (o.eye || 0.16), hx * 0.48, hy * 0.25, hz * 0.62, o.iris, 'round', 0.55);
+  if (o.headSpots) spotsOn(head, { rx: hx, ry: hy, rz: hz, n: o.headSpots, color: o.spots.c, size: o.spots.s * 0.6, where: (nx, ny, nz) => ny > 0.1 && nz < 0.7 }, rnd);
+  const ears = [-1, 1].map((s) => {
+    const e = joint(head, s * hx * 0.62, hy * 0.75, -hz * 0.15);
+    const [ew, eh] = o.ear;
+    E(e, o.earColor || o.color, ew, eh, ew * 0.35, 0, eh * 0.75, 0);
+    if (o.earIn) E(e, o.earIn, ew * 0.65, eh * 0.7, ew * 0.15, 0, eh * 0.72, ew * 0.18);
+    e.rotation.z = s * -(o.earOut ?? 0.35);
+    return e;
+  });
   // 꼬리
-  const tail = joint(body, 0, o.bh * 0.2, -o.bd / 2);
-  const tl = o.tail || 0.35;
-  box(tail, o.tailColor || o.color, 0.07, 0.07, tl, 0, 0, -tl / 2);
-  if (o.tuft) box(tail, o.tuft, 0.13, 0.13, 0.13, 0, 0, -tl);
-  tail.rotation.x = -0.5;
+  const tail = joint(body, 0, by * 0.35, -bz * 0.92);
+  tail.rotation.x = -(o.tailDroop ?? 2.3);
+  taper(tail, o.tailColor || o.color, o.tail, o.tailR || 0.035, (o.tailR || 0.035) * 0.6, 1);
+  if (o.tuft) E(tail, o.tuft, (o.tailR || 0.035) * 2.2, (o.tailR || 0.035) * 3, (o.tailR || 0.035) * 2.2, 0, o.tail, 0);
+  if (o.tailRings) for (let i = 1; i <= o.tailRings; i++) E(tail, o.spots.c, (o.tailR || 0.035) * 1.15, 0.018, (o.tailR || 0.035) * 1.15, 0, o.tail * (0.4 + i * 0.12), 0, null, true);
 
-  const k = o.kind;
+  const kind = o.kind, gait = o.gait || 9;
   function update(t, moving, act) {
-    const w = moving ? sin(t * 10) * 0.6 : 0;
+    const w = moving ? sin(t * gait) * 0.5 : 0;
     legs[0].rotation.x = w; legs[3].rotation.x = w; legs[1].rotation.x = -w; legs[2].rotation.x = -w;
-    body.position.y = o.leg + o.bh / 2 + (moving ? Math.abs(sin(t * 10)) * 0.03 : sin(t * 2) * 0.01);
-    tail.rotation.y = sin(t * 3) * 0.4;
-    head.rotation.set(0, 0, 0); head.scale.setScalar(1); body.rotation.set(0, 0, 0);
+    body.position.y = H + (moving ? Math.abs(sin(t * gait)) * 0.025 : sin(t * 1.6) * 0.006);
+    body.rotation.x = 0; torso.scale.y = 1 + (moving ? 0 : sin(t * 1.6) * 0.012);   // 숨쉬기
+    neck.rotation.x = (o.neckTilt ?? 0.75) + (moving ? sin(t * gait * 2) * 0.03 : sin(t * 0.7) * 0.05);
+    head.rotation.set(headX, moving ? 0 : sin(t * 0.5) * 0.25, 0); head.scale.setScalar(1);
+    tail.rotation.z = sin(t * 2.2) * 0.25;
     ears.forEach((e, i) => { e.rotation.x = 0; });
+    blink(eyes, t + (o.seed || 0));
     if (act < 0) return;
-    const p = Math.min(1, act / 0.3);
-    if (k === 'roar') { head.rotation.x = -0.5 * p; head.scale.setScalar(1 + 0.15 * p * (0.6 + 0.4 * sin(act * 30))); }
-    else if (k === 'nap') { head.rotation.x = 0.35 * p + sin(act * 3) * 0.08; }
-    else if (k === 'laugh') { head.rotation.x = -0.3 + sin(act * 25) * 0.25; body.position.y += Math.abs(sin(act * 25)) * 0.04; }
-    else if (k === 'dash') { const w2 = sin(t * 26) * 0.9; legs[0].rotation.x = w2; legs[3].rotation.x = w2; legs[1].rotation.x = -w2; legs[2].rotation.x = -w2; body.rotation.x = sin(t * 26) * 0.08; }
-    else if (k === 'wag') { tail.rotation.y = sin(act * 14) * 1.0; tail.rotation.x = -1.0; head.rotation.z = sin(act * 4) * 0.15; }
-    else if (k === 'chew') { head.rotation.z = sin(act * 10) * 0.12; head.rotation.x = -0.2; }
-    else if (k === 'ears') { ears.forEach((e) => { e.rotation.x = -0.4 * p + sin(act * 18) * 0.15; }); head.rotation.y = sin(act * 3) * 0.5; head.scale.setScalar(1 + 0.08 * p); }
+    const p = easeIn(act);
+    if (kind === 'roar') { neck.rotation.x -= 0.35 * p; head.rotation.x += 0.25 * p; head.scale.setScalar(1 + 0.06 * p * (0.7 + 0.3 * sin(act * 28))); }
+    else if (kind === 'nap') { neck.rotation.x += 0.55 * p; eyes.forEach((e) => { e.scale.y = 0.12; }); }
+    else if (kind === 'laugh') { neck.rotation.x -= 0.25; head.rotation.x += sin(act * 24) * 0.18; body.position.y += Math.abs(sin(act * 24)) * 0.03; }
+    else if (kind === 'dash') { const w2 = sin(t * 24) * 0.95; legs[0].rotation.x = w2; legs[3].rotation.x = w2; legs[1].rotation.x = -w2; legs[2].rotation.x = -w2; body.rotation.x = sin(t * 24) * 0.06; }
+    else if (kind === 'wag') { tail.rotation.z = sin(act * 12) * 0.9; tail.rotation.x = -1.6; head.rotation.y = sin(act * 3) * 0.3; }
+    else if (kind === 'chew') { head.rotation.z = sin(act * 9) * 0.1; neck.rotation.x -= 0.15; }
+    else if (kind === 'ears') { ears.forEach((e, i) => { e.rotation.x = -0.4 * p + sin(act * 16 + i) * 0.12; }); head.rotation.y = sin(act * 3) * 0.6; }
+    else if (kind === 'dig') { neck.rotation.x += 0.6 * p; legs[0].rotation.x = sin(act * 16) * 0.8; legs[1].rotation.x = -sin(act * 16) * 0.8; }
+    else if (kind === 'ball') { torso.scale.set(1 + 0.15 * p, 1 + 0.25 * p, 1 - 0.2 * p); neck.rotation.x += 0.8 * p; }
   }
   return { root, update };
 }
+function blink(eyes, t) { const b = (t % 4.1) < 0.11 ? 0.12 : 1; eyes.forEach((e) => { e.scale.y = b; }); }
 
-// ---------- 뱀 (뱀 · 방울뱀) ----------
+// ---------------- 뱀 (에메랄드나무보아 · 방울뱀) ----------------
 function snake(o) {
+  const rnd = mulberry(o.seed || 3);
   const root = new THREE.Group();
-  const N = 9, segs = [];
+  const N = 18, segs = [];
   for (let i = 0; i < N; i++) {
-    const s = joint(root, 0, 0.09, -i * 0.15);
-    const c = o.pattern && i % 2 ? o.pattern : o.color;
-    box(s, c, 0.17 - i * 0.008, 0.15 - i * 0.006, 0.17);
+    const r = o.r * (i < 3 ? 0.85 + i * 0.05 : Math.max(0.25, 1 - (i - 3) / (N - 2) * 0.85));
+    const s = joint(root, 0, r * 0.85, -i * o.r * 1.1);
+    const band = o.band && i % 3 === 1;
+    E(s, band ? o.band : o.color, r * 1.05, r * 0.85, o.r * 0.9);
+    if (o.belly) E(s, o.belly, r * 0.9, r * 0.35, o.r * 0.85, 0, -r * 0.55, 0, null, true);
+    if (o.diamond && i % 2 === 0 && i < N - 2) E(s, o.diamond, r * 0.6, r * 0.2, o.r * 0.6, 0, r * 0.78, 0, [0, Math.PI / 4, 0], true);
     segs.push(s);
   }
-  const head = joint(segs[0], 0, 0.1, 0.12);
-  box(head, o.color, 0.32, 0.24, 0.3);
-  box(head, o.belly || o.color, 0.26, 0.06, 0.2, 0, -0.1, 0.06);
-  eyes(head, 0.1, 0.09, 0.06, 0.15);
-  cheeks(head, 0.3, -0.04, 0.155);
-  const tongue = box(head, '#e23b52', 0.04, 0.02, 0.16, 0, -0.06, 0.2);
-  tongue.visible = false;
+  const head = joint(root, 0, o.r * 0.85, o.r * 1.1);
+  E(head, o.color, o.r * 1.15, o.r * 0.7, o.r * 1.6, 0, 0, o.r * 0.5);
+  E(head, o.belly || o.color, o.r * 0.9, o.r * 0.3, o.r * 1.3, 0, -o.r * 0.35, o.r * 0.6, null, true);
+  const eyes = eyePair(head, o.r * 0.24, o.r * 0.82, o.r * 0.3, o.r * 1.1, o.iris, 'slit', 0.9);
+  const tongue = joint(head, 0, -o.r * 0.15, o.r * 2.0);
+  E(tongue, '#c8243c', o.r * 0.08, o.r * 0.05, o.r * 0.6, 0, 0, o.r * 0.5); tongue.visible = false;
   let rattle = null;
-  if (o.rattle) {
-    rattle = joint(segs[N - 1], 0, 0.04, -0.1);
-    for (let i = 0; i < 3; i++) box(rattle, '#e8d7a8', 0.1 - i * 0.015, 0.1 - i * 0.015, 0.06, 0, 0, -i * 0.07);
-  }
+  if (o.rattle) { rattle = joint(segs[N - 1], 0, 0.02, -o.r * 0.6); for (let i = 0; i < 4; i++) E(rattle, '#d9c49a', o.r * (0.45 - i * 0.05), o.r * (0.35 - i * 0.04), o.r * 0.32, 0, 0, -i * o.r * 0.42); }
   function update(t, moving, act) {
-    const sp = moving ? 8 : 2, amp = moving ? 0.12 : 0.05;
-    segs.forEach((s, i) => { s.position.x = sin(t * sp - i * 0.8) * amp * Math.min(1, i / 2 + 0.3); });
-    head.rotation.set(0, 0, 0); head.position.y = 0.1; tongue.visible = false;
+    const sp = moving ? 7 : 1.6, amp = moving ? o.r * 1.6 : o.r * 0.6;
+    segs.forEach((s, i) => { s.position.x = sin(t * sp - i * 0.55) * amp * Math.min(1, i / 3 + 0.2); });
+    head.position.x = sin(t * sp + 0.55) * amp * 0.2; head.position.y = o.r * 0.85; head.rotation.set(0, 0, 0); tongue.visible = (t % 2.2) < 0.25;
+    blink(eyes, t + 5);
     if (rattle) rattle.rotation.z = 0;
     if (act < 0) return;
-    if (o.rattle) { rattle.rotation.z = sin(act * 60) * 0.5; rattle.position.y = 0.04 + 0.12 * Math.min(1, act * 3); head.rotation.x = -0.3; head.position.y = 0.2; }
-    else { head.position.y = 0.1 + 0.2 * Math.min(1, act * 3); head.rotation.x = -0.3; tongue.visible = sin(act * 20) > 0; }
+    const p = easeIn(act);
+    head.position.y = o.r * 0.85 + o.r * 3 * p; head.rotation.x = -0.25 * p;
+    if (rattle) { rattle.rotation.z = sin(act * 70) * 0.4; segs[N - 1].position.y = o.r * 2 * p; }
+    else tongue.visible = sin(act * 22) > 0;
   }
   return { root, update };
 }
 
-// ---------- 개구리 ----------
+// ---------------- 빨간눈청개구리 ----------------
 function frog() {
   const root = new THREE.Group();
-  const body = joint(root, 0, 0.17, 0);
-  box(body, '#5fc25a', 0.48, 0.3, 0.45);
-  box(body, '#d8f2a6', 0.36, 0.05, 0.12, 0, -0.07, 0.2);
-  box(body, '#3f9a45', 0.12, 0.02, 0.12, -0.12, 0.155, -0.08);
-  box(body, '#3f9a45', 0.08, 0.02, 0.08, 0.14, 0.155, 0.02);
-  for (const sx of [-1, 1]) {
-    const bump = joint(body, sx * 0.14, 0.2, 0.12);
-    box(bump, '#5fc25a', 0.18, 0.16, 0.16);
-  }
-  eyes(body, 0.13, 0.14, 0.23, 0.2);
-  box(body, '#2b4d2a', 0.2, 0.025, 0.02, 0, 0, 0.23);
-  cheeks(body, 0.48, 0.03, 0.23);
-  const legs = [];
-  for (const sx of [-1, 1]) {
-    const l = joint(root, sx * 0.24, 0.1, -0.08);
-    box(l, '#4fae4b', 0.12, 0.14, 0.28, 0, 0, 0);
-    box(l, '#4fae4b', 0.14, 0.04, 0.12, sx * 0.03, -0.07, 0.15);
-    legs.push(l);
-    box(root, '#4fae4b', 0.08, 0.14, 0.08, sx * 0.15, 0.07, 0.17);
-  }
+  const body = joint(root, 0, 0.13, 0);
+  E(body, '#5cc23e', 0.2, 0.12, 0.26);
+  E(body, '#4aa8d8', 0.205, 0.06, 0.2, 0, -0.03, -0.02);   // 옆구리 파랑
+  E(body, '#f4ecb8', 0.16, 0.06, 0.2, 0, -0.07, 0.02);    // 하얀 배
+  for (const s of [-1, 1]) for (let i = 0; i < 3; i++) E(body, '#f2d23c', 0.012, 0.035, 0.03, s * 0.19, -0.02, -0.08 + i * 0.07, null, true);   // 옆구리 노란 줄
+  const head = joint(body, 0, 0.03, 0.2);
+  E(head, '#5cc23e', 0.17, 0.09, 0.13);
+  E(head, '#2f7a2a', 0.05, 0.012, 0.012, 0, -0.01, 0.125, null, true);
+  const eyes = [-1, 1].map((s) => { const b = joint(head, s * 0.11, 0.08, 0.02); E(b, '#5cc23e', 0.07, 0.065, 0.07); const e = eye(b, 0.06, 0, 0.01, 0.025, '#e0242a', 'slit'); e.rotation.y = s * 0.6; return e; });
+  const legs = [-1, 1].map((s) => {
+    const l = joint(root, s * 0.17, 0.09, -0.12);
+    E(l, '#5cc23e', 0.07, 0.06, 0.16, 0, 0, 0.02);
+    E(l, '#4aa8d8', 0.05, 0.04, 0.1, s * 0.03, -0.03, -0.04, null, true);
+    for (let k = 0; k < 3; k++) E(l, '#f08a2a', 0.025, 0.012, 0.025, s * 0.04 + (k - 1) * 0.03, -0.075, 0.15);
+    return l;
+  });
+  for (const s of [-1, 1]) { const a = joint(root, s * 0.12, 0.08, 0.15); taper(a, '#5cc23e', 0.08, 0.025, 0.02); for (let k = 0; k < 3; k++) E(a, '#f08a2a', 0.02, 0.01, 0.02, (k - 1) * 0.025, -0.085, 0.02); }
   function update(t, moving, act) {
-    let y = 0;
-    if (moving) y = Math.abs(sin(t * 6)) * 0.15;
-    if (act >= 0) y = Math.abs(sin(act * 4)) * 0.7;
-    root.children.forEach(() => {});
-    body.position.y = 0.17 + y; legs.forEach((l) => { l.position.y = 0.1 + y * 0.8; l.rotation.x = y > 0.05 ? 0.6 : 0; });
-    body.scale.y = 1 + (moving || act >= 0 ? 0 : sin(t * 3) * 0.05);
+    let y = moving ? Math.abs(sin(t * 6)) * 0.1 : 0;
+    if (act >= 0) y = Math.abs(sin(act * 4)) * 0.45;
+    body.position.y = 0.13 + y; legs.forEach((l) => { l.position.y = 0.09 + y * 0.9; l.rotation.x = y > 0.03 ? 0.7 : 0; });
+    body.scale.y = 1 + (moving || act >= 0 ? 0 : Math.abs(sin(t * 2.4)) * 0.05);   // 목 부풀리기
+    blink(eyes, t + 1);
   }
   return { root, update };
 }
 
-// ---------- 나무늘보 · 오랑우탄 (앉아 있는 원숭이 모양) ----------
-function ape(o) {
+// ---------------- 영장류 · 나무늘보 (나무늘보 · 오랑우탄 · 올빼미원숭이) ----------------
+function primate(o) {
   const root = new THREE.Group();
-  const body = joint(root, 0, o.leg + o.bh / 2, 0);
-  box(body, o.color, o.bw, o.bh, o.bd);
-  box(body, o.belly, o.bw * 0.6, o.bh * 0.7, 0.02, 0, -o.bh * 0.05, o.bd / 2 + 0.005);
-  const head = joint(body, 0, o.bh / 2 + o.hs * 0.42, 0.03);
-  box(head, o.color, o.hs, o.hs * 0.88, o.hs * 0.85);
-  if (o.hair) box(head, o.hair, o.hs * 1.1, o.hs * 0.3, o.hs * 0.9, 0, o.hs * 0.42, -0.02);
-  box(head, o.face, o.hs * 0.78, o.hs * 0.62, 0.03, 0, -o.hs * 0.06, o.hs * 0.43);
-  if (o.mask) for (const sx of [-1, 1]) box(head, o.mask, o.hs * 0.28, o.hs * 0.14, 0.02, sx * o.hs * 0.2, o.hs * 0.03, o.hs * 0.45);
-  box(head, o.mouth || '#5a3a2a', o.hs * 0.3, o.hs * 0.05, 0.02, 0, -o.hs * 0.24, o.hs * 0.46);
-  eyes(head, o.hs * 0.19, o.hs * 0.19, o.hs * 0.04, o.hs * 0.46);
-  cheeks(head, o.hs, -o.hs * 0.15, o.hs * 0.455);
-  const arms = [];
-  for (const sx of [-1, 1]) {
-    const a = joint(body, sx * (o.bw / 2 + o.aw / 2), o.bh * 0.35, 0);
-    box(a, o.color, o.aw, o.arm, o.aw, 0, -o.arm / 2, 0);
-    box(a, o.face, o.aw * 1.05, 0.06, o.aw * 1.05, 0, -o.arm, 0);
-    arms.push(a);
-  }
-  const legs = [];
-  for (const sx of [-1, 1]) {
-    const l = joint(root, sx * o.bw * 0.27, o.leg, 0);
-    box(l, o.color, o.aw * 1.1, o.leg, o.aw * 1.1, 0, -o.leg / 2, 0);
-    legs.push(l);
-  }
+  const body = joint(root, 0, o.leg + o.body[1] * 0.8, 0);
+  const torso = joint(body); torso.rotation.x = o.lean ?? 0.25;
+  E(torso, o.color, ...o.body);
+  if (o.shag) for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; E(torso, i % 2 ? o.color : o.shag, o.body[0] * 0.35, o.body[1] * 0.5, o.body[2] * 0.3, cos(a) * o.body[0] * 0.8, -o.body[1] * 0.35, sin(a) * o.body[2] * 0.8, null, true); }
+  if (o.belly) E(torso, o.belly, o.body[0] * 0.65, o.body[1] * 0.75, o.body[2] * 0.4, 0, -0.02, o.body[2] * 0.62);
+  const head = joint(body, 0, o.body[1] * 0.95, o.body[2] * 0.25);
+  E(head, o.color, o.head, o.head * 0.95, o.head * 0.9);
+  if (o.cheekPads) for (const s of [-1, 1]) E(head, o.color, o.head * 0.35, o.head * 0.55, o.head * 0.2, s * o.head * 0.95, -o.head * 0.05, o.head * 0.3);
+  E(head, o.face, o.head * 0.72, o.head * 0.7, o.head * 0.3, 0, -o.head * 0.05, o.head * 0.68);
+  E(head, o.muzzle || o.face, o.head * 0.42, o.head * 0.3, o.head * 0.25, 0, -o.head * 0.35, o.head * 0.82);
+  E(head, '#2a1d18', o.head * 0.14, o.head * 0.08, o.head * 0.06, 0, -o.head * 0.25, o.head * 1.02);
+  if (o.mask) for (const s of [-1, 1]) E(head, o.mask, o.head * 0.22, o.head * 0.11, o.head * 0.08, s * o.head * 0.28, o.head * 0.1, o.head * 0.86, [0, 0, s * -0.4]);
+  if (o.brows) for (const s of [-1, 1]) E(head, o.brows, o.head * 0.2, o.head * 0.06, o.head * 0.08, s * o.head * 0.25, o.head * 0.35, o.head * 0.8, [0, 0, s * -0.2]);
+  const eyes = eyePair(head, o.head * (o.eye || 0.11), o.head * 0.27, o.head * 0.12, o.head * 0.86, o.iris, 'round', 0.25);
+  const arms = [-1, 1].map((s) => {
+    const a = joint(body, s * o.body[0] * 0.85, o.body[1] * 0.6, o.body[2] * 0.2);
+    taper(a, o.color, o.arm, o.armR, o.armR * 0.75);
+    if (o.claws) for (let k = 0; k < 3; k++) { const c = joint(a, (k - 1) * o.armR * 0.6, -o.arm, o.armR * 0.3); taper(c, '#e8dcc6', o.armR * 1.8, o.armR * 0.2, o.armR * 0.12); c.rotation.x = 0.6; }
+    else E(a, o.face, o.armR * 1.2, o.armR * 0.8, o.armR * 1.3, 0, -o.arm, o.armR * 0.4);
+    a.rotation.z = s * 0.25;
+    return a;
+  });
+  const legs = [-1, 1].map((s) => { const l = joint(root, s * o.body[0] * 0.45, o.leg, 0.02); taper(l, o.color, o.leg, o.armR * 1.1, o.armR * 0.85); E(l, o.face, o.armR * 1.1, o.armR * 0.6, o.armR * 1.6, 0, -o.leg + 0.02, o.armR * 0.5); return l; });
+  let tail = null;
+  if (o.tail) { tail = joint(body, 0, -o.body[1] * 0.6, -o.body[2] * 0.7); tail.rotation.x = -2.5; taper(tail, o.color, o.tail, o.armR * 0.8, o.armR * 0.5, 1); }
+  const sp = o.slow ? 2.6 : 7;
   function update(t, moving, act) {
-    const w = moving ? sin(t * (o.slow ? 3 : 7)) * 0.5 : 0;
+    const w = moving ? sin(t * sp) * 0.5 : 0;
     legs[0].rotation.x = w; legs[1].rotation.x = -w;
-    arms[0].rotation.set(-w, 0, 0.1); arms[1].rotation.set(w, 0, -0.1);
-    body.rotation.z = moving ? sin(t * (o.slow ? 3 : 7)) * 0.06 : 0;
-    head.rotation.set(0, sin(t * 0.7) * 0.2, 0);
+    arms[0].rotation.set(-w * 1.1 - 0.15, 0, -0.25); arms[1].rotation.set(w * 1.1 - 0.15, 0, 0.25);
+    body.rotation.z = moving ? sin(t * sp) * 0.05 : 0;
+    head.rotation.set(0, sin(t * (o.slow ? 0.3 : 0.6)) * 0.3, 0);
+    if (tail) tail.rotation.z = sin(t * 1.5) * 0.3;
+    blink(eyes, t + 3);
     if (act < 0) return;
-    const p = Math.min(1, act / (o.slow ? 1.2 : 0.3));
-    if (o.slow) { arms[0].rotation.set(0, 0, -2.6 * p); arms[1].rotation.set(0, 0, 2.6 * p); head.rotation.x = -0.3 * p; }
-    else { const b = sin(act * 18); arms[0].rotation.set(-1.4 - b * 0.3, 0, -0.5); arms[1].rotation.set(-1.4 + b * 0.3, 0, 0.5); head.rotation.x = -0.25; }
+    const p = easeIn(act, o.slow ? 1.2 : 0.3);
+    if (o.slow) { arms[0].rotation.set(0, 0, -2.6 * p); arms[1].rotation.set(0, 0, 2.6 * p); head.rotation.x = -0.35 * p; }
+    else if (o.beat) { const b = sin(act * 18); arms[0].rotation.set(-1.4 - b * 0.3, 0, -0.4); arms[1].rotation.set(-1.4 + b * 0.3, 0, 0.4); head.rotation.x = -0.2; }
+    else { eyes.forEach((e) => e.scale.setScalar(1 + 0.25 * sin(act * 6) ** 2)); head.rotation.y = sin(act * 2.5) * 0.7; }
   }
   return { root, update };
 }
 
-// ---------- 새 (토코투칸) ----------
+// ---------------- 토코투칸 ----------------
 function toucan() {
   const root = new THREE.Group();
-  const body = joint(root, 0, 0.3, 0);
-  box(body, '#1d1d24', 0.32, 0.38, 0.32);
-  box(body, '#fff2b8', 0.24, 0.24, 0.02, 0, 0.04, 0.165);
-  const head = joint(body, 0, 0.3, 0.02);
-  box(head, '#1d1d24', 0.36, 0.32, 0.34);
-  box(head, '#fff2b8', 0.3, 0.14, 0.02, 0, -0.08, 0.175);
-  for (const sx of [-1, 1]) box(head, '#4fb3ff', 0.12, 0.12, 0.02, sx * 0.1, 0.04, 0.172);
-  eyes(head, 0.08, 0.1, 0.04, 0.185);
-  const beak = joint(head, 0, -0.02, 0.17);
-  box(beak, '#ff8a1c', 0.16, 0.16, 0.36, 0, 0, 0.18);
-  box(beak, '#ffd23c', 0.165, 0.06, 0.2, 0, 0.06, 0.12);
-  box(beak, '#1d1d24', 0.08, 0.08, 0.06, 0, 0, 0.37);
-  const wings = [];
-  for (const sx of [-1, 1]) {
-    const w = joint(body, sx * 0.17, 0.12, 0);
-    box(w, '#1d1d24', 0.05, 0.3, 0.28, sx * 0.02, -0.12, -0.02);
-    wings.push(w);
-  }
-  box(body, '#d6334a', 0.2, 0.06, 0.1, 0, -0.16, -0.17);
-  const tail = joint(body, 0, -0.1, -0.16);
-  box(tail, '#1d1d24', 0.2, 0.06, 0.3, 0, 0, -0.14);
-  tail.rotation.x = 0.5;
-  for (const sx of [-1, 1]) box(root, '#6aa0c8', 0.05, 0.12, 0.05, sx * 0.08, 0.06, 0);
+  const body = joint(root, 0, 0.32, 0);
+  const torso = joint(body); torso.rotation.x = -0.35;
+  E(torso, '#16161c', 0.15, 0.24, 0.15);
+  E(torso, '#fbf6ea', 0.11, 0.1, 0.06, 0, 0.12, 0.11);   // 하얀 목
+  E(torso, '#c8243c', 0.08, 0.05, 0.08, 0, -0.18, 0.06);  // 꼬리 밑 빨강
+  const head = joint(body, 0, 0.26, 0.04);
+  E(head, '#16161c', 0.12, 0.12, 0.12);
+  E(head, '#fbf6ea', 0.1, 0.06, 0.06, 0, -0.04, 0.08);
+  for (const s of [-1, 1]) E(head, '#4fb0e8', 0.05, 0.05, 0.02, s * 0.1, 0.02, 0.05, [0, s * 0.8, 0]);
+  const eyes = eyePair(head, 0.026, 0.11, 0.02, 0.055, '#2a3f8a', 'round', 1.0);
+  const beak = joint(head, 0, 0.0, 0.1);
+  const bk = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.42, 16), skin('#ff8a1c', 0.4)); bk.rotation.x = Math.PI / 2 + 0.12; bk.position.set(0, -0.02, 0.21); bk.scale.set(0.8, 1, 1.3); beak.add(bk);
+  E(beak, '#ffb41c', 0.06, 0.03, 0.18, 0, 0.035, 0.14, null, true);
+  E(beak, '#16161c', 0.03, 0.03, 0.03, 0, -0.035, 0.41, null, true);
+  const wings = [-1, 1].map((s) => { const w = joint(body, s * 0.13, 0.08, 0); E(w, '#16161c', 0.04, 0.2, 0.13, 0, -0.08, -0.03); return w; });
+  const tail = joint(body, 0, -0.18, -0.1); E(tail, '#16161c', 0.07, 0.03, 0.22, 0, 0, -0.2); tail.rotation.x = 0.5;
+  for (const s of [-1, 1]) { const l = joint(root, s * 0.06, 0.12, 0.02); taper(l, '#4a6a9a', 0.12, 0.018, 0.014); }
   function update(t, moving, act) {
-    body.position.y = 0.3 + (moving ? Math.abs(sin(t * 10)) * 0.06 : 0);
-    head.rotation.set(0, sin(t * 1.3) * 0.4, 0);
+    body.position.y = 0.32 + (moving ? Math.abs(sin(t * 10)) * 0.04 : 0);
+    head.rotation.set(0, sin(t * 1.1) * 0.5, sin(t * 0.7) * 0.1);
     wings[0].rotation.z = 0; wings[1].rotation.z = 0;
+    blink(eyes, t + 2);
     if (act < 0) return;
-    const f = sin(act * 28) * 0.9 + 0.9;
+    const f = sin(act * 26) * 0.8 + 0.8;
     wings[0].rotation.z = -f; wings[1].rotation.z = f;
-    body.position.y = 0.3 + Math.abs(sin(act * 5)) * 0.35;
+    body.position.y = 0.32 + Math.abs(sin(act * 4)) * 0.35;
   }
   return { root, update };
 }
 
-// ---------- 도마뱀 (가시도마뱀) ----------
+// ---------------- 가시도마뱀 ----------------
 function thornydevil() {
+  const rnd = mulberry(7);
   const root = new THREE.Group();
-  const body = joint(root, 0, 0.12, 0);
-  box(body, '#d49a52', 0.34, 0.16, 0.42);
-  box(body, '#8a5a2b', 0.12, 0.165, 0.42);
-  const spikes = new THREE.Group(); body.add(spikes);
-  const r = mulberry(7);
-  for (let i = 0; i < 14; i++) cone(spikes, i % 3 ? '#b8743a' : '#f0c27a', 0.03, 0.09, (r() - 0.5) * 0.3, 0.1, (r() - 0.5) * 0.38);
-  const head = joint(body, 0, 0.05, 0.26);
-  box(head, '#d49a52', 0.3, 0.2, 0.22);
-  cone(head, '#b8743a', 0.035, 0.12, -0.1, 0.14, -0.02);
-  cone(head, '#b8743a', 0.035, 0.12, 0.1, 0.14, -0.02);
-  eyes(head, 0.08, 0.09, 0.03, 0.115);
-  cheeks(head, 0.3, -0.05, 0.115);
-  const tail = joint(body, 0, 0, -0.21);
-  box(tail, '#d49a52', 0.08, 0.07, 0.3, 0, 0, -0.15);
-  const legs = [];
-  for (const [lx, lz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
-    const l = joint(root, lx * 0.2, 0.08, lz * 0.13);
-    box(l, '#c28745', 0.14, 0.06, 0.06, lx * 0.05, -0.04, 0);
-    legs.push(l);
-  }
-  function update(t, moving, act) {
-    const w = moving ? sin(t * 14) * 0.5 : 0;
-    legs.forEach((l, i) => { l.rotation.y = (i === 0 || i === 3 ? w : -w); });
-    tail.rotation.y = sin(t * (moving ? 14 : 2)) * 0.3;
-    body.scale.set(1, 1, 1); spikes.scale.setScalar(1);
-    head.rotation.set(0, 0, 0);
-    if (act < 0) return;
-    const p = Math.min(1, act / 0.4);
-    body.scale.set(1 + 0.15 * p, 1 + 0.25 * p, 1);
-    spikes.scale.setScalar(1 + 0.4 * p + sin(act * 20) * 0.05);
-    head.rotation.x = 0.4 * p;
-  }
-  return { root, update };
-}
-
-// ---------- 캥거루쥐 ----------
-function kangaroorat() {
-  const root = new THREE.Group();
-  const body = joint(root, 0, 0.16, 0);
-  box(body, '#d8b07a', 0.22, 0.22, 0.26);
-  box(body, '#fff4e0', 0.16, 0.14, 0.02, 0, -0.02, 0.13);
-  const head = joint(body, 0, 0.16, 0.06);
-  box(head, '#d8b07a', 0.26, 0.24, 0.24);
-  box(head, '#fff4e0', 0.14, 0.08, 0.06, 0, -0.06, 0.13);
-  box(head, '#ff8fa0', 0.04, 0.03, 0.02, 0, -0.03, 0.165);
-  eyes(head, 0.08, 0.075, 0.03, 0.125);
-  cheeks(head, 0.26, -0.05, 0.123);
-  for (const sx of [-1, 1]) box(head, '#d8b07a', 0.08, 0.1, 0.03, sx * 0.09, 0.15, -0.02);
-  const legs = [];
-  for (const sx of [-1, 1]) {
-    const l = joint(root, sx * 0.09, 0.1, -0.03);
-    box(l, '#d8b07a', 0.08, 0.14, 0.18, 0, 0, 0);
-    box(l, '#fff4e0', 0.07, 0.03, 0.18, 0, -0.08, 0.06);
-    legs.push(l);
-  }
-  const tail = joint(body, 0, -0.06, -0.13);
-  box(tail, '#c79a62', 0.035, 0.035, 0.5, 0, 0, -0.25);
-  box(tail, '#3a2a1e', 0.07, 0.07, 0.12, 0, 0, -0.5);
-  tail.rotation.x = 0.25;
-  function update(t, moving, act) {
-    let y = moving ? Math.abs(sin(t * 9)) * 0.14 : 0;
-    if (act >= 0) y = Math.abs(sin(act * 3.5)) * 0.9;
-    body.position.y = 0.16 + y; legs.forEach((l) => { l.position.y = 0.1 + y; l.rotation.x = y > 0.04 ? 0.5 : 0; });
-    tail.position.y = -0.06; head.rotation.y = sin(t * 2) * 0.3;
-  }
-  return { root, update };
-}
-
-// ---------- 미어캣 ----------
-function meerkat() {
-  const root = new THREE.Group();
-  const body = joint(root, 0, 0.12, 0);
-  const torso = box(body, '#c9a06a', 0.2, 0.36, 0.18, 0, 0.18, 0);
-  box(body, '#f2dcb4', 0.13, 0.28, 0.02, 0, 0.17, 0.095);
-  const head = joint(body, 0, 0.44, 0.02);
-  box(head, '#c9a06a', 0.26, 0.24, 0.24);
-  box(head, '#f2dcb4', 0.16, 0.09, 0.08, 0, -0.06, 0.13);
-  box(head, '#2b2020', 0.06, 0.04, 0.02, 0, -0.04, 0.175);
-  for (const sx of [-1, 1]) box(head, '#3a2a1e', 0.1, 0.1, 0.02, sx * 0.065, 0.03, 0.122);
-  eyes(head, 0.075, 0.065, 0.03, 0.13);
-  for (const sx of [-1, 1]) box(head, '#3a2a1e', 0.05, 0.06, 0.03, sx * 0.13, 0.04, -0.02);
-  const arms = [];
-  for (const sx of [-1, 1]) { const a = joint(body, sx * 0.11, 0.28, 0.07); box(a, '#c9a06a', 0.05, 0.14, 0.05, 0, -0.07, 0); arms.push(a); }
-  for (const sx of [-1, 1]) box(root, '#c9a06a', 0.07, 0.12, 0.1, sx * 0.06, 0.06, 0.02);
-  const tail = joint(body, 0, 0.02, -0.09);
-  box(tail, '#c9a06a', 0.05, 0.05, 0.32, 0, 0, -0.16);
-  box(tail, '#3a2a1e', 0.055, 0.055, 0.08, 0, 0, -0.32);
-  function update(t, moving, act) {
-    body.rotation.x = moving ? 0.9 : 0; body.position.y = moving ? 0.12 + Math.abs(sin(t * 12)) * 0.03 : 0.12;
-    body.scale.y = 1; head.rotation.set(moving ? -0.9 : 0, sin(t * 1.5) * 0.5, 0);
-    arms.forEach((a) => { a.rotation.x = 0; });
-    if (act < 0) return;
-    const p = Math.min(1, act / 0.3);
-    body.rotation.x = 0; body.scale.y = 1 + 0.18 * p;
-    head.rotation.set(-0.1, sin(act * 3) * 0.9, 0);
-    arms.forEach((a) => { a.rotation.x = -0.6 * p; });
-  }
-  return { root, update };
-}
-
-// ---------- 게 ----------
-function crab(C1 = '#e6402e', C2 = '#ff7a5c', C3 = '#d33a29') {
-  const root = new THREE.Group();
-  const body = joint(root, 0, 0.16, 0);
-  box(body, C1, 0.46, 0.16, 0.32);
-  box(body, C2, 0.3, 0.02, 0.18, 0, 0.085, 0.02);
-  const stalks = joint(body, 0, 0.08, 0.1);
-  for (const sx of [-1, 1]) {
-    box(stalks, C1, 0.04, 0.14, 0.04, sx * 0.09, 0.07, 0);
-    const e = new THREE.Group(); e.position.set(sx * 0.09, 0.17, 0.02); stalks.add(e);
-    box(e, '#ffffff', 0.1, 0.1, 0.08); box(e, '#1b1b22', 0.07, 0.07, 0.02, 0, -0.005, 0.045);
-    box(e, '#ffffff', 0.02, 0.02, 0.01, -sx * 0.015, 0.02, 0.056);
-  }
-  box(body, '#2b2020', 0.1, 0.02, 0.02, 0, -0.02, 0.161);
-  cheeks(body, 0.46, 0.0, 0.161);
-  const claws = [];
-  for (const sx of [-1, 1]) {
-    const c = joint(body, sx * 0.25, 0.02, 0.12);
-    box(c, C1, 0.06, 0.06, 0.14, 0, 0, 0.05);
-    const top = joint(c, 0, 0.03, 0.14); box(top, C2, 0.14, 0.07, 0.14, 0, 0.02, 0.05);
-    box(c, C2, 0.13, 0.05, 0.12, 0, -0.03, 0.18);
-    claws.push({ c, top });
-  }
-  const legs = [];
-  for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) {
-    const l = joint(root, sx * 0.22, 0.12, -0.08 + i * 0.07);
-    box(l, C3, 0.16, 0.03, 0.03, sx * 0.08, -0.04, 0);
-    l.rotation.z = sx * -0.6; legs.push(l);
-  }
-  function update(t, moving, act) {
-    legs.forEach((l, i) => { l.rotation.x = moving ? sin(t * 16 + i) * 0.4 : 0; });
-    body.position.y = 0.16 + (moving ? Math.abs(sin(t * 16)) * 0.02 : 0);
-    claws.forEach(({ c, top }) => { c.rotation.x = 0; top.rotation.x = 0; });
-    if (act < 0) return;
-    claws.forEach(({ c, top }, i) => { c.rotation.x = -1.1 * Math.min(1, act / 0.25); top.rotation.x = -Math.abs(sin(act * 14 + i)) * 0.7; });
-  }
-  return { root, update };
-}
-
-// ---------- 물고기 모양 공통 ----------
-function fishBody(parent, o) {
-  const g = joint(parent, 0, 0, 0);
-  box(g, o.color, o.w, o.h, o.l);
-  if (o.belly) box(g, o.belly, o.w * 0.9, o.h * 0.35, o.l * 0.9, 0, -o.h * 0.33, 0);
-  if (o.back) box(g, o.back, o.w * 0.9, o.h * 0.25, o.l * 0.95, 0, o.h * 0.38, 0);
-  eyes(g, o.eye, o.w / 2, o.h * 0.1, o.l * 0.35, true);
-  const tail = joint(g, 0, 0, -o.l / 2);
-  box(tail, o.fin || o.color, 0.03, o.h * 1.1, o.h * 0.6, 0, 0, -o.h * 0.25);
-  return { g, tail };
-}
-
-function sardine() {
-  const root = new THREE.Group();
-  const fish = [];
-  const r = mulberry(5);
-  for (let i = 0; i < 6; i++) {
-    const p = joint(root, (r() - 0.5) * 0.7, (r() - 0.5) * 0.35, (r() - 0.5) * 0.7);
-    const f = fishBody(p, { w: 0.08, h: 0.12, l: 0.32, color: '#c9d7e3', back: '#3c6e9e', belly: '#f4f8fb', eye: 0.06 });
-    fish.push({ p, ...f, base: p.position.clone(), ph: r() * 6 });
-  }
-  function update(t, moving, act) {
-    fish.forEach((f) => {
-      f.tail.rotation.y = sin(t * 16 + f.ph) * 0.5;
-      f.p.position.y = f.base.y + sin(t * 2 + f.ph) * 0.05;
-      f.p.rotation.set(0, 0, 0);
-    });
-    root.rotation.y = 0;
-    if (act < 0) return;
-    fish.forEach((f) => { f.p.rotation.z = act * 9 + f.ph; f.p.position.y = f.base.y + sin(act * 6 + f.ph) * 0.1; });
-    root.rotation.y = act * 3;
-  }
-  return { root, update };
-}
-
-function flounder() {
-  const root = new THREE.Group();
-  const body = joint(root, 0, 0.05, 0);
-  box(body, '#a88763', 0.5, 0.07, 0.62);
-  const r = mulberry(9);
-  for (let i = 0; i < 8; i++) box(body, i % 2 ? '#7a5d3f' : '#c9a982', 0.06, 0.01, 0.06, (r() - 0.5) * 0.38, 0.04, (r() - 0.5) * 0.45);
-  box(body, '#c9a982', 0.6, 0.02, 0.5, 0, -0.01, -0.02);
-  // 두 눈이 위쪽에 모여 있어요
-  for (const sx of [-0.06, 0.08]) {
-    const e = new THREE.Group(); e.position.set(sx, 0.07, 0.18); e.rotation.x = -1.2; body.add(e);
-    box(e, '#ffffff', 0.09, 0.09, 0.04); box(e, '#1b1b22', 0.06, 0.06, 0.02, 0, 0, 0.02); box(e, '#ffffff', 0.02, 0.02, 0.01, 0.015, 0.015, 0.03);
-  }
-  box(body, '#ff9aa8', 0.05, 0.01, 0.03, -0.14, 0.04, 0.2);
-  const tail = joint(body, 0, 0, -0.31);
-  box(tail, '#a88763', 0.3, 0.03, 0.14, 0, 0, -0.07);
-  const sand = new THREE.Group(); root.add(sand); sand.visible = false;
-  for (let i = 0; i < 8; i++) box(sand, '#e9d6a6', 0.05, 0.05, 0.05, (r() - 0.5) * 0.7, 0.05, (r() - 0.5) * 0.7);
-  function update(t, moving, act) {
-    tail.rotation.x = sin(t * (moving ? 8 : 2)) * 0.25;
-    body.rotation.z = moving ? sin(t * 8) * 0.06 : 0;
-    body.position.y = 0.05; sand.visible = false;
-    if (act < 0) return;
-    body.position.y = 0.05 + Math.abs(sin(act * 8)) * 0.1; body.rotation.z = sin(act * 16) * 0.2;
-    sand.visible = true; sand.children.forEach((s, i) => { s.position.y = 0.05 + ((act * 1.5 + i * 0.13) % 0.6); });
-  }
-  return { root, update };
-}
-
-function turtle() {
-  const root = new THREE.Group();
-  const body = joint(root, 0, 0, 0);
-  box(body, '#3f8a5a', 0.8, 0.22, 0.9);
-  box(body, '#5aa875', 0.6, 0.14, 0.7, 0, 0.16, 0);
-  box(body, '#79c08f', 0.3, 0.06, 0.34, 0, 0.25, 0);
-  box(body, '#e8dca8', 0.66, 0.05, 0.76, 0, -0.12, 0);
-  const head = joint(body, 0, 0.02, 0.48);
-  box(head, '#8fbf6a', 0.34, 0.28, 0.32, 0, 0.04, 0.12);
-  eyes(head, 0.1, 0.11, 0.08, 0.285);
-  cheeks(head, 0.34, -0.03, 0.285);
-  box(head, '#2b4020', 0.12, 0.02, 0.02, 0, -0.04, 0.285);
-  const fl = [];
-  for (const [sx, sz, len] of [[-1, 1, 0.5], [1, 1, 0.5], [-1, -1, 0.3], [1, -1, 0.3]]) {
-    const f = joint(body, sx * 0.38, -0.02, sz * 0.25);
-    box(f, '#8fbf6a', len, 0.05, 0.2, sx * len / 2, 0, 0);
-    fl.push(f);
-  }
-  function update(t, moving, act) {
-    const s = sin(t * (moving ? 3 : 1.4));
-    fl[0].rotation.z = s * 0.5; fl[1].rotation.z = -s * 0.5; fl[2].rotation.z = -s * 0.3; fl[3].rotation.z = s * 0.3;
-    head.rotation.set(0, sin(t * 0.8) * 0.2, 0);
-    if (act < 0) return;
-    fl[0].rotation.z = 0.9 + sin(act * 12) * 0.5; head.rotation.x = -0.3;
-  }
-  return { root, update };
-}
-
-function shark() {
-  const root = new THREE.Group();
-  const body = joint(root, 0, 0, 0);
-  box(body, '#d8c46a', 0.5, 0.48, 1.4);
-  box(body, '#f7f0d2', 0.46, 0.18, 1.3, 0, -0.17, 0.02);
-  const head = joint(body, 0, 0.02, 0.7);
-  box(head, '#d8c46a', 0.46, 0.42, 0.42, 0, 0, 0.12);
-  box(head, '#f7f0d2', 0.42, 0.12, 0.38, 0, -0.15, 0.13);
-  eyes(head, 0.12, 0.2, 0.06, 0.24, true);
-  box(head, '#5a4a2a', 0.2, 0.02, 0.02, 0, -0.1, 0.34);
-  cheeks(head, 0.46, -0.05, 0.335);
-  cone(body, '#c9b45a', 0.16, 0.36, 0, 0.4, 0.05, -0.3);
-  cone(body, '#c9b45a', 0.08, 0.2, 0, 0.3, -0.45, -0.3);
-  const fins = [];
-  for (const sx of [-1, 1]) { const f = joint(body, sx * 0.25, -0.12, 0.2); box(f, '#c9b45a', 0.4, 0.04, 0.22, sx * 0.2, 0, 0); f.rotation.z = sx * -0.3; fins.push(f); }
-  const tail = joint(body, 0, 0, -0.7);
-  box(tail, '#c9b45a', 0.08, 0.3, 0.3, 0, 0, -0.12);
-  box(tail, '#c9b45a', 0.06, 0.55, 0.16, 0, 0.12, -0.3).rotation.x = -0.5;
-  function update(t, moving, act) {
-    tail.rotation.y = sin(t * 5) * 0.4; body.rotation.y = sin(t * 5) * 0.06; body.rotation.z = 0;
-    if (act < 0) return;
-    body.rotation.z = act * 5;
-  }
-  return { root, update };
-}
-
-function angler() {
-  const root = new THREE.Group();
-  const body = joint(root, 0, 0, 0);
-  box(body, '#3b2f4a', 0.7, 0.62, 0.7);
-  box(body, '#4d3f60', 0.5, 0.2, 0.6, 0, 0.3, 0);
-  box(body, '#1a1424', 0.58, 0.18, 0.04, 0, -0.14, 0.36);
-  for (let i = 0; i < 6; i++) cone(body, '#f4f0e6', 0.025, 0.08, -0.22 + i * 0.09, -0.06, 0.37, Math.PI, 0);
-  eyes(body, 0.12, 0.2, 0.12, 0.36);
-  const lure = joint(body, 0, 0.32, 0.15);
-  box(lure, '#4d3f60', 0.03, 0.03, 0.5, 0, 0.12, 0.2).rotation.x = -0.6;
-  const bulb = joint(lure, 0, 0.26, 0.43);
-  box(bulb, '#bff6ff', 0.12, 0.12, 0.12, 0, 0, 0, 1.4);
-  const tail = joint(body, 0, 0, -0.35);
-  box(tail, '#3b2f4a', 0.05, 0.4, 0.26, 0, 0, -0.12);
-  for (const sx of [-1, 1]) box(body, '#4d3f60', 0.2, 0.2, 0.04, sx * 0.38, -0.05, 0.05);
-  function update(t, moving, act) {
-    tail.rotation.y = sin(t * 4) * 0.4; lure.rotation.x = sin(t * 2) * 0.15;
-    bulb.scale.setScalar(1);
-    if (act < 0) return;
-    bulb.scale.setScalar(1.6 + sin(act * 12) * 0.5); lure.rotation.x = sin(act * 6) * 0.4;
-  }
-  return { root, update };
-}
-
-function dragonfish() {
-  const root = new THREE.Group();
-  const body = joint(root, 0, 0, 0);
-  const segs = [];
-  for (let i = 0; i < 5; i++) {
-    const s = joint(i ? segs[i - 1] : body, 0, 0, i ? -0.24 : 0);
-    box(s, '#1c1a2a', 0.2 - i * 0.015, 0.26 - i * 0.02, 0.26);
-    box(s, '#7df9ff', 0.03, 0.03, 0.03, 0.1 - i * 0.008, -0.08, 0, 1.5);
-    box(s, '#7df9ff', 0.03, 0.03, 0.03, -0.1 + i * 0.008, -0.08, 0, 1.5);
-    segs.push(s);
+  const body = joint(root, 0, 0.09, 0);
+  E(body, '#c98a4a', 0.15, 0.07, 0.2);
+  spotsOn(body, { rx: 0.15, ry: 0.07, rz: 0.2, n: 14, color: '#7a3e22', size: 0.04, where: (x, y) => y > 0 }, rnd);
+  spotsOn(body, { rx: 0.15, ry: 0.07, rz: 0.2, n: 10, color: '#ecc070', size: 0.035, where: (x, y) => y > 0 }, rnd);
+  const spikes = joint(body);
+  for (let i = 0; i < 26; i++) {
+    const u = rnd() * 0.9 + 0.1, th = rnd() * Math.PI * 2, s = Math.sqrt(1 - u * u), nx = s * cos(th), nz = s * sin(th);
+    const c = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.06, 5), skin(i % 3 ? '#a8622e' : '#f2c27a'));
+    c.position.set(nx * 0.15, u * 0.07, nz * 0.2); c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(nx / 0.15, u / 0.07, nz / 0.2).normalize()); spikes.add(c);
   }
   const head = joint(body, 0, 0.02, 0.2);
-  box(head, '#1c1a2a', 0.26, 0.3, 0.3, 0, 0, 0.08);
-  for (let i = 0; i < 4; i++) cone(head, '#e8e8f0', 0.02, 0.1, -0.08 + i * 0.055, -0.1, 0.24, Math.PI, 0);
-  eyes(head, 0.1, 0.11, 0.06, 0.22, true);
-  const barbel = joint(head, 0, -0.14, 0.12);
-  box(barbel, '#3a3550', 0.02, 0.4, 0.02, 0, -0.2, 0);
-  const glow = joint(barbel, 0, -0.42, 0);
-  box(glow, '#ff5af0', 0.08, 0.08, 0.08, 0, 0, 0, 1.5);
-  const tail = segs[4];
-  box(tail, '#1c1a2a', 0.03, 0.3, 0.2, 0, 0, -0.22);
+  E(head, '#c98a4a', 0.08, 0.05, 0.09, 0, 0, 0.04);
+  for (const s of [-1, 1]) { const h = new THREE.Mesh(new THREE.ConeGeometry(0.015, 0.07, 6), skin('#a8622e')); h.position.set(s * 0.04, 0.06, 0.01); h.rotation.z = s * -0.3; head.add(h); }
+  const eyes = eyePair(head, 0.016, 0.06, 0.02, 0.06, '#3a2a1a', 'round', 1.1);
+  const tail = joint(body, 0, 0, -0.18); tail.rotation.x = -1.7; taper(tail, '#c98a4a', 0.22, 0.03, 0.01, 1);
+  const legs = [[-1, 1], [1, 1], [-1, -1], [1, -1]].map(([sx, sz]) => { const l = joint(root, sx * 0.12, 0.07, sz * 0.12); l.rotation.z = sx * 1.1; taper(l, '#b87a3e', 0.1, 0.02, 0.014); return l; });
   function update(t, moving, act) {
-    segs.forEach((s, i) => { s.rotation.y = i ? sin(t * 4 - i) * 0.18 : 0; });
-    barbel.rotation.x = sin(t * 2) * 0.2; barbel.rotation.z = 0; glow.scale.setScalar(1);
+    const w = moving ? sin(t * 12) * 0.5 : 0;
+    legs.forEach((l, i) => { l.rotation.y = (i === 0 || i === 3 ? w : -w); });
+    tail.rotation.z = sin(t * (moving ? 12 : 1.5)) * 0.25;
+    body.scale.set(1, 1, 1); spikes.scale.setScalar(1); head.rotation.set(0, 0, 0);
+    blink(eyes, t + 4);
     if (act < 0) return;
-    barbel.rotation.z = sin(act * 8) * 0.9; barbel.rotation.x = -0.6; glow.scale.setScalar(1.6 + sin(act * 14) * 0.5);
+    const p = easeIn(act, 0.4);
+    body.scale.set(1 + 0.12 * p, 1 + 0.3 * p, 1); spikes.scale.setScalar(1 + 0.35 * p); head.rotation.x = 0.5 * p;
   }
   return { root, update };
 }
 
+// ---------------- 캥거루쥐 ----------------
+function kangaroorat() {
+  const root = new THREE.Group();
+  const body = joint(root, 0, 0.13, 0);
+  E(body, '#c9a072', 0.1, 0.1, 0.12);
+  E(body, '#fbf3e4', 0.075, 0.07, 0.09, 0, -0.04, 0.02);
+  const head = joint(body, 0, 0.08, 0.1);
+  E(head, '#c9a072', 0.075, 0.07, 0.085);
+  E(head, '#fbf3e4', 0.04, 0.03, 0.05, 0, -0.03, 0.06);
+  E(head, '#e89aa0', 0.012, 0.01, 0.01, 0, -0.01, 0.13);
+  for (const s of [-1, 1]) E(head, '#fbf3e4', 0.025, 0.015, 0.02, s * 0.05, -0.035, 0.045, null, true);   // 하얀 뺨
+  const eyes = eyePair(head, 0.024, 0.045, 0.02, 0.06, null, 'round', 0.7);
+  for (const s of [-1, 1]) { const e = joint(head, s * 0.04, 0.06, -0.01); E(e, '#d8b088', 0.025, 0.035, 0.008, 0, 0.02, 0); E(e, '#f0c8c0', 0.015, 0.024, 0.004, 0, 0.02, 0.006); }
+  const legs = [-1, 1].map((s) => { const l = joint(root, s * 0.07, 0.1, -0.02); E(l, '#c9a072', 0.045, 0.07, 0.08); E(l, '#fbf3e4', 0.03, 0.015, 0.1, 0, -0.07, 0.05); return l; });
+  for (const s of [-1, 1]) { const a = joint(body, s * 0.05, -0.02, 0.09); taper(a, '#fbf3e4', 0.04, 0.012, 0.01); }
+  const tail = joint(body, 0, -0.04, -0.11); tail.rotation.x = -1.4;
+  taper(tail, '#b88a5a', 0.38, 0.012, 0.008, 1);
+  E(tail, '#2e2016', 0.025, 0.06, 0.025, 0, 0.36, 0); E(tail, '#fbf3e4', 0.022, 0.03, 0.022, 0, 0.42, 0);
+  function update(t, moving, act) {
+    let y = moving ? Math.abs(sin(t * 9)) * 0.1 : 0;
+    if (act >= 0) y = Math.abs(sin(act * 3.5)) * 0.7;
+    body.position.y = 0.13 + y; legs.forEach((l) => { l.position.y = 0.1 + y; l.rotation.x = y > 0.03 ? 0.5 : 0; });
+    head.rotation.y = sin(t * 2) * 0.3;
+    blink(eyes, t + 6);
+  }
+  return { root, update };
+}
+
+// ---------------- 미어캣 ----------------
+function meerkat() {
+  const root = new THREE.Group();
+  const body = joint(root, 0, 0.1, 0);
+  const torso = joint(body, 0, 0.17, 0);
+  E(torso, '#c9a06a', 0.085, 0.19, 0.08);
+  E(torso, '#ecd2a6', 0.06, 0.15, 0.03, 0, -0.01, 0.06);
+  for (let i = 0; i < 5; i++) E(torso, '#8a6a44', 0.06, 0.012, 0.03, 0, 0.08 - i * 0.04, -0.07, null, true);   // 등 줄무늬
+  const head = joint(body, 0, 0.4, 0.02);
+  E(head, '#d4ae7a', 0.07, 0.065, 0.075);
+  E(head, '#d4ae7a', 0.035, 0.03, 0.05, 0, -0.02, 0.08);
+  E(head, '#2a1d18', 0.015, 0.012, 0.01, 0, -0.01, 0.13);
+  for (const s of [-1, 1]) E(head, '#2e2016', 0.028, 0.03, 0.02, s * 0.035, 0.01, 0.055, [0, s * 0.4, 0]);   // 까만 눈 둘레
+  const eyes = eyePair(head, 0.016, 0.037, 0.012, 0.07, null, 'round', 0.45);
+  for (const s of [-1, 1]) E(head, '#2e2016', 0.02, 0.022, 0.01, s * 0.065, 0.03, -0.01);
+  const arms = [-1, 1].map((s) => { const a = joint(torso, s * 0.06, 0.08, 0.05); taper(a, '#c9a06a', 0.1, 0.018, 0.014); return a; });
+  for (const s of [-1, 1]) { const l = joint(root, s * 0.05, 0.1, 0.02); E(l, '#c9a06a', 0.045, 0.08, 0.06, 0, -0.03, 0); E(l, '#2e2016', 0.025, 0.012, 0.05, 0, -0.1, 0.04); }
+  const tail = joint(body, 0, 0.04, -0.06); tail.rotation.x = -1.9; taper(tail, '#c9a06a', 0.24, 0.022, 0.01, 1); E(tail, '#2e2016', 0.014, 0.05, 0.014, 0, 0.23, 0);
+  function update(t, moving, act) {
+    body.rotation.x = moving ? 1.0 : 0; body.position.y = moving ? 0.1 + Math.abs(sin(t * 11)) * 0.03 : 0.1;
+    torso.scale.y = 1; head.rotation.set(moving ? -1.0 : 0, sin(t * 1.3) * 0.6, 0);
+    arms.forEach((a) => { a.rotation.x = moving ? 0.3 : -0.3; });
+    blink(eyes, t + 7);
+    if (act < 0) return;
+    const p = easeIn(act);
+    body.rotation.x = 0; torso.scale.y = 1 + 0.15 * p; head.rotation.set(-0.15, sin(act * 3) * 1.0, 0);
+  }
+  return { root, update };
+}
+
+// ---------------- 게 (홍게 · 유령게) ----------------
+function crab(C1 = '#d8402a', C2 = '#f07a4a', legLong = 1, stalks = false) {
+  const root = new THREE.Group();
+  const body = joint(root, 0, 0.13, 0);
+  E(body, C1, 0.2, 0.08, 0.17);
+  E(body, C2, 0.15, 0.04, 0.12, 0, 0.05, 0.02, null, true);
+  for (let i = 0; i < 6; i++) E(body, C2, 0.015, 0.015, 0.015, (i % 3 - 1) * 0.08, 0.075, (Math.floor(i / 3) - 0.5) * 0.08, null, true);
+  E(body, '#f6ecd8', 0.17, 0.03, 0.14, 0, -0.06, 0, null, true);
+  const eyes = [-1, 1].map((s) => { const e = joint(body, s * 0.04, 0.06, 0.15); if (stalks) { taper(e, C1, 0.07, 0.008, 0.008, 1); const k = eye(e, 0.02, 0, 0.08, 0); return k; } return eye(e, 0.016, 0, 0.01, 0); });
+  const claws = [-1, 1].map((s) => {
+    const c = joint(body, s * 0.16, 0.0, 0.12); c.rotation.y = s * -0.4;
+    taper(c, C1, 0.12, 0.025, 0.02, 1); c.children[0].rotation.x = Math.PI / 2 + 0.4; c.children[0].position.set(0, 0.03, 0.05);
+    const top = joint(c, 0, 0.05, 0.12); E(top, C1, 0.05, 0.035, 0.07, 0, 0, 0.04); E(top, '#2a1d18', 0.01, 0.01, 0.025, 0, 0, 0.1, null, true);
+    E(c, C1, 0.035, 0.02, 0.06, 0, 0.02, 0.17);
+    return { c, top };
+  });
+  const legs = [];
+  for (const s of [-1, 1]) for (let i = 0; i < 4; i++) {
+    const l = joint(root, s * 0.17, 0.13, -0.08 + i * 0.05);
+    l.rotation.z = s * (1.0 - i * 0.05); l.rotation.y = s * (0.3 - i * 0.2);
+    taper(l, C1, 0.13 * legLong, 0.012, 0.009);
+    const k = joint(l, 0, -0.13 * legLong, 0); k.rotation.z = s * -1.6; taper(k, C2, 0.12 * legLong, 0.009, 0.005);
+    legs.push(l);
+  }
+  function update(t, moving, act) {
+    legs.forEach((l, i) => { l.rotation.x = moving ? sin(t * 16 + i) * 0.35 : 0; });
+    body.position.y = 0.13 + (moving ? Math.abs(sin(t * 16)) * 0.015 : 0);
+    claws.forEach(({ c, top }) => { c.rotation.x = 0; top.rotation.x = 0; });
+    blink(eyes, t + 8);
+    if (act < 0) return;
+    if (stalks) { root.position.x = sin(act * 10) * 0.25; return; }   // 유령게는 쌩 옆으로
+    claws.forEach(({ c, top }, i) => { c.rotation.x = -0.9 * easeIn(act, 0.25); top.rotation.x = -Math.abs(sin(act * 14 + i)) * 0.6; });
+  }
+  return { root, update };
+}
+
+// ---------------- 물고기 공통: 렌즈 모양 몸 · 등이 짙고 배가 밝게 ----------------
+function fin(p, c, w, h, x, y, z, rot, opacity = 0.9) {
+  const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.quadraticCurveTo(w * 0.4, h * 0.9, w, h); sh.lineTo(w * 0.9, 0); sh.closePath();
+  const m = new THREE.Mesh(new THREE.ShapeGeometry(sh), skin(c, 0.5, { side: THREE.DoubleSide, transparent: opacity < 1, opacity }));
+  m.position.set(x, y, z); if (rot) m.rotation.set(...rot); p.add(m); return m;
+}
+function fishBody(p, o) {
+  const g = joint(p);
+  E(g, o.back, o.w, o.h, o.l);
+  E(g, o.belly, o.w * 1.01, o.h * 0.55, o.l * 0.94, 0, -o.h * 0.45, 0);
+  if (o.stripe) E(g, o.stripe, o.w * 1.02, o.h * 0.12, o.l * 0.9, 0, 0, 0, null, true);
+  const eyes = eyePair(g, o.h * 0.16, o.w * 0.8, o.h * 0.2, o.l * 0.65, o.iris || '#d8d8c0', 'round', 1.3);
+  const tail = joint(g, 0, 0, -o.l * 0.95);
+  fin(tail, o.fin, o.h * 0.9, o.h * 1.0, 0, 0, 0, [0, Math.PI / 2, 0]);
+  fin(tail, o.fin, o.h * 0.9, o.h * 1.0, 0, 0, 0, [Math.PI, Math.PI / 2, 0]);
+  if (o.dorsal !== false) fin(g, o.fin, o.l * 0.45, o.h * 0.7, 0, o.h * 0.8, o.l * 0.15, [0, Math.PI / 2, 0]);
+  return { g, tail, eyes };
+}
+function sardine() {
+  const root = new THREE.Group(), rnd = mulberry(5), fish = [];
+  for (let i = 0; i < 7; i++) {
+    const p = joint(root, (rnd() - 0.5) * 0.8, (rnd() - 0.5) * 0.35, (rnd() - 0.5) * 0.7);
+    const f = fishBody(p, { w: 0.035, h: 0.055, l: 0.16, back: '#2f6c9a', belly: '#e8eef4', stripe: '#9fb8cc', fin: '#a8bccc' });
+    for (let k = 0; k < 3; k++) E(f.g, '#1e3c58', 0.006, 0.006, 0.006, 0.034, 0.02, 0.06 - k * 0.04, null, true);
+    fish.push({ p, ...f, base: p.position.clone(), ph: rnd() * 6 });
+  }
+  function update(t, moving, act) {
+    fish.forEach((f) => { f.tail.rotation.y = sin(t * 18 + f.ph) * 0.45; f.p.position.y = f.base.y + sin(t * 2 + f.ph) * 0.05; f.p.rotation.set(0, 0, 0); });
+    root.rotation.y = 0;
+    if (act < 0) return;
+    fish.forEach((f) => { f.p.rotation.z = act * 8 + f.ph; f.p.position.y = f.base.y + sin(act * 6 + f.ph) * 0.1; });
+    root.rotation.y = act * 2.6;
+  }
+  return { root, update };
+}
+function flounder() {
+  const root = new THREE.Group(), rnd = mulberry(9);
+  const body = joint(root, 0, 0.05, 0);
+  E(body, '#9a7e5c', 0.24, 0.035, 0.3);
+  spotsOn(body, { rx: 0.24, ry: 0.035, rz: 0.3, n: 22, color: '#6e5636', size: 0.03, where: (x, y) => y > 0.3 }, rnd);
+  spotsOn(body, { rx: 0.24, ry: 0.035, rz: 0.3, n: 10, color: '#d8c49a', size: 0.02, where: (x, y) => y > 0.3 }, rnd);
+  for (const s of [-1, 1]) E(body, '#8a6e4c', 0.06, 0.012, 0.28, s * 0.23, 0, -0.01, null, true);   // 지느러미 테두리
+  const eyes = [eye(body, 0.024, -0.03, 0.04, 0.2, '#d8c88a'), eye(body, 0.024, 0.05, 0.04, 0.16, '#d8c88a')];
+  eyes.forEach((e) => { e.rotation.x = -1.3; });
+  const tail = joint(body, 0, 0, -0.3); fin(tail, '#8a6e4c', 0.12, 0.1, 0, 0, 0, [-Math.PI / 2, 0, 0]); fin(tail, '#8a6e4c', 0.12, 0.1, 0, 0, 0, [-Math.PI / 2, Math.PI, 0]);
+  const sand = joint(root); sand.visible = false;
+  for (let i = 0; i < 10; i++) E(sand, '#e6d2a2', 0.025, 0.025, 0.025, (rnd() - 0.5) * 0.6, 0.05, (rnd() - 0.5) * 0.6, null, true);
+  function update(t, moving, act) {
+    tail.rotation.x = sin(t * (moving ? 8 : 2)) * 0.25; body.rotation.z = moving ? sin(t * 8) * 0.05 : 0; body.position.y = 0.05; sand.visible = false;
+    blink(eyes, t + 9);
+    if (act < 0) return;
+    body.position.y = 0.05 + Math.abs(sin(act * 8)) * 0.08; body.rotation.z = sin(act * 16) * 0.15;
+    sand.visible = true; sand.children.forEach((s, i) => { s.position.y = 0.05 + ((act * 1.2 + i * 0.11) % 0.5); });
+  }
+  return { root, update };
+}
+function turtle() {
+  const root = new THREE.Group();
+  const body = joint(root);
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), skin('#5a6a3a', 0.55));
+  shell.scale.set(0.44, 0.22, 0.52); body.add(shell);
+  // 등딱지 무늬 (가운데 줄 + 양옆 판)
+  for (let i = 0; i < 5; i++) E(body, '#8a7a4a', 0.075, 0.03, 0.075, 0, 0.215 - Math.abs(i - 2) * 0.025, -0.3 + i * 0.15, null, true);
+  for (const s of [-1, 1]) for (let i = 0; i < 4; i++) E(body, '#7a6a3e', 0.07, 0.025, 0.07, s * 0.2, 0.15, -0.22 + i * 0.15, [0, 0, s * 0.6], true);
+  E(body, '#e8dcb0', 0.42, 0.05, 0.5, 0, -0.01, 0);
+  const head = joint(body, 0, 0.03, 0.5);
+  E(head, '#7a8a5a', 0.1, 0.085, 0.13, 0, 0.01, 0.06);
+  for (let i = 0; i < 4; i++) E(head, '#c9c49a', 0.03, 0.02, 0.025, (i % 2 - 0.5) * 0.08, 0.07, 0.03 + Math.floor(i / 2) * 0.06, null, true);
+  const eyes = eyePair(head, 0.02, 0.07, 0.04, 0.14, '#3a2a1a', 'round', 0.9);
+  const fl = [[-1, 1, 0.34], [1, 1, 0.34], [-1, -1, 0.18], [1, -1, 0.18]].map(([sx, sz, len]) => { const f = joint(body, sx * 0.36, -0.02, sz * 0.22); E(f, '#7a8a5a', len, 0.025, 0.1, sx * len * 0.85, 0, 0, [0, sx * sz * -0.35, 0]); return f; });
+  function update(t, moving, act) {
+    const s = sin(t * (moving ? 2.6 : 1.2));
+    fl[0].rotation.z = s * 0.45; fl[1].rotation.z = -s * 0.45; fl[2].rotation.z = -s * 0.25; fl[3].rotation.z = s * 0.25;
+    head.rotation.set(0, sin(t * 0.7) * 0.2, 0);
+    blink(eyes, t + 10);
+    if (act < 0) return;
+    fl[0].rotation.z = 0.9 + sin(act * 10) * 0.5; head.rotation.x = -0.3;
+  }
+  return { root, update };
+}
+function shark() {
+  const root = new THREE.Group();
+  const body = joint(root);
+  E(body, '#b8a868', 0.24, 0.26, 0.8);
+  E(body, '#efe8cc', 0.23, 0.12, 0.74, 0, -0.14, 0.02);
+  E(body, '#b8a868', 0.18, 0.18, 0.3, 0, 0.0, 0.62);   // 뾰족한 코
+  E(body, '#2a2a2a', 0.08, 0.008, 0.05, 0, -0.1, 0.78, null, true);   // 입
+  const eyes = eyePair(body, 0.025, 0.15, 0.04, 0.7, null, 'round', 1.3);
+  for (const s of [-1, 1]) for (let i = 0; i < 4; i++) E(body, '#8a7a4a', 0.004, 0.06, 0.01, s * 0.235, 0, 0.4 - i * 0.04, null, true);   // 아가미
+  fin(body, '#a8985a', 0.3, 0.32, 0, 0.22, 0.05, [0, Math.PI / 2, 0]);
+  fin(body, '#a8985a', 0.18, 0.2, 0, 0.18, -0.45, [0, Math.PI / 2, 0]);
+  const pect = [-1, 1].map((s) => { const f = joint(body, s * 0.2, -0.12, 0.25); fin(f, '#a8985a', 0.3, 0.12, 0, 0, 0, [Math.PI / 2, 0, s > 0 ? 0 : Math.PI]); f.rotation.z = s * -0.4; return f; });
+  const tail = joint(body, 0, 0, -0.8);
+  fin(tail, '#a8985a', 0.3, 0.42, 0, 0, 0, [0, Math.PI / 2, 0.1]);
+  fin(tail, '#a8985a', 0.22, 0.22, 0, 0, 0, [Math.PI, Math.PI / 2, 0.1]);
+  function update(t, moving, act) {
+    tail.rotation.y = sin(t * 4) * 0.35; body.rotation.y = sin(t * 4) * 0.05; body.rotation.z = 0;
+    blink(eyes, t + 11);
+    if (act < 0) return;
+    body.rotation.z = act * 4.5;
+  }
+  return { root, update };
+}
+function angler() {
+  const root = new THREE.Group();
+  const body = joint(root);
+  E(body, '#3a2e3a', 0.32, 0.3, 0.34);
+  E(body, '#2a2028', 0.3, 0.12, 0.3, 0, -0.18, 0.04);
+  E(body, '#120c12', 0.26, 0.09, 0.08, 0, -0.06, 0.29);   // 커다란 입
+  for (let i = 0; i < 8; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.07, 5), skin('#f2ece0', 0.3)); c.position.set(-0.2 + i * 0.057, i % 2 ? -0.02 : -0.1, 0.33); c.rotation.x = i % 2 ? Math.PI : 0; body.add(c); }
+  const eyes = eyePair(body, 0.03, 0.15, 0.1, 0.26, null, 'round', 0.7);
+  const lure = joint(body, 0, 0.26, 0.15);
+  const rod = joint(lure); rod.rotation.x = 0.6; taper(rod, '#4a3a4a', 0.32, 0.012, 0.008, 1);
+  const bulb = joint(rod, 0, 0.33, 0);
+  E(bulb, skin('#bff6ff', 0.2, { emissive: '#bff6ff', emissiveIntensity: 1.6 }), 0.045, 0.045, 0.045);
+  const tail = joint(body, 0, 0, -0.32); fin(tail, '#3a2e3a', 0.18, 0.2, 0, 0, 0, [0, Math.PI / 2, 0]); fin(tail, '#3a2e3a', 0.18, 0.2, 0, 0, 0, [Math.PI, Math.PI / 2, 0]);
+  function update(t, moving, act) {
+    tail.rotation.y = sin(t * 3.5) * 0.35; lure.rotation.x = sin(t * 1.8) * 0.15; bulb.scale.setScalar(1);
+    blink(eyes, t + 12);
+    if (act < 0) return;
+    bulb.scale.setScalar(1.6 + sin(act * 12) * 0.5); lure.rotation.x = sin(act * 6) * 0.35;
+  }
+  return { root, update };
+}
+function dragonfish() {
+  const root = new THREE.Group();
+  const segs = []; let prev = root;
+  for (let i = 0; i < 6; i++) {
+    const s = joint(prev, 0, 0, i ? -0.2 : 0.2); prev = s;
+    const k = 1 - i * 0.12;
+    E(s, '#14121e', 0.07 * k, 0.1 * k, 0.13);
+    E(s, skin('#6ef0ff', 0.2, { emissive: '#6ef0ff', emissiveIntensity: 1.3 }), 0.01, 0.01, 0.01, 0.07 * k, -0.05 * k, 0, null, true);
+    E(s, skin('#6ef0ff', 0.2, { emissive: '#6ef0ff', emissiveIntensity: 1.3 }), 0.01, 0.01, 0.01, -0.07 * k, -0.05 * k, 0, null, true);
+    segs.push(s);
+  }
+  const head = joint(segs[0], 0, 0.01, 0.13);
+  E(head, '#14121e', 0.08, 0.11, 0.14, 0, 0, 0.04);
+  for (let i = 0; i < 5; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(0.008, 0.06, 5), skin('#e8e8f0', 0.3)); c.position.set(-0.04 + i * 0.02, -0.05, 0.16); c.rotation.x = Math.PI; head.add(c); }
+  const eyes = eyePair(head, 0.022, 0.06, 0.03, 0.1, '#3a3a50', 'round', 1.2);
+  const barbel = joint(head, 0, -0.1, 0.06);
+  taper(barbel, '#3a3550', 0.32, 0.005, 0.004);
+  const glow = joint(barbel, 0, -0.33, 0); E(glow, skin('#ff5af0', 0.2, { emissive: '#ff5af0', emissiveIntensity: 1.6 }), 0.03, 0.03, 0.03);
+  const tail = segs[5]; fin(tail, '#14121e', 0.12, 0.14, 0, 0, -0.1, [0, Math.PI / 2, 0]); fin(tail, '#14121e', 0.12, 0.14, 0, 0, -0.1, [Math.PI, Math.PI / 2, 0]);
+  function update(t, moving, act) {
+    segs.forEach((s, i) => { s.rotation.y = i ? sin(t * 3.5 - i) * 0.16 : 0; });
+    barbel.rotation.x = sin(t * 2) * 0.2; barbel.rotation.z = 0; glow.scale.setScalar(1);
+    blink(eyes, t + 13);
+    if (act < 0) return;
+    barbel.rotation.z = sin(act * 7) * 0.8; barbel.rotation.x = -0.5; glow.scale.setScalar(1.6 + sin(act * 14) * 0.5);
+  }
+  return { root, update };
+}
 function oarfish() {
   const root = new THREE.Group();
-  const segs = [];
-  let prev = root;
-  for (let i = 0; i < 12; i++) {
-    const s = joint(prev, 0, 0, i ? -0.3 : 0.9);
-    box(s, i % 2 ? '#d7dde6' : '#c3cbd6', 0.1, 0.36 - i * 0.018, 0.3);
-    box(s, '#e63b4a', 0.03, 0.08, 0.3, 0, 0.2 - i * 0.009, 0);
-    if (i % 3 === 0) box(s, '#8a96a8', 0.105, 0.03, 0.12, 0, 0.02, 0);
-    segs.push(s); prev = s;
+  const segs = []; let prev = root;
+  for (let i = 0; i < 14; i++) {
+    const s = joint(prev, 0, 0, i ? -0.24 : 0.9); prev = s;
+    const h = 0.17 - i * 0.008;
+    E(s, i % 2 ? '#dfe5ee' : '#c8d0dc', 0.04, h, 0.14);
+    if (i % 2 === 0) E(s, '#7a8aa0', 0.041, 0.012, 0.04, 0, (i % 4 ? 0.05 : -0.04), 0, null, true);
+    E(s, skin('#e2283a', 0.5, { transparent: true, opacity: 0.9 }), 0.008, 0.05, 0.13, 0, h + 0.03, 0, null, true);   // 빨간 등지느러미
+    segs.push(s);
   }
-  const head = joint(segs[0], 0, 0, 0.18);
-  box(head, '#d7dde6', 0.14, 0.34, 0.24);
-  for (let i = 0; i < 4; i++) box(head, '#e63b4a', 0.03, 0.3 - i * 0.04, 0.04, 0, 0.32 - i * 0.03, -0.06 - i * 0.05).rotation.x = -0.4;
-  eyes(head, 0.1, 0.075, 0.05, 0.08, true);
+  const head = joint(segs[0], 0, 0, 0.14);
+  E(head, '#dfe5ee', 0.045, 0.15, 0.12);
+  for (let i = 0; i < 5; i++) { const r = joint(head, 0, 0.14, -0.02 - i * 0.03); r.rotation.x = -0.5 - i * 0.12; taper(r, '#e2283a', 0.3 - i * 0.04, 0.008, 0.004, 1); }
+  const eyes = eyePair(head, 0.025, 0.04, 0.03, 0.06, '#c8c8a0', 'round', 1.4);
   function update(t, moving, act) {
-    const amp = act >= 0 ? 0.45 : 0.18, sp = act >= 0 ? 6 : 2.5;
-    segs.forEach((s, i) => { s.rotation.y = i ? sin(t * sp - i * 0.7) * amp * 0.6 : 0; s.rotation.x = act >= 0 && i ? sin(t * sp - i * 0.7 + 1) * 0.12 : 0; });
+    const amp = act >= 0 ? 0.42 : 0.16, sp = act >= 0 ? 6 : 2.4;
+    segs.forEach((s, i) => { s.rotation.y = i ? sin(t * sp - i * 0.7) * amp * 0.6 : 0; s.rotation.x = act >= 0 && i ? sin(t * sp - i * 0.7 + 1) * 0.1 : 0; });
+    blink(eyes, t + 14);
   }
   return { root, update };
 }
-
 function clione() {
   const root = new THREE.Group();
-  const body = joint(root, 0, 0, 0);
-  box(body, '#e8f6ff', 0.24, 0.5, 0.24, 0, 0, 0, 0.3, 0.75);
-  box(body, '#ff8a3c', 0.1, 0.14, 0.1, 0, -0.06, 0, 0.6);
-  const head = joint(body, 0, 0.3, 0);
-  box(head, '#e8f6ff', 0.28, 0.24, 0.26, 0, 0, 0, 0.3, 0.8);
-  eyes(head, 0.08, 0.06, 0.02, 0.135);
-  cheeks(head, 0.28, -0.05, 0.135);
-  box(body, '#e8f6ff', 0.1, 0.16, 0.1, 0, -0.32, 0, 0.3, 0.75);
-  const wings = [];
-  for (const sx of [-1, 1]) {
-    const w = joint(body, sx * 0.12, 0.08, 0);
-    box(w, '#d6f0ff', 0.32, 0.18, 0.03, sx * 0.16, 0, 0, 0.3, 0.7);
-    wings.push(w);
-  }
+  const body = joint(root);
+  const glass = skin('#eaf6ff', 0.15, { transparent: true, opacity: 0.55, emissive: '#cfeaff', emissiveIntensity: 0.25 });
+  E(body, glass, 0.09, 0.22, 0.09);
+  E(body, skin('#ff7a2a', 0.4, { emissive: '#ff7a2a', emissiveIntensity: 0.4 }), 0.045, 0.07, 0.045, 0, -0.02, 0);
+  const head = joint(body, 0, 0.2, 0);
+  E(head, glass, 0.08, 0.08, 0.08);
+  E(head, skin('#ff8a3a', 0.4), 0.03, 0.03, 0.03, 0, 0.06, 0, null, true);
+  const eyes = eyePair(head, 0.01, 0.03, 0.01, 0.07, null, 'round', 0.3);
+  E(body, glass, 0.04, 0.06, 0.04, 0, -0.24, 0);
+  const wings = [-1, 1].map((s) => { const w = joint(body, s * 0.07, 0.08, 0); E(w, glass, 0.12, 0.06, 0.012, s * 0.11, 0, 0); return w; });
   function update(t, moving, act) {
-    const sp = act >= 0 ? 22 : 6, a = act >= 0 ? 0.9 : 0.5;
+    const sp = act >= 0 ? 20 : 5, a = act >= 0 ? 0.9 : 0.5;
     wings[0].rotation.y = sin(t * sp) * a; wings[1].rotation.y = -sin(t * sp) * a;
-    body.position.y = sin(t * 2) * 0.06 + (act >= 0 ? Math.abs(sin(act * 3)) * 0.3 : 0);
+    body.position.y = sin(t * 2) * 0.05 + (act >= 0 ? Math.abs(sin(act * 3)) * 0.25 : 0);
+    blink(eyes, t + 15);
   }
   return { root, update };
 }
-
 function dumbo() {
   const root = new THREE.Group();
-  const body = joint(root, 0, 0, 0);
-  box(body, '#ffb38a', 0.6, 0.56, 0.56);
-  box(body, '#ffc9a8', 0.4, 0.2, 0.4, 0, 0.3, 0);
-  eyes(body, 0.13, 0.15, 0.04, 0.285);
-  cheeks(body, 0.6, -0.1, 0.285);
-  box(body, '#9a4a3a', 0.08, 0.02, 0.02, 0, -0.08, 0.285);
-  const ears = [];
-  for (const sx of [-1, 1]) {
-    const e = joint(body, sx * 0.3, 0.18, 0);
-    box(e, '#ff9e7a', 0.36, 0.06, 0.26, sx * 0.18, 0, 0);
-    ears.push(e);
-  }
-  const arms = [];
-  for (let i = 0; i < 8; i++) {
-    const an = (i / 8) * Math.PI * 2;
-    const a = joint(body, Math.cos(an) * 0.22, -0.28, Math.sin(an) * 0.22);
-    box(a, '#ffb38a', 0.08, 0.28, 0.08, 0, -0.12, 0);
-    a.userData.an = an; arms.push(a);
-  }
-  box(body, '#ffa07a', 0.62, 0.05, 0.62, 0, -0.33, 0);
+  const body = joint(root);
+  const mantle = skin('#f2a07a', 0.45, { transparent: true, opacity: 0.95 });
+  E(body, mantle, 0.25, 0.3, 0.24, 0, 0.08, 0);
+  E(body, skin('#f8c0a0', 0.45), 0.16, 0.12, 0.15, 0, 0.3, -0.02);
+  const eyes = eyePair(body, 0.035, 0.12, 0.04, 0.2, null, 'round', 0.6);
+  const ears = [-1, 1].map((s) => { const e = joint(body, s * 0.22, 0.24, 0); E(e, skin('#f08a6a', 0.45, { transparent: true, opacity: 0.9 }), 0.15, 0.025, 0.1, s * 0.12, 0, 0); return e; });
+  // 다리 사이 막(우산처럼) + 다리 8개
+  const web = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.22, 16, 1, true), skin('#f2a07a', 0.5, { transparent: true, opacity: 0.6, side: THREE.DoubleSide }));
+  web.position.y = -0.24; web.rotation.x = Math.PI; body.add(web);
+  const arms = [...Array(8)].map((_, i) => { const an = (i / 8) * Math.PI * 2; const a = joint(body, cos(an) * 0.17, -0.18, sin(an) * 0.17); taper(a, '#f2a07a', 0.2, 0.03, 0.015); for (let k = 0; k < 3; k++) E(a, '#fbe0d0', 0.008, 0.008, 0.008, 0, -0.05 - k * 0.05, 0.02, null, true); a.userData.an = an; return a; });
   function update(t, moving, act) {
-    const sp = act >= 0 ? 14 : 3, a = act >= 0 ? 0.8 : 0.35;
+    const sp = act >= 0 ? 12 : 2.6, a = act >= 0 ? 0.8 : 0.35;
     ears[0].rotation.z = sin(t * sp) * a; ears[1].rotation.z = -sin(t * sp) * a;
-    body.position.y = sin(t * 1.5) * 0.08 + (act >= 0 ? Math.abs(sin(act * 4)) * 0.3 : 0);
-    arms.forEach((ar) => { ar.rotation.x = Math.sin(ar.userData.an) * (0.3 + sin(t * 2) * 0.1); ar.rotation.z = -Math.cos(ar.userData.an) * (0.3 + sin(t * 2) * 0.1); });
+    body.position.y = sin(t * 1.4) * 0.06 + (act >= 0 ? Math.abs(sin(act * 4)) * 0.25 : 0);
+    arms.forEach((ar) => { const k = 0.35 + sin(t * 1.8) * 0.12; ar.rotation.x = sin(ar.userData.an) * k; ar.rotation.z = -cos(ar.userData.an) * k; });
+    web.scale.set(1 + sin(t * 1.8) * 0.08, 1, 1 + sin(t * 1.8) * 0.08);
+    blink(eyes, t + 16);
   }
   return { root, update };
 }
 
-// ---------- 동물별 모양 ----------
+// ---------------- 동물별 실제 모습 ----------------
 const BUILD = {
   frog: () => frog(),
-  snake: () => snake({ color: '#7ccf5a', pattern: '#5fae44', belly: '#e2f5b0' }),
-  rattlesnake: () => snake({ color: '#c9a36a', pattern: '#8a6236', belly: '#efe0b8', rattle: true }),
-  sloth: () => ape({ color: '#a08a72', belly: '#c4b39c', face: '#e6d6bd', mask: '#5a4535', hair: '#8a7560', bw: 0.42, bh: 0.42, bd: 0.32, hs: 0.42, leg: 0.16, arm: 0.42, aw: 0.11, slow: true }),
-  orangutan: () => ape({ color: '#d0652a', belly: '#e38a4a', face: '#e8b48a', hair: '#b8521c', mouth: '#8a4a2a', bw: 0.62, bh: 0.6, bd: 0.46, hs: 0.56, leg: 0.24, arm: 0.72, aw: 0.16 }),
+  snake: () => snake({ color: '#2fa84a', band: '#e8f4d0', belly: '#e8e070', r: 0.075, iris: '#c8b84a', seed: 2 }),
+  rattlesnake: () => snake({ color: '#c4a46e', diamond: '#6e4a2a', belly: '#efe0b8', r: 0.07, iris: '#d8a83a', rattle: true, seed: 4 }),
+  sloth: () => primate({ color: '#9a8466', face: '#e6d6b6', muzzle: '#d6c4a2', mask: '#3a2a1e', body: [0.24, 0.26, 0.2], head: 0.18, leg: 0.12, arm: 0.36, armR: 0.05, claws: true, slow: true, lean: 0.35 }),
+  orangutan: () => primate({ color: '#b8521c', shag: '#d0682a', face: '#7a5040', muzzle: '#8a6050', body: [0.32, 0.34, 0.26], head: 0.22, leg: 0.2, arm: 0.62, armR: 0.07, cheekPads: true, beat: true, eye: 0.1, lean: 0.2 }),
+  nightmonkey: () => primate({ color: '#7a6e64', belly: '#d8a870', face: '#d8cbb6', muzzle: '#c8b8a0', brows: '#2a2420', body: [0.14, 0.17, 0.13], head: 0.12, leg: 0.12, arm: 0.2, armR: 0.03, eye: 0.24, iris: '#b8762a', tail: 0.4, lean: 0.3 }),
   toucan: () => toucan(),
-  capybara: () => quad({ color: '#a8743e', snout: '#8a5a2e', bw: 0.5, bh: 0.42, bd: 0.72, hs: 0.44, leg: 0.16, ear: 'round', tail: 0.05, kind: 'nap' }),
-  hyena: () => quad({ color: '#c8a46a', belly: '#e2cda0', snout: '#5a4530', bw: 0.42, bh: 0.42, bd: 0.72, hs: 0.44, leg: 0.36, ear: 'round', earColor: '#5a4530', spots: { c: '#5a4530', n: 14, s: 0.08 }, tail: 0.3, tuft: '#3a2a1e', kind: 'laugh', seed: 4 }),
-  lion: () => quad({ color: '#e0a94a', belly: '#f2d39a', snout: '#f7e3bc', mane: '#a8561c', bw: 0.5, bh: 0.48, bd: 0.84, hs: 0.5, leg: 0.4, ear: 'round', tail: 0.5, tuft: '#7a3e12', kind: 'roar' }),
-  cheetah: () => quad({ color: '#e8bd62', belly: '#fbecc6', snout: '#fbecc6', tear: '#2b2020', bw: 0.36, bh: 0.36, bd: 0.8, hs: 0.4, leg: 0.46, lw: 0.11, ear: 'round', spots: { c: '#2b2020', n: 26, s: 0.06 }, tail: 0.55, kind: 'dash', seed: 8 }),
-  leopard: () => quad({ color: '#e0a646', belly: '#f8e6bd', snout: '#f8e6bd', bw: 0.42, bh: 0.4, bd: 0.8, hs: 0.44, leg: 0.36, ear: 'round', spots: { c: '#6a4020', n: 20, s: 0.1 }, tail: 0.6, kind: 'wag', seed: 11 }),
-  camel: () => quad({ color: '#d8ae72', belly: '#ecd2a6', snout: '#ecd2a6', bw: 0.56, bh: 0.5, bd: 0.96, hs: 0.42, leg: 0.8, lw: 0.13, neck: 0.5, hump: 0.3, ear: 'round', tail: 0.3, kind: 'chew' }),
-  fennec: () => quad({ color: '#f2d2a0', belly: '#fff6e6', snout: '#fff6e6', bw: 0.34, bh: 0.3, bd: 0.48, hs: 0.42, leg: 0.22, lw: 0.08, ear: 'big', tail: 0.42, tuft: '#3a2a1e', tailColor: '#e8c48c', kind: 'ears' }),
+  capybara: () => quadruped({ body: [0.3, 0.26, 0.48], color: '#a0703c', belly: '#b88a52', leg: 0.12, legR: 0.055, neck: [0.12, 0.14], neckTilt: 1.15, head: [0.15, 0.17, 0.22], snout: [0.13, 0.13, 0.12, '#8a5c30'], nose: '#3a2418', ear: [0.04, 0.035], earOut: 0.2, tail: 0.02, eye: 0.11, kind: 'nap', gait: 7, seed: 1 }),
+  hyena: () => quadruped({ body: [0.22, 0.26, 0.42], color: '#b89a68', belly: '#d2bc90', chest: '#c4a674', leg: 0.36, legR: 0.045, neck: [0.24, 0.12], neckTilt: 0.7, head: [0.14, 0.13, 0.17], snout: [0.075, 0.07, 0.11, '#4a3a2a'], ear: [0.06, 0.07], earColor: '#5a4630', earIn: '#8a7050', tail: 0.26, tuft: '#2e2418', spots: { c: '#4e3a26', n: 30, s: 0.035 }, eye: 0.13, kind: 'laugh', rump: -0.06, seed: 3 }),
+  lion: () => quadruped({ body: [0.27, 0.28, 0.52], color: '#d8a654', belly: '#ecd0a0', leg: 0.36, legR: 0.06, foot: '#c8964a', neck: [0.2, 0.15], neckTilt: 0.55, mane: '#8a4a1e', mane2: '#a85e26', head: [0.17, 0.16, 0.18], headColor: '#dcac5c', snout: [0.1, 0.08, 0.1, '#ecd0a0'], nose: '#5a3424', ear: [0.05, 0.045], earOut: 0.4, tail: 0.5, tailDroop: 2.6, tuft: '#5a2e14', eye: 0.11, iris: '#c8902a', kind: 'roar', seed: 5 }),
+  cheetah: () => quadruped({ body: [0.2, 0.2, 0.5], color: '#e0b468', belly: '#f6e6c4', leg: 0.46, legR: 0.035, neck: [0.2, 0.1], neckTilt: 0.6, head: [0.11, 0.1, 0.12], snout: [0.06, 0.05, 0.06, '#f6e6c4'], tear: '#1e1a16', ear: [0.035, 0.03], earOut: 0.5, tail: 0.55, tailR: 0.025, tailDroop: 2.7, tailRings: 4, spots: { c: '#1e1a16', n: 70, s: 0.022 }, headSpots: 10, eye: 0.15, iris: '#c8a03a', kind: 'dash', gait: 11, seed: 8 }),
+  leopard: () => quadruped({ body: [0.24, 0.23, 0.52], color: '#d8a24a', belly: '#f4e2bc', leg: 0.33, legR: 0.045, neck: [0.18, 0.12], neckTilt: 0.65, head: [0.14, 0.13, 0.15], snout: [0.08, 0.06, 0.07, '#f0dcb0'], ear: [0.04, 0.035], earOut: 0.5, tail: 0.6, tailR: 0.03, tailDroop: 2.5, spots: { c: '#3a2614', n: 55, s: 0.04, stretch: 1.3 }, headSpots: 8, eye: 0.13, iris: '#a8c04a', kind: 'wag', seed: 11 }),
+  camel: () => quadruped({ body: [0.3, 0.3, 0.55], color: '#c89a62', belly: '#dcb888', leg: 0.85, legR: 0.05, foot: '#a87a4a', hump: 0.3, neck: [0.6, 0.09], neckTilt: 0.35, headTilt: 1.0, head: [0.12, 0.12, 0.2], snout: [0.09, 0.08, 0.1, '#b88a56'], lip: '#a87a4a', ear: [0.03, 0.04], earOut: 0.8, tail: 0.3, tailR: 0.02, tuft: '#7a5634', eye: 0.14, kind: 'chew', gait: 5, seed: 12 }),
+  fennec: () => quadruped({ body: [0.15, 0.13, 0.24], color: '#ecc890', belly: '#fbf2e2', leg: 0.18, legR: 0.025, neck: [0.1, 0.07], head: [0.1, 0.09, 0.1], snout: [0.045, 0.04, 0.07, '#fbf2e2'], ear: [0.075, 0.17], earIn: '#f6d8c8', earOut: 0.3, tail: 0.24, tailR: 0.045, tailDroop: 2.2, tuft: '#2e2016', eye: 0.2, kind: 'ears', seed: 13 }),
+  aardvark: () => quadruped({ body: [0.26, 0.24, 0.48], color: '#b8927a', belly: '#c8a48a', leg: 0.22, legR: 0.05, rump: 0.05, neck: [0.14, 0.13], neckTilt: 1.1, headTilt: 0.15, head: [0.11, 0.1, 0.16], snout: [0.05, 0.05, 0.22, '#a8846a'], nose: '#d8a090', ear: [0.05, 0.14], earIn: '#d8a898', earOut: 0.2, tail: 0.4, tailR: 0.06, tailDroop: 2.4, eye: 0.13, kind: 'dig', gait: 6, seed: 14 }),
+  hedgehog: () => quadruped({ body: [0.16, 0.12, 0.2], color: '#7a6450', belly: '#e8d8bc', leg: 0.06, legR: 0.025, spines: 110, neck: [0.06, 0.06], neckTilt: 1.2, head: [0.08, 0.075, 0.09], headColor: '#e8d8bc', snout: [0.04, 0.035, 0.07, '#e8d8bc'], nose: '#1e1414', ear: [0.04, 0.05], earIn: '#e8b8b0', earOut: 0.4, tail: 0.02, eye: 0.17, kind: 'ball', gait: 12, seed: 21 }),
   thornydevil: () => thornydevil(),
   kangaroorat: () => kangaroorat(),
   meerkat: () => meerkat(),
-  crab: () => crab(),
-  // 🌙 밤에만 나오는 동물
-  ghostcrab: () => crab('#e8dcc0', '#f6efdc', '#cbbd9c'),
-  nightmonkey: () => ape({ color: '#8a7a68', belly: '#c9b08a', face: '#d8c4a4', mask: '#3a2e24', hair: '#6e5f4f', bw: 0.36, bh: 0.38, bd: 0.3, hs: 0.44, leg: 0.16, arm: 0.36, aw: 0.1 }),
-  aardvark: () => quad({ color: '#c49a7a', belly: '#d8b89a', snout: '#e0bfa2', bw: 0.46, bh: 0.42, bd: 0.8, hs: 0.42, leg: 0.3, ear: 'big', earColor: '#b88a6a', tail: 0.55, kind: 'chew' }),
-  hedgehog: () => quad({ color: '#d9c2a0', belly: '#f2e4cc', snout: '#f2e4cc', bw: 0.36, bh: 0.26, bd: 0.4, hs: 0.36, leg: 0.12, lw: 0.08, ear: 'big', spots: { c: '#6e5a44', n: 34, s: 0.07 }, tail: 0.05, kind: 'ears', seed: 21 }),
+  crab: () => crab('#d8402a', '#f07a4a', 1.4),
+  ghostcrab: () => crab('#e4d6b4', '#f4ead2', 1.0, true),
   sardine: () => sardine(),
   flounder: () => flounder(),
   turtle: () => turtle(),
