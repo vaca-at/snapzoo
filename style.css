@@ -61,20 +61,20 @@ body:not(.playing) .goalarrow, body.photo .goalarrow { display: none; }
 
 /* ---------- 걷기 화면 B ---------- */
 .walkui { position: fixed; left: 0; right: 0; bottom: calc(92px + var(--safe-b)); height: 128px; pointer-events: none; }
-.joystick { position: absolute; left: 18px; bottom: 0; width: 124px; height: 124px; border-radius: 50%; background: rgba(255,253,246,.35); border: 3px solid rgba(255,253,246,.9); pointer-events: auto; touch-action: none; display: grid; place-items: center; }
-.knob { width: 56px; height: 56px; border-radius: 50%; background: var(--paper); border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); pointer-events: none; transition: transform .05s; }
-.jump { position: absolute; right: 22px; bottom: 22px; width: 80px; height: 80px; border-radius: 50%; background: var(--sun); color: var(--sun-ink); border: 3px solid var(--ink); box-shadow: 0 5px 0 var(--ink); font-size: 36px; font-weight: 700; pointer-events: auto; touch-action: manipulation; }
-.jump:active, .tabbar button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.joystick { position: absolute; left: 18px; bottom: 0; width: 124px; height: 124px; border-radius: 50%; background: rgba(40,44,52,.28); border: 2px solid rgba(255,255,255,.35); backdrop-filter: blur(2px); pointer-events: auto; touch-action: none; display: grid; place-items: center; }
+.knob { width: 56px; height: 56px; border-radius: 50%; background: rgba(235,238,242,.75); border: 2px solid rgba(255,255,255,.6); box-shadow: 0 2px 6px rgba(0,0,0,.18); pointer-events: none; transition: transform .05s; }
+.jump { position: absolute; right: 22px; bottom: 22px; width: 80px; height: 80px; border-radius: 50%; display: grid; place-items: center; background: rgba(40,44,52,.28); color: rgba(255,255,255,.92); border: 2px solid rgba(255,255,255,.35); backdrop-filter: blur(2px); pointer-events: auto; touch-action: manipulation; }
+.tabbar button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.jump svg { width: 40px; height: 40px; fill: currentColor; }
+.jump:active { transform: scale(.92); background: rgba(40,44,52,.4); }
 @keyframes pop { from { transform: scale(.6); } }
 
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, 1fr); align-items: end; gap: 4px; padding: 8px 8px calc(8px + var(--safe-b)); background: var(--paper); border-top: 3px solid var(--ink); }
 .tabbar button { min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: none; border: 0; font-family: var(--display); font-size: 14px; border-radius: 16px; }
 .tabbar button span { font-size: 26px; line-height: 1; }
-/* 동물 구역의 사진 단추 (광장 동작 단추 자리에 크게) */
-.photobtn { position: fixed; right: 16px; bottom: calc(92px + 128px + 16px + var(--safe-b)); width: 92px; height: 92px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; background: var(--coral); color: #fff; border: 4px solid var(--ink); box-shadow: 0 5px 0 var(--ink); font-family: var(--display); font-size: 15px; z-index: 5; }
-.photobtn span { font-size: 36px; line-height: 1; }
-.photobtn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
-body.photo .photobtn, body:not(.playing) .photobtn { display: none; }
+/* 동물 구역: 아래 탭 가운데 사진 단추 (크게, 위로 솟게) */
+.tabbar .cam { width: 84px; height: 84px; margin: -34px auto 0; border-radius: 50%; background: var(--coral); border: 4px solid var(--ink); box-shadow: 0 5px 0 var(--ink); }
+.tabbar .cam span { font-size: 38px; }
 
 /* 광장 동작 단추 (캠핑장처럼 오른쪽에 세로로) */
 .actbar { position: fixed; right: 14px; bottom: calc(92px + 128px + 14px + var(--safe-b)); display: flex; flex-direction: column; align-items: flex-end; gap: 8px; z-index: 5; }

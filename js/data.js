@@ -15,7 +15,7 @@ export const RARITY_ORDER = ['common', 'uncommon', 'rare', 'legend', 'mythic'];
 export const STAR_RATE = { 1: 0.5, 2: 0.75, 3: 1 };
 export const BEST_RATE = 0.1;
 
-// 초당 포인트: 기본 1 + 도감 동물 한 마리마다 1 · 하루 55분까지, 화면을 보고 있을 때만
+// 초당 포인트: 누구나 1초에 1 (도감을 많이 모아도 그대로 · 빈부격차가 벌어지지 않게) · 하루 55분까지, 화면을 보고 있을 때만
 export const PER_SEC_BASE = 1;
 export const DAILY_SECONDS = 55 * 60;
 

@@ -116,7 +116,8 @@ const GROUND_KIND = { '#9fd486': 'grass', '#4f9a4a': 'jgrass', '#cfc46a': 'savan
 function ground(g, color, r) {
   const kind = GROUND_KIND[color] || 'grass', tex = groundTex(kind).clone();
   tex.needsUpdate = true; tex.repeat.set((r + 40) / 4, (r + 40) / 4);
-  const m = new THREE.Mesh(new THREE.CircleGeometry(r + 40, 64), new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 }));
+  tex.repeat.set(70, 70);   // 땅은 지평선까지 (멀리 겹겹이 산이 서 있게)
+  const m = new THREE.Mesh(new THREE.CircleGeometry(280, 72), new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 }));
   m.rotation.x = -Math.PI / 2;
   m.userData.keep = true; m.receiveShadow = true;
   g.add(m);
@@ -240,7 +241,7 @@ function grassField(Z, extra = []) {
   const g = Z.group, kind = g.userData.groundKind, list = [...(g.userData.tufts || []), ...extra];
   const auto = { grass: ['#6fae55', '#86c46a', '#5b9e48'], jgrass: ['#3f8a3e', '#56a250', '#2f7a36'], savanna: ['#c8b85a', '#b4a44c', '#ddd078'] }[kind];
   if (auto) {
-    const rnd = mulberry(77), n = kind === 'jgrass' ? 1400 : 1000;
+    const rnd = mulberry(77), n = Z.grassCount || (kind === 'jgrass' ? 1400 : 1000);
     for (let i = 0; i < n; i++) {
       const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * (Z.radius + 6), x = Math.cos(a) * d, z = Math.sin(a) * d;
       if (Z.noGrass?.(x, z)) continue;
@@ -252,7 +253,7 @@ function grassField(Z, extra = []) {
   const im = new THREE.InstancedMesh(bladeGeo(), GRASS_MAT, list.length);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(), col = new THREE.Color(), rnd = mulberry(5);
   list.forEach(([x, z, c], i) => {
-    const k = 0.7 + rnd() * 0.8;
+    const k = (0.7 + rnd() * 0.8) * (Z.grassScale || 1);
     q.setFromEuler(e.set(0, rnd() * 6.28, 0)); v.set(x, 0, z); sc.set(k, k * (0.8 + rnd() * 0.6), k);
     im.setMatrixAt(i, m4.compose(v, q, sc)); im.setColorAt(i, col.set(c).offsetHSL(0, 0, (rnd() - 0.5) * 0.06));
   });
@@ -573,8 +574,15 @@ function jungle() {
   }
   // 작은 개울
   const river = water(Z, new THREE.PlaneGeometry(4, 60, 6, 70), '#3d9fc8', -6, 0.06, 0, 0.88, 0.05); river.rotation.z = 0.5;
+  Z.wet = (x, z) => Math.abs((x + 6) * Math.cos(0.5) - z * Math.sin(0.5)) < 2;   // 개울
   for (let i = 0; i < 26; i++) { const x = (rnd() - 0.5) * 50, z = (rnd() - 0.5) * 50; if (Math.hypot(x, z) < 26 && Math.hypot(x, z - 20) > 4) bush(g, x, z, 0.7 + rnd() * 0.6, LEAF.jungle); }
   rim(g, Z.radius, ['#2f7a3e', '#3f8f45', '#26693a'], 4, 4);
+  // 먼 배경: 안개 낀 숲 벽 → 먼 산 (멀수록 옅은 초록)
+  silhouettes(Z, [
+    { kind: 'canopy', r: 40, dr: 12, n: 46, h: [12, 20], w: [5, 8], color: '#3e7a4e' },
+    { kind: 'canopy', r: 62, dr: 14, n: 40, h: [16, 26], w: [7, 11], color: '#6f9f82' },
+    { kind: 'mountain', r: 130, dr: 30, n: 18, h: [40, 70], w: [30, 50], color: '#9cc3ad' },
+  ], 41);
   Z.place = placer(Z);
   return Z;
 }
@@ -597,8 +605,38 @@ function savanna() {
     const t2 = new THREE.Mesh(CONE, flat('#a06c40')); t2.scale.set(0.5, 1.6, 0.5); t2.position.set(10.7, 0.8, -7.6); g.add(t2); }
   Z.colliders.push({ x: 10, z: -8, r: 1 });
   water(Z, pondGeo(4), '#4fb0d4', -9, 0.07, -6, 0.88, 0.04);
+  Z.wet = (x, z) => Math.hypot(x + 9, z + 6) < 3.9;   // 물웅덩이
   for (let i = 0; i < 10; i++) { const x = (rnd() - 0.5) * 54, z = (rnd() - 0.5) * 54; if (Math.hypot(x, z) < 28 && Math.hypot(x, z - 24) > 5) bush(g, x, z, 0.6 + rnd() * 0.4, LEAF.acacia); }
-  rim(g, Z.radius, ['#c9a46a', '#b8945a'], 2.5, 5);
+  rim(g, Z.radius, ['#c9a46a', '#b8945a'], 0.9, 5);   // 낮게: 지평선이 탁 트이게
+  // 큰 바위 언덕 (멀리서도 보이는 초원의 표지)
+  for (const [x, y, z, sx, sy, sz, c] of [[16, 1.6, -15, 5, 3.2, 4.4, '#b88c62'], [18.5, 3.6, -16, 3.8, 3, 3.4, '#c99c70'], [14.5, 4.8, -16.5, 2.6, 2.2, 2.4, '#a97f58'], [17.5, 6.4, -15.5, 2.2, 1.4, 2, '#d4a77a'], [12.5, 1.2, -12.8, 2.2, 1.6, 2, '#b88c62']]) {
+    const b = new THREE.Mesh(DODE, flat(c)); b.scale.set(sx, sy, sz); b.position.set(x, y, z); b.rotation.set(0.2, x, 0.1); g.add(b);
+  }
+  Z.colliders.push({ x: 16.5, z: -15, r: 5.2 });
+  // 키 큰 황금빛 풀
+  Z.grassScale = 1.7; Z.grassCount = 2400;
+  // 먼 배경: 노을빛 언덕 → 지평선의 아카시아 → 겹겹이 산 (멀수록 하늘에 녹아들어요)
+  silhouettes(Z, [
+    { kind: 'hill', r: 52, dr: 10, n: 26, h: [3, 7], w: [12, 20], color: '#c98f52' },
+    { kind: 'acacia', r: 62, dr: 30, n: 16, h: [7, 10], w: [5, 7], color: '#6e4426' },
+    { kind: 'hill', r: 95, dr: 20, n: 22, h: [10, 18], w: [25, 40], color: '#d99e62' },
+    { kind: 'mountain', r: 160, dr: 30, n: 16, h: [35, 60], w: [40, 70], color: '#e9b277' },
+  ], 51);
+  const herds = [herd(Z, { r: 62 }, 5, 'elephant', '#5e3a22'), herd(Z, { r: 75 }, 3, 'giraffe', '#6b4426')];
+  herds[1].ang = herds[0].ang + 2.4; herds[1].speed = -0.01;
+  const flock = birds(Z, 9, '#4a2c1c');
+  Z.update = (t, dt) => {
+    for (const h of herds) {
+      h.ang += h.speed * dt;
+      h.g.position.set(Math.cos(h.ang) * h.r, 0, Math.sin(h.ang) * h.r);
+      h.g.rotation.y = -h.ang + (h.speed > 0 ? Math.PI : 0);
+      h.animals.forEach((a, i) => { a.position.y = Math.abs(Math.sin(t * 2 + i)) * 0.15; });
+    }
+    const fa = t * 0.05;
+    flock.g.position.set(Math.cos(fa) * 45, 28 + Math.sin(t * 0.3) * 2, Math.sin(fa) * 45);
+    flock.g.rotation.y = -fa;
+    flock.list.forEach(({ w, ph }) => w.forEach(([j, sx]) => { j.rotation.z = sx * Math.sin(t * 6 + ph) * 0.6; }));
+  };
   Z.place = placer(Z);
   return Z;
 }
@@ -628,8 +666,16 @@ function desert() {
   water(Z, pondGeo(3.4), '#43b4d0', 8, 0.07, 6, 0.9, 0.04);
   tree(g, '', 11.5, 4.5, 0.9, 'palm'); Z.colliders.push({ x: 11.5, z: 4.5, r: 0.5 });
   tree(g, '', 5, 9, 0.8, 'palm'); Z.colliders.push({ x: 5, z: 9, r: 0.5 });
-  Z.colliders.push({ x: 8, z: 6, r: 3 });
+  Z.wet = (x, z) => Math.hypot(x - 8, z - 6) < 3.3;   // 오아시스: 걸으면 느릿느릿, 점프하면 빨리
   rim(g, Z.radius, ['#e0b878', '#d0a060', '#c98a5a'], 3.5, 6);
+  // 먼 배경: 모래 언덕 → 붉은 메사(탁자 바위산) → 먼 산
+  silhouettes(Z, [
+    { kind: 'hill', r: 55, dr: 12, n: 24, h: [4, 9], w: [16, 26], color: '#e4b77c' },
+    { kind: 'mesa', r: 90, dr: 25, n: 14, h: [16, 30], w: [14, 26], color: '#d0814e' },
+    { kind: 'mountain', r: 165, dr: 30, n: 14, h: [35, 55], w: [45, 70], color: '#e9b48a' },
+  ], 61);
+  const dflock = birds(Z, 5, '#6a4a3a');
+  Z.update = (t) => { const fa = t * 0.06; dflock.g.position.set(Math.cos(fa) * 40, 30, Math.sin(fa) * 40); dflock.g.rotation.y = -fa; dflock.list.forEach(({ w, ph }) => w.forEach(([j, sx]) => { j.rotation.z = sx * Math.sin(t * 5 + ph) * 0.5; })); };
   Z.place = placer(Z);
   return Z;
 }
@@ -643,6 +689,7 @@ function beach() {
   const bedTex = groundTex('seabed').clone(); bedTex.needsUpdate = true; bedTex.repeat.set(20, 10);
   const sea = new THREE.Mesh(new THREE.PlaneGeometry(80, 40), new THREE.MeshStandardMaterial({ map: bedTex, roughness: 1 })); sea.rotation.x = -Math.PI / 2; sea.position.set(0, 0.02, -22); sea.userData.keep = true; sea.receiveShadow = true; g.add(sea);
   Z.water = water(Z, new THREE.PlaneGeometry(80, 42, 56, 30), '#2f9ed6', 0, 1.6, -23, 0.55, 0.12);
+  Z.wet = (x, z) => z < -2.5;   // 얕은 바다
   const foam = new THREE.Mesh(new THREE.PlaneGeometry(80, 0.6), mat('#ffffff', 0, 0.8)); foam.rotation.x = -Math.PI / 2; foam.position.set(0, 0.06, -2); g.add(foam);
   Z.foam = foam;
   const rnd = mulberry(51);
@@ -657,6 +704,14 @@ function beach() {
   for (let i = 0; i < 4; i++) box(g, '#ffffff', 1.12, 0.045, 0.18, -3.3, 0.045, 8.9 + i * 0.45).rotation.y = 0.2;
   Z.colliders.push({ x: -5, z: 9, r: 0.3 });
   rim(g, Z.radius, ['#d0b880', '#9aa8a8'], 2.5, 7);
+  // 먼 배경: 수평선까지 이어지는 바다 + 초록 섬들 (바다 쪽만)
+  { const ocean = new THREE.Mesh(new THREE.CircleGeometry(280, 64, 0, Math.PI), new THREE.MeshStandardMaterial({ color: '#2f97d4', roughness: 0.2, metalness: 0.1 }));
+    ocean.rotation.x = -Math.PI / 2; ocean.position.set(0, 1.55, -35); ocean.userData.keep = true; g.add(ocean); }
+  silhouettes(Z, [
+    { kind: 'island', r: 85, dr: 40, n: 9, h: [6, 14], w: [14, 26], color: '#5f9a6c', skip: (a) => Math.sin(a) > -0.25 },
+    { kind: 'mountain', r: 170, dr: 30, n: 10, h: [25, 45], w: [40, 60], color: '#9cc7d8', skip: (a) => Math.sin(a) > -0.3 },
+    { kind: 'hill', r: 60, dr: 15, n: 14, h: [5, 10], w: [14, 22], color: '#6fa772', skip: (a) => Math.sin(a) < 0.2 },
+  ], 71);
   Z.okFor = (kind, x, z) => (kind === 'water' ? z < -6 : z > 1);
   Z.place = placer(Z);
   return Z;
@@ -693,6 +748,87 @@ function deep() {
   Z.okFor = () => true;
   Z.place = placer(Z);
   return Z;
+}
+
+// ---------- 장소 분위기: 하늘 · 해 · 안개 · 빛 (탐험하러 나가면 넓고 웅장하게) ----------
+// sun: 해가 있는 쪽 (가로 각도 az · 높이 el, 도). 낮은 해 = 긴 그림자 · 노을빛
+export const ATMO = {
+  station: { top: '#5fa8e6', horizon: '#dff1fb', fog: ['#dceff8', 40, 230], sun: { az: 35, el: 52, color: '#fff1d6', i: 2.6, disc: '#fff7dc', size: 60 }, hemi: ['#f4f8ff', '#9a8a68', 0.9], exp: 0.92 },
+  savanna: { top: '#d9714a', horizon: '#ffcf7a', fog: ['#f6bf78', 45, 250], sun: { az: -25, el: 16, color: '#ffb35a', i: 2.8, disc: '#fff0b0', size: 150 }, hemi: ['#ffd9a8', '#8a5a34', 1.05], exp: 1.0 },
+  desert: { top: '#3f8fd8', horizon: '#ffe0aa', fog: ['#f7d9a8', 50, 250], sun: { az: 40, el: 34, color: '#ffe0b0', i: 2.8, disc: '#fff6d6', size: 80 }, hemi: ['#fff1d8', '#b07a4a', 0.95], exp: 0.95 },
+  jungle: { top: '#5fa9a4', horizon: '#d6efcf', fog: ['#c3e2c4', 22, 140], sun: { az: 60, el: 40, color: '#fff3c8', i: 2.2, disc: '#fffbe6', size: 70 }, hemi: ['#e6fbe8', '#4a6a3a', 1.0], exp: 0.95 },
+  beach: { top: '#2c8de0', horizon: '#c9efff', fog: ['#cdeeff', 50, 260], sun: { az: 20, el: 45, color: '#fff4dc', i: 2.7, disc: '#ffffff', size: 70 }, hemi: ['#f2fbff', '#c9a874', 0.95], exp: 0.95 },
+  deep: { top: '#061428', horizon: '#0b2340', fog: ['#0b2340', 6, 32], sun: { az: 0, el: 70, color: '#9fc8ff', i: 0.6, disc: '#000000', size: 0 }, hemi: ['#7fb0ff', '#0b2340', 0.6], exp: 0.92, dark: true },
+};
+
+// ---------- 먼 배경: 겹겹이 산 · 메사 · 숲 실루엣 (빛 없이 색으로만, 멀수록 하늘에 녹아들게) ----------
+const BACK_MAT = new THREE.MeshBasicMaterial({ vertexColors: true, fog: true });
+function silhouettes(Z, layers, seed = 9) {
+  const rnd = mulberry(seed), geos = [], m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+  const put = (geo, x, y, z, sx, sy, sz, ry, color) => {
+    let g2 = geo.clone(); m4.compose(v.set(x, y, z), q.setFromEuler(e.set(0, ry, 0)), sc.set(sx, sy, sz)); g2.applyMatrix4(m4);
+    if (g2.index) g2 = g2.toNonIndexed();
+    for (const k of Object.keys(g2.attributes)) if (k !== 'position') g2.deleteAttribute(k);
+    const c = new THREE.Color(color), n = g2.attributes.position.count, col = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { const y0 = g2.attributes.position.getY(i); const k = Math.max(0, Math.min(1, y0 / (sy * 2 + 1))); const cc = c.clone().offsetHSL(0, 0, k * 0.05); col[i * 3] = cc.r; col[i * 3 + 1] = cc.g; col[i * 3 + 2] = cc.b; }
+    g2.setAttribute('color', new THREE.BufferAttribute(col, 3)); geos.push(g2);
+  };
+  for (const L of layers) {
+    for (let i = 0; i < L.n; i++) {
+      const a = (i / L.n) * Math.PI * 2 + rnd() * 0.2, r = L.r + rnd() * (L.dr || 10), x = Math.cos(a) * r, z = Math.sin(a) * r;
+      if (L.skip?.(a)) continue;
+      const h = L.h[0] + rnd() * (L.h[1] - L.h[0]), w = L.w[0] + rnd() * (L.w[1] - L.w[0]);
+      const col = new THREE.Color(L.color).offsetHSL(0, 0, (rnd() - 0.5) * 0.04).getStyle();
+      if (L.kind === 'mountain') put(CONE6, x, 0, z, w, h, w * (0.7 + rnd() * 0.5), rnd() * 6, col);
+      else if (L.kind === 'hill') put(ICO, x, 0, z, w, h, w * 0.8, rnd() * 6, col);
+      else if (L.kind === 'mesa') put(MESA, x, 0, z, w, h, w * (0.6 + rnd() * 0.6), rnd() * 6, col);
+      else if (L.kind === 'acacia') { put(CYL, x, h * 0.45, z, 1.1, h * 0.9, 1.1, 0, col); put(CYL, x + w * 0.25, h * 0.75, z, 0.7, h * 0.4, 0.7, 0, col); put(ICO, x, h, z, w, h * 0.1, w * 0.7, rnd() * 6, col); }
+      else if (L.kind === 'canopy') { put(CYL, x, h * 0.4, z, 1.2, h * 0.8, 1.2, 0, col); put(ICO, x, h * 0.9, z, w, h * 0.35, w, rnd() * 6, col); }
+      else if (L.kind === 'island') { put(ICO, x, -1, z, w, h, w * 0.7, rnd() * 6, col); put(CYL, x + 2, h, z, 0.5, h * 0.8, 0.5, 0, col); put(ICO0, x + 2, h * 1.45, z, 3, 0.6, 3, 0, col); }
+    }
+  }
+  const merged = mergeGeometries(geos);
+  geos.forEach((g2) => g2.dispose());
+  const mesh = new THREE.Mesh(merged, BACK_MAT);
+  mesh.userData.keep = true; mesh.frustumCulled = false;
+  Z.group.add(mesh);
+}
+const CONE6 = (() => { const g2 = new THREE.ConeGeometry(1, 1, 6, 1); g2.translate(0, 0.5, 0); return g2; })();
+const MESA = (() => { const g2 = new THREE.CylinderGeometry(0.8, 1, 1, 7, 1); g2.translate(0, 0.5, 0); return g2; })();
+
+// 초원 멀리 천천히 걷는 코끼리 · 기린 무리, 하늘을 나는 새 떼 (그림자처럼 짙은 색)
+function herd(Z, center, n, kind, col) {
+  const g = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: col, fog: true });
+  const animals = [];
+  for (let i = 0; i < n; i++) {
+    const a = new THREE.Group(); a.position.set((i - n / 2) * 5 + Math.random() * 2, 0, Math.random() * 4); g.add(a);
+    const B = (w, h, d, x, y, z, rx = 0) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.rotation.x = rx; a.add(b); return b; };
+    const s = kind === 'elephant' ? (i % 3 === 2 ? 0.6 : 1) : 1;
+    a.scale.setScalar(s);
+    if (kind === 'elephant') {
+      B(2.4, 1.8, 3.4, 0, 2.6, 0); B(1.6, 1.5, 1.4, 0, 3.0, 2.2); B(0.45, 1.8, 0.45, 0, 1.9, 3.0, 0.2);
+      for (const sx of [-1, 1]) B(0.15, 1.2, 1.0, sx * 0.85, 3.1, 1.9);
+      for (const [lx, lz] of [[-0.7, 1.1], [0.7, 1.1], [-0.7, -1.1], [0.7, -1.1]]) B(0.6, 1.8, 0.6, lx, 0.9, lz);
+    } else {
+      B(1.2, 1.1, 2.2, 0, 2.6, 0); B(0.4, 2.6, 0.4, 0, 4.2, 1.1, -0.35); B(0.5, 0.45, 0.8, 0, 5.4, 1.65);
+      for (const [lx, lz] of [[-0.4, 0.8], [0.4, 0.8], [-0.4, -0.8], [0.4, -0.8]]) B(0.22, 2.1, 0.22, lx, 1.05, lz);
+    }
+    animals.push(a);
+  }
+  g.traverse((o) => { o.userData.keep = true; });
+  Z.group.add(g);
+  return { g, animals, center, ang: Math.random() * 6, r: center.r, speed: kind === 'elephant' ? 0.012 : 0.016 };
+}
+function birds(Z, n, col) {
+  const g = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: col, fog: false, side: THREE.DoubleSide });
+  const list = [];
+  for (let i = 0; i < n; i++) {
+    const b = new THREE.Group(), w = [-1, 1].map((sx) => { const wing = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.3), m); wing.position.x = sx * 0.6; const j = new THREE.Group(); j.add(wing); b.add(j); return [j, sx]; });
+    b.position.set((i % 5) * 2.2 - (i % 2) * 1.5, Math.floor(i / 5) * 1.2, -Math.abs(i % 5 - 2) * 2); g.add(b); list.push({ b, w, ph: i * 0.7 });
+  }
+  g.traverse((o) => { o.userData.keep = true; });
+  Z.group.add(g);
+  return { g, list };
 }
 
 const BUILDERS = { station, jungle, savanna, desert, beach, deep };

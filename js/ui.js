@@ -15,7 +15,7 @@ export function init(game) {
   $('#tabDex').onclick = () => openDex();
   $('#tabShop').onclick = () => openShop();
   $('#tabChar').onclick = () => openWardrobe();
-  $('#photoBtn').onclick = () => G.enterPhoto();
+  $('#tabPhoto').onclick = () => G.enterPhoto();
   $('#tabFace').onclick = () => openFace();
   $('#tabMap').onclick = () => openMap();
   $('#shutter').onclick = () => G.shoot();
@@ -34,7 +34,9 @@ export function setZone(z) {
   // 광장 동작 단추는 정거장 광장에서만
   const bar = $('#actbar');
   bar.hidden = z !== ZONES.station;
-  $('#photoBtn').hidden = z === ZONES.station;   // 광장엔 동물이 없어서 사진 단추는 동물 구역에서만
+  // 아래 탭 가운데: 광장에선 😊 표정, 동물을 찾으러 나가면 그 자리에 📷 사진 (크게)
+  const out = z !== ZONES.station;
+  $('#tabFace').hidden = out; $('#tabPhoto').hidden = !out;
   if (!bar.innerHTML) {
     bar.innerHTML = PLAZA_ACTS.map((id) => ACTIONS.find((a) => a.id === id)).map((a) => `<button class="actbtn" type="button" data-pa="${a.id}" aria-pressed="false"><span>${a.icon}</span>${a.name}</button>`).join('');
     bar.querySelectorAll('[data-pa]').forEach((b) => { b.onclick = () => G.act(b.dataset.pa); });
@@ -267,7 +269,7 @@ export function openDex() {
     return `<div class="zgroup"><p class="zonehead">${zd.icon} ${zd.name} <small>${n}/${all}</small><i></i></p><div class="grid">${cards}</div></div>`;
   }).join('');
   const sheet = panel('dex', '📖 도감', `
-    <p class="lead">모은 동물 <b>${dexCount()}/${ANIMALS.length}</b> · 한 마리 늘 때마다 초당 +1</p>
+    <p class="lead">모은 동물 <b>${dexCount()}/${ANIMALS.length}</b></p>
     ${groups}
     <div class="row"><button class="btn" type="button" id="albumBtn">🖼️ 내 사진 앨범</button></div>
     <p class="fine">사진은 이 기기 안에만 저장돼요. 도감의 진짜 동물 사진은 저작권 문제 없는 사진으로 준비 중이에요.</p>`);
@@ -522,7 +524,7 @@ export function showResult(r) {
     <div class="total"><b>${r.ev.total}</b>점 <small>· 최고 ${r.best}점</small></div>
     <div class="bars">${bar('가운데', r.ev.center, 40)}${bar('알맞은 크기', r.ev.size, 30)}${bar('특별한 순간', r.ev.moment, 30)}</div>
     <p class="fine center">${tip}</p>
-    <div class="reward">${r.prize ? `🪙 +${fmt(r.prize)}` : '상금은 처음 찍거나 최고 사진을 바꿀 때 받아요'}${r.newDex ? `<br><small>⏱️ 초당 포인트 +1 → 이제 1초에 <b>${r.perSec}</b></small>` : ''}</div>
+    <div class="reward">${r.prize ? `🪙 +${fmt(r.prize)}` : '상금은 처음 찍거나 최고 사진을 바꿀 때 받아요'}</div>
     <div class="row"><button class="btn big" type="button" id="doneBtn">좋아요 ✓</button></div>`, { cls: 'result', noHead: true });
   // 닫으면 사진 화면도 끝나요 (다른 동물은 📷 로 다시 찍으면 돼요)
   afterResult = () => G.exitPhoto();

@@ -67,7 +67,7 @@ function rollDay(s) {
 }
 
 export const dexCount = () => Object.keys(S.dex).length;
-export const perSec = () => PER_SEC_BASE + dexCount();
+export const perSec = () => PER_SEC_BASE;   // 도감과 상관없이 모두 똑같이
 export const secLeft = () => { rollDay(S); return Math.max(0, DAILY_SECONDS - S.usedSec); };
 export const camera = () => CAMERAS.find((c) => c.id === S.camera) || CAMERAS[0];
 

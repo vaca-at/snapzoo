@@ -3,9 +3,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ANIMALS, RARITY, ZONES, CAMERAS, SCORE, STAR_RATE, BEST_RATE, FACES, starsOf } from './data.js';
-import { S, save, perSec, secLeft, tickSecond, dexCount, camera as curCam, randomName, validName } from './state.js';
+import { S, save, secLeft, tickSecond, dexCount, camera as curCam, randomName, validName } from './state.js';
 import { buildAnimal } from './animals.js';
-import { getZone, collide, bakeJoints, WIND, animateWater } from './world.js';
+import { getZone, collide, bakeJoints, WIND, animateWater, ATMO } from './world.js';
 import { Player } from './player.js';
 import { addPhoto } from './album.js';
 import * as UI from './ui.js';
@@ -211,13 +211,19 @@ function enterZone(id) {
   live.length = 0;
   zoneId = id; Z = getZone(id);
   scene.add(Z.group);
-  scene.background = new THREE.Color(Z.sky);
-  scene.fog = new THREE.Fog(Z.fog[0], Z.fog[1], Z.fog[2]);
-  hemi.intensity = Z.dark ? 0.6 : 0.9; sun.intensity = Z.dark ? 0.6 : 2.6;
-  hemi.color.set(Z.dark ? '#7fb0ff' : '#f4f8ff');
-  scene.environmentIntensity = Z.dark ? 0.15 : 0.3;
+  // 장소 분위기: 하늘 · 해 (방향 · 높이 · 색) · 안개 · 빛 · 노출 (js/world.js 의 ATMO)
+  const A = ATMO[id] || ATMO.station;
+  scene.background = new THREE.Color(A.horizon);
+  scene.fog = new THREE.Fog(A.fog[0], A.fog[1], A.fog[2]);
+  hemi.color.set(A.hemi[0]); hemi.groundColor.set(A.hemi[1]); hemi.intensity = A.hemi[2];
+  sun.color.set(A.sun.color); sun.intensity = A.sun.i;
+  const az = THREE.MathUtils.degToRad(A.sun.az), el = THREE.MathUtils.degToRad(A.sun.el);
+  SUN_OFF.set(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)).multiplyScalar(32);
+  sunDisc.material.color.set(A.sun.disc); sunDisc.scale.setScalar(A.sun.size || 1);
+  renderer.toneMappingExposure = A.exp;
+  scene.environmentIntensity = A.dark ? 0.15 : 0.3;
   if (Z.grassMesh) Z.grassMesh.count = S.lite ? Math.floor(Z.grassN / 4) : Z.grassN;
-  setSky(Z.dark ? '#061428' : new THREE.Color(Z.sky).offsetHSL(0.02, 0.1, -0.18), Z.fog[0], !Z.dark);
+  setSky(A.top, A.horizon, !A.dark);
   pos.set(Z.spawn.x, 0, Z.spawn.z);
   yaw = Z.spawn.yaw; me.sitting = false; me.action = null;
   camBehind();
@@ -435,6 +441,7 @@ let mode = 'walk';    // walk | photo
 let nearSpot = null;
 const SPEED = 2.7, RUN_SPEED = 5.4, SEAT_SPEED = 1.8;
 const ROAM = { kite: 1.5, bike: 4.2 };   // 저절로 돌 때 빠르기
+let wading = false, wetHinted = false;
 let roamPause = 0, roaming = false, camHold = 0;   // camHold: 화면을 끌면 잠깐 내가 고른 카메라 그대로   // 캠핑장과 같은 걷기 · 뛰기 · 자리로 가기 속도
 const tmpV = new THREE.Vector3();
 function updateWalk(dt) {
@@ -469,6 +476,12 @@ function updateWalk(dt) {
     if (d < (walkTo.arrive || 0.2)) { const w = walkTo; clearWalkTo(); w.onArrive?.(); }
     else { dx = tmpV.x / d; dz = tmpV.z / d; speed = Math.min(walkTo.speed && d < 4 ? walkTo.speed : SPEED, d / dt); }   // 의자 4m 앞부터 천천히
   }
+  // 물: 그냥 걸으면 느릿느릿 (점프해서 건너면 빨라요)
+  wading = !!Z.wet?.(pos.x, pos.z) && me.onGround;
+  if (wading && speed > 0) {
+    speed *= 0.38;
+    if (!wetHinted) { wetHinted = true; UI.toast('💦 물속은 느릿느릿! 점프하면 빨리 건너요'); }
+  } else if (!Z.wet?.(pos.x, pos.z)) wetHinted = false;
   if (speed > 0) {
     // 누른 곳 · 의자로 갈 때 분수 · 가게에 막히면 옆으로 돌아서 가요
     if (walkTo) {
@@ -620,7 +633,7 @@ function placeMenu() {
 function updateCamera(dt) {
   // 해와 그림자가 나를 따라와요
   sun.position.copy(pos).add(SUN_OFF); sun.target.position.copy(pos);
-  sunDisc.position.copy(SUN_OFF).normalize().multiplyScalar(260).add(pos); sky.position.set(pos.x, 0, pos.z); clouds.position.set(pos.x * 0.6, 0, pos.z * 0.6);
+  sunDisc.position.copy(SUN_OFF).normalize().multiplyScalar(280).add(pos); sky.position.set(pos.x, 0, pos.z); clouds.position.set(pos.x * 0.6, 0, pos.z * 0.6);
   if (mode === 'photo') return;
   stepCameraTurn(dt);
   camHold -= dt;
@@ -785,7 +798,7 @@ async function shoot() {
   await addPhoto({ img, animal: sp.id, score: ev.total, zone: zoneId, cam: C.id });
   S.coins += prize; save();
   UI.updateHud();
-  UI.showResult({ sp, R, ev, stars, img, badge, prize, newDex, best: S.dex[sp.id].score, cam: C, perSec: perSec() });
+  UI.showResult({ sp, R, ev, stars, img, badge, prize, newDex, best: S.dex[sp.id].score, cam: C });
   if (newDex) UI.sfx('fanfare'); else if (prize) UI.sfx('coin');
   shooting = false;
 }
@@ -894,6 +907,7 @@ function loop(now) {
     updateFriends(dt);
     if (mode === 'photo') updatePhoto(dt);
     me.root.position.copy(pos); me.root.rotation.y = yaw;
+    if (wading) me.root.position.y -= 0.22 + Math.sin(clock * 6) * 0.03;   // 물에 발이 잠겨요
     me.animate(dt, clock);
     updateCamera(dt);
     if (Z.water && Z.foam) Z.foam.position.z = -2 + Math.sin(clock * 0.8) * 0.4;
