@@ -14,7 +14,8 @@ export function init(game) {
   G = game;
   $('#tabDex').onclick = () => openDex();
   $('#tabShop').onclick = () => openShop();
-  $('#tabPhoto').onclick = () => G.enterPhoto();
+  $('#tabChar').onclick = () => openWardrobe();
+  $('#photoBtn').onclick = () => G.enterPhoto();
   $('#tabFace').onclick = () => openFace();
   $('#tabMap').onclick = () => openMap();
   $('#shutter').onclick = () => G.shoot();
@@ -33,6 +34,7 @@ export function setZone(z) {
   // 광장 동작 단추는 정거장 광장에서만
   const bar = $('#actbar');
   bar.hidden = z !== ZONES.station;
+  $('#photoBtn').hidden = z === ZONES.station;   // 광장엔 동물이 없어서 사진 단추는 동물 구역에서만
   if (!bar.innerHTML) {
     bar.innerHTML = PLAZA_ACTS.map((id) => ACTIONS.find((a) => a.id === id)).map((a) => `<button class="actbtn" type="button" data-pa="${a.id}" aria-pressed="false"><span>${a.icon}</span>${a.name}</button>`).join('');
     bar.querySelectorAll('[data-pa]').forEach((b) => { b.onclick = () => G.act(b.dataset.pa); });
@@ -121,7 +123,7 @@ function renderSpotMenu() {
   } else if (s.id === 'shop') {
     head = '🛒 상점';
     body = `<button class="sm-btn go" type="button" data-shop="store">🛍️ 옷 가게</button>
-      <button class="sm-btn" type="button" data-shop="me">👤 내 모습 바꾸기</button>
+      <button class="sm-btn" type="button" data-shop="me">👤 캐릭터 바꾸기</button>
       <button class="sm-btn" type="button" data-shop="camera">📷 카메라</button>`;
   } else if (s.id === 'bench') {
     body = G.isSitting()
@@ -304,8 +306,8 @@ async function openAlbum() {
 }
 
 // ---------- 상점: 내 모습 (가진 것 갈아입기) · 옷 가게 (사기) · 카메라 · 표 ----------
-let shopTab = 'me', lookTab = 'outfit';
-const SHOP_TABS = [['me', '👤 내 모습'], ['store', '🛍️ 옷 가게'], ['camera', '📷 카메라'], ['ticket', '🎫 표']];
+let shopTab = 'store', lookTab = 'outfit';
+const SHOP_TABS = [['store', '🛍️ 옷 가게'], ['camera', '📷 카메라'], ['ticket', '🎫 표']];
 // 내 모습 미리보기 그림 (도감 그림과 같은 작은 그리기 판)
 const looksCache = new Map();
 function lookPreview() {
@@ -327,23 +329,11 @@ function lookPreview() {
 }
 const optBtn = (attr, id, icon, name, on, extra = '') => `<button class="opt ${on ? 'on' : ''}" type="button" ${attr}="${id}"><span>${icon}</span>${name}${extra}</button>`;
 export function openShop(tab) {
+  if (tab === 'me') { openWardrobe(); return; }
   if (tab) shopTab = tab;
   const tabs = SHOP_TABS.map(([id, n]) => `<button class="tab ${shopTab === id ? 'on' : ''}" type="button" data-tab="${id}">${n}</button>`).join('');
   let body = '';
-  if (shopTab === 'me') {
-    const w = S.wear, block = w.body === 'block';
-    const mine = (t) => LOOKS[t].filter((x) => owns(t, x.id));
-    body = `<div class="me">
-      <img class="mepic" src="${lookPreview()}" alt="내 모습">
-      <div class="mesec"><p class="zonehead">몸<i></i></p><div class="opts two">${BODIES.map((b) => optBtn('data-body', b.id, b.icon, b.name, w.body === b.id)).join('')}</div>
-      <p class="zonehead">성별<i></i></p><div class="opts two">${GENDERS.map((g) => optBtn('data-gender', g.id, g.icon, g.name, w.gender === g.id)).join('')}</div></div></div>
-      <p class="zonehead">옷<i></i></p><div class="opts">${mine('outfit').map((x) => optBtn('data-outfit', x.id, x.icon, x.name, w.outfit === x.id)).join('')}</div>
-      <p class="zonehead">머리<i></i></p>${block
-        ? `<div class="opts">${mine('hair').map((x) => optBtn('data-hair', x.id, x.icon, x.name, w.hair === x.id)).join('')}</div>`
-        : '<p class="fine">콩알 탐험가는 남자는 삐죽 머리, 여자는 리본이에요.</p>'}
-      <p class="zonehead">아이템 <small>여러 개 할 수 있어요</small><i></i></p><div class="opts">${mine('item').map((x) => optBtn('data-item', x.id, x.icon, x.name, w.item.includes(x.id))).join('')}</div>
-      <div class="row"><button class="btn buy" type="button" data-tab="store">🛍️ 옷 가게에서 더 사기</button></div>`;
-  } else if (shopTab === 'store') {
+  if (shopTab === 'store') {
     const sub = LOOK_TABS.map((t) => `<button class="chipbtn ${lookTab === t.id ? 'on' : ''}" type="button" data-look="${t.id}">${t.icon} ${t.name}</button>`).join('');
     body = `<div class="subtabs">${sub}</div><div class="list">` + LOOKS[lookTab].map((it) => {
       const has = owns(lookTab, it.id);
@@ -359,11 +349,10 @@ export function openShop(tab) {
         ${using ? '<button class="btn" disabled>쓰는 중</button>' : has ? `<button class="btn" type="button" data-use="${c.id}">쓰기</button>` : buyBtn(`cam:${c.id}`, c.price)}</div>`;
     }).join('') + '</div>';
   } else body = `<div class="list">${ticketList()}</div>`;
-  const sheet = panel('shop', '🛒 상점', `<div class="tabs four">${tabs}</div><p class="wallet">🪙 <b>${fmt(S.coins)}</b></p>${body}`);
+  const sheet = panel('shop', '🛒 상점', `<div class="tabs">${tabs}</div><p class="wallet">🪙 <b>${fmt(S.coins)}</b></p>${body}`);
   sheet.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => openShop(b.dataset.tab); });
   sheet.querySelectorAll('[data-look]').forEach((b) => { b.onclick = () => { lookTab = b.dataset.look; openShop(); }; });
   sheet.querySelectorAll('[data-use]').forEach((b) => { b.onclick = () => { S.camera = b.dataset.use; save(); G.dressUp(); openShop(); toast(`📷 ${curCam().name}를 들었어요`); }; });
-  sheet.querySelectorAll('[data-body]').forEach((b) => { b.onclick = () => { S.wear.body = b.dataset.body; dressed(); }; });
   sheet.querySelectorAll('[data-gender]').forEach((b) => {
     b.onclick = () => {
       S.wear.gender = b.dataset.gender;
@@ -374,7 +363,33 @@ export function openShop(tab) {
   for (const t of ['outfit', 'hair', 'item']) sheet.querySelectorAll(`[data-${t}]`).forEach((b) => { b.onclick = () => { wear(b.dataset[t], t); openShop(); }; });
   bindBuy(sheet, () => openShop());
 }
-function dressed() { save(); G.dressUp(); openShop(); }
+function dressed() { save(); G.dressUp(); openWardrobe(); }
+// 👤 캐릭터: 가진 것으로 몸 · 성별 · 옷 · 머리 · 아이템 바꾸기 (사는 건 🛒 상점에서)
+export function openWardrobe() {
+  if (G.inPhoto()) G.exitPhoto();
+  const w = S.wear, block = w.body === 'block';
+  const mine = (t) => LOOKS[t].filter((x) => owns(t, x.id));
+  const sheet = panel('wardrobe', '👤 캐릭터', `<div class="me">
+      <img class="mepic" src="${lookPreview()}" alt="내 모습">
+      <div class="mesec"><p class="zonehead">몸<i></i></p><div class="opts two">${BODIES.map((b) => optBtn('data-body', b.id, b.icon, b.name, w.body === b.id)).join('')}</div>
+      <p class="zonehead">성별<i></i></p><div class="opts two">${GENDERS.map((g) => optBtn('data-gender', g.id, g.icon, g.name, w.gender === g.id)).join('')}</div></div></div>
+      <p class="zonehead">옷<i></i></p><div class="opts">${mine('outfit').map((x) => optBtn('data-outfit', x.id, x.icon, x.name, w.outfit === x.id)).join('')}</div>
+      <p class="zonehead">머리<i></i></p>${block
+        ? `<div class="opts">${mine('hair').map((x) => optBtn('data-hair', x.id, x.icon, x.name, w.hair === x.id)).join('')}</div>`
+        : '<p class="fine">콩알 탐험가는 남자는 삐죽 머리, 여자는 리본이에요.</p>'}
+      <p class="zonehead">아이템 <small>여러 개 할 수 있어요</small><i></i></p><div class="opts">${mine('item').map((x) => optBtn('data-item', x.id, x.icon, x.name, w.item.includes(x.id))).join('')}</div>
+      <div class="row"><button class="btn buy" type="button" id="toStore">🛒 상점에서 옷 더 사기</button></div>`);
+  sheet.querySelectorAll('[data-body]').forEach((b) => { b.onclick = () => { S.wear.body = b.dataset.body; dressed(); }; });
+  sheet.querySelectorAll('[data-gender]').forEach((b) => {
+    b.onclick = () => {
+      S.wear.gender = b.dataset.gender;
+      if (S.wear.hair === 'short' || S.wear.hair === 'long') S.wear.hair = S.wear.gender === 'm' ? 'short' : 'long';
+      dressed();
+    };
+  });
+  for (const t of ['outfit', 'hair', 'item']) sheet.querySelectorAll(`[data-${t}]`).forEach((b) => { b.onclick = () => { wear(b.dataset[t], t); openWardrobe(); }; });
+  $('#toStore').onclick = () => openShop('store');
+}
 function buyBtn(key, price) {
   const can = S.coins >= price;
   return `<button class="btn buy" type="button" data-buy="${key}" ${can ? '' : 'disabled'}>🪙 ${fmt(price)}</button>`;
@@ -459,7 +474,10 @@ export function openMap() {
   const sheet = panel('map', '🗺️ 지도', `<div class="map">${items}</div>
     ${here === 'station' ? '<p class="lead">🚌 버스 정류장(왼쪽) · 🎫 매표소(가운데) · ⛵ 배 선착장(오른쪽)으로 걸어가요</p><div id="servers"></div>'
       : '<div class="row"><button class="btn big" type="button" id="goStation">🚏 정거장으로 돌아가기</button></div>'}
-    <div class="row"><button class="btn" type="button" id="muteBtn">${S.mute ? '🔇 소리 꺼짐' : '🔊 소리 켜짐'}</button></div>`);
+    <div class="row"><button class="btn" type="button" id="muteBtn">${S.mute ? '🔇 소리 꺼짐' : '🔊 소리 켜짐'}</button>
+      <button class="btn ${S.lite ? 'on' : ''}" type="button" id="liteBtn">${S.lite ? '⚡ 가벼운 화질 켜짐' : '✨ 예쁜 화질'}</button></div>
+    <p class="fine center">휴대폰이 뜨겁거나 끊기면 ⚡ 가벼운 화질을 켜요 (그림자 · 풀 · 구름 · 물결을 줄여요)</p>`);
+  sheet.querySelector('#liteBtn').onclick = (e) => { G.setLite(!S.lite); e.currentTarget.textContent = S.lite ? '⚡ 가벼운 화질 켜짐' : '✨ 예쁜 화질'; e.currentTarget.classList.toggle('on', S.lite); toast(S.lite ? '⚡ 가벼운 화질로 바꿨어요' : '✨ 예쁜 화질로 바꿨어요'); };
   sheet.querySelector('#muteBtn').onclick = (e) => { S.mute = !S.mute; save(); e.currentTarget.textContent = S.mute ? '🔇 소리 꺼짐' : '🔊 소리 켜짐'; if (!S.mute) sfx('unlock'); };
   const b = sheet.querySelector('#goStation');
   if (b) b.onclick = () => G.travel('station');

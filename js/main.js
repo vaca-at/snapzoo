@@ -63,9 +63,18 @@ scene.add(sky, clouds, sunDisc);
 function setSky(top, horizon, show = true) {
   const col = sky.geometry.attributes.color, p = sky.geometry.attributes.position, a = new THREE.Color(top), b = new THREE.Color(horizon), c = new THREE.Color();
   for (let i = 0; i < p.count; i++) { const h = Math.max(0, p.getY(i) / 300); c.copy(b).lerp(a, Math.pow(h, 0.6)); col.setXYZ(i, c.r, c.g, c.b); }
-  col.needsUpdate = true; sky.visible = show; clouds.visible = show; if (typeof sunDisc !== 'undefined') sunDisc.visible = show;
+  col.needsUpdate = true; sky.visible = show; clouds.visible = show && !S.lite; if (typeof sunDisc !== 'undefined') sunDisc.visible = show;
 }
 
+// 가벼운 화질: 해상도 · 그림자 · 풀 · 구름 · 물결을 줄여 휴대폰이 덜 뜨겁게
+export function setLite(on) {
+  S.lite = !!on; save();
+  renderer.setPixelRatio(on ? 1 : Math.min(window.devicePixelRatio || 1, 1.75));
+  sun.castShadow = !on;
+  clouds.visible = !on && sky.visible;
+  if (Z?.grassMesh) Z.grassMesh.count = on ? Math.floor(Z.grassN / 4) : Z.grassN;
+  resize();
+}
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false);
@@ -114,7 +123,8 @@ function stepCameraTurn(dt) {
   cam3.position.set(controls.target.x + Math.sin(y) * r, controls.target.y + from.y + (to.y - from.y) * e, controls.target.z + Math.cos(y) * r);
   if (camTurn.t >= 1) camTurn = null;
 }
-controls.addEventListener('start', () => { camTurn = null; });
+controls.addEventListener('start', () => { camTurn = null; camHold = 4; });
+const tmpCam = new THREE.Vector3(), tmpTgt = new THREE.Vector3();
 export function dressUp() { me.build(S.wear, curCam().color); }
 
 // ---------- 친구 (정거장 대기실에서만, 채팅 없음) ----------
@@ -206,6 +216,7 @@ function enterZone(id) {
   hemi.intensity = Z.dark ? 0.6 : 0.9; sun.intensity = Z.dark ? 0.6 : 2.6;
   hemi.color.set(Z.dark ? '#7fb0ff' : '#f4f8ff');
   scene.environmentIntensity = Z.dark ? 0.15 : 0.3;
+  if (Z.grassMesh) Z.grassMesh.count = S.lite ? Math.floor(Z.grassN / 4) : Z.grassN;
   setSky(Z.dark ? '#061428' : new THREE.Color(Z.sky).offsetHSL(0.02, 0.1, -0.18), Z.fog[0], !Z.dark);
   pos.set(Z.spawn.x, 0, Z.spawn.z);
   yaw = Z.spawn.yaw; me.sitting = false; me.action = null;
@@ -422,7 +433,9 @@ $('#jumpBtn').addEventListener('click', () => me.jump());
 // ---------- 걷기 ----------
 let mode = 'walk';    // walk | photo
 let nearSpot = null;
-const SPEED = 2.7, RUN_SPEED = 5.4, SEAT_SPEED = 1.8;   // 캠핑장과 같은 걷기 · 뛰기 · 자리로 가기 속도
+const SPEED = 2.7, RUN_SPEED = 5.4, SEAT_SPEED = 1.8;
+const ROAM = { kite: 1.5, bike: 4.2 };   // 저절로 돌 때 빠르기
+let roamPause = 0, roaming = false, camHold = 0;   // camHold: 화면을 끌면 잠깐 내가 고른 카메라 그대로   // 캠핑장과 같은 걷기 · 뛰기 · 자리로 가기 속도
 const tmpV = new THREE.Vector3();
 function updateWalk(dt) {
   let jx = joy.x, jy = joy.y;
@@ -432,6 +445,7 @@ function updateWalk(dt) {
   if (keys.has('KeyS') || keys.has('ArrowDown')) jy += 1;
   let dx = 0, dz = 0, speed = 0;
   const before = pos.clone();
+  roamPause -= dt; roaming = false;
   if (Math.hypot(jx, jy) > 0.15) {
     clearWalkTo();
     if (me.sitting) standUp();
@@ -440,6 +454,15 @@ function updateWalk(dt) {
     dx = jx * cs + jy * sn; dz = -jx * sn + jy * cs;
     const l = Math.hypot(dx, dz); if (l > 1) { dx /= l; dz /= l; }
     speed = Math.hypot(joy.x, joy.y) > 0.92 || keys.has('ShiftLeft') || keys.has('ShiftRight') ? RUN_SPEED : SPEED;
+    roamPause = 2.5;   // 직접 움직이면 저절로 돌기는 잠깐 쉬어요
+  } else if (!walkTo && roamPause <= 0 && zoneId === 'station' && ROAM[me.action?.id]) {
+    // 연날리기 · 자전거타기: 분수 둘레(반지름 7m)를 저절로 돌아요
+    const cx = pos.x, cz = pos.z + 1, r = Math.hypot(cx, cz), a = Math.atan2(cz, cx);
+    const off = r < 4.5 || r > 9.5;   // 둘레에서 멀면 먼저 둘레로
+    const ta = off ? a : a + 0.5;
+    tmpV.set(Math.cos(ta) * 7 - pos.x, 0, Math.sin(ta) * 7 - 1 - pos.z);
+    const d = tmpV.length();
+    if (d > 0.05) { dx = tmpV.x / d; dz = tmpV.z / d; speed = ROAM[me.action.id]; roaming = true; }
   } else if (walkTo && !me.sitting) {
     tmpV.set(walkTo.x - pos.x, 0, walkTo.z - pos.z);
     const d = tmpV.length();
@@ -463,7 +486,7 @@ function updateWalk(dt) {
     }
     pos.x += dx * speed * dt; pos.z += dz * speed * dt;
     yaw += angDiff(yaw, Math.atan2(dx, dz)) * Math.min(1, dt * 10);
-    if (me.action && !['kite', 'bugs'].includes(me.action.id)) { me.action = null; UI.syncActs(null); }
+    if (me.action && !['kite', 'bugs', 'bike'].includes(me.action.id)) { me.action = null; UI.syncActs(null); }
   }
   // 점프 · 땅
   me.vy -= 15 * dt; pos.y += me.vy * dt;
@@ -569,7 +592,6 @@ function updatePath(t) {
 export function eatIce(f) { closeSpot(true); me.play('icecream', f.color); turnCameraToFace(5); UI.syncActs('icecream'); UI.toast(`${f.icon} ${f.name} 아이스크림, 냠냠!`); }
 
 // ---------- 광장 동작 단추: 🪁 연날리기 · 🦋 곤충잡기 · 👋 손 흔들기 (다시 누르면 멈춰요) ----------
-let bugsCaught = 0;
 export function act(id) {
   if (mode !== 'walk') return;
   if (me.sitting && id !== 'wave') standUp();
@@ -581,23 +603,10 @@ export function act(id) {
     if (f) { yaw = Math.atan2(f[0].cur.x - pos.x, f[0].cur.z - pos.z); UI.toast(`👋 ${f[0].st.n}에게 손을 흔들었어요`); }
     turnCameraToFace(5);
   }
-  if (on && id === 'kite') UI.toast('🪁 연이 하늘 높이! 걸어 다녀도 돼요');
-  if (on && id === 'bugs') UI.toast(Z.bugs?.length ? '🦋 꽃밭의 나비 · 잠자리 가까이에서 휘둘러요' : '🦋 채집망을 휘둘러요');
+  if (on && id === 'kite') UI.toast('🪁 연을 날리며 광장을 한 바퀴!');
+  if (on && id === 'bike') UI.toast('🚲 자전거를 타고 광장을 돌아요');
+  if (on && ROAM[id]) { clearWalkTo(); roamPause = 0; camTurn = null; }
   UI.sfx('unlock');
-}
-// 곤충잡기: 채집망을 휘두르는 동안 1.5m 앞의 곤충을 잡았다가 놓아줘요
-function updateBugs(dt) {
-  if (!Z.bugs) return;
-  const swinging = me.action?.id === 'bugs';
-  const fx = pos.x + Math.sin(yaw) * 1.1, fz = pos.z + Math.cos(yaw) * 1.1;
-  for (const b of Z.bugs) {
-    if (b.away > 0) { b.away -= dt; b.g.visible = b.away <= 0; continue; }
-    if (swinging && Math.hypot(b.g.position.x - fx, b.g.position.z - fz) < 1.3 && b.g.position.y < 2.6) {
-      b.away = 8; b.g.visible = false; bugsCaught++;
-      UI.toast(`${b.kind === 'dragonfly' ? '🪰 잠자리' : '🦋 나비'}를 잡았다가 놓아줬어요! (${bugsCaught}마리)`, 'gold');
-      UI.sfx('sparkle');
-    }
-  }
 }
 const mv = new THREE.Vector3();
 function placeMenu() {
@@ -614,6 +623,23 @@ function updateCamera(dt) {
   sunDisc.position.copy(SUN_OFF).normalize().multiplyScalar(260).add(pos); sky.position.set(pos.x, 0, pos.z); clouds.position.set(pos.x * 0.6, 0, pos.z * 0.6);
   if (mode === 'photo') return;
   stepCameraTurn(dt);
+  camHold -= dt;
+  if (roaming && camHold <= 0) {
+    // 저절로 도는 동안: 카메라는 분수 쪽 위(안쪽)에서 나를 바라봐요 (바깥 가게 · 나무에 부딪히지 않게)
+    const k = Math.min(1, dt * 1.2);
+    const fx = Math.sin(yaw), fz = Math.cos(yaw);
+    if (me.action?.id === 'kite') {
+      // 연날리기: 내 뒤쪽 · 살짝 안쪽에서 앞 하늘의 연과 나를 같이 (바깥 가게 · 수레에 안 닿게 안쪽으로 2m)
+      const cx = -pos.x, cz = -1 - pos.z, cl = Math.hypot(cx, cz) || 1;
+      tmpCam.set(pos.x - fx * 6 + cx / cl * 2, 3.8, pos.z - fz * 6 + cz / cl * 2);
+      tmpTgt.set(pos.x + fx * 1.5, pos.y + 1.9, pos.z + fz * 1.5);
+    } else {
+      tmpCam.set(pos.x * 0.08, 3.4, (pos.z + 1) * 0.08 - 1);   // 자전거: 분수 한가운데 위에서 옆모습 (벤치 너머로 광장이 보이게)
+      tmpTgt.set(pos.x, pos.y + 1, pos.z);
+    }
+    cam3.position.lerp(tmpCam, k);
+    controls.target.lerp(tmpTgt, Math.min(1, dt * 4));
+  }
   controls.update();
   if (cam3.fov !== 50) { cam3.fov = 50; cam3.updateProjectionMatrix(); }
 }
@@ -874,8 +900,7 @@ function loop(now) {
     if (Z.snow) Z.snow.rotation.y = clock * 0.02;
     Z.update?.(clock, dt);
     WIND.value = clock;
-    animateWater(Z, clock);
-    updateBugs(dt);
+    if (!S.lite) animateWater(Z, clock);
     updatePath(clock);
     if (marker.visible) { marker.position.y = 4.2 + Math.abs(Math.sin(clock * 3)) * 0.6; marker.rotation.y = clock * 2; }
     pointToGoal();
@@ -891,10 +916,11 @@ function loop(now) {
 // ---------- 시작 ----------
 UI.init({
   enterPhoto, exitPhoto, shoot, zoomBy, travel, showFace, doAction, dressUp, pickServer, serverCounts, sitOn, standUp,
-  isSitting: () => me.sitting, closeSpot: () => closeSpot(true), eatIce, act,
+  isSitting: () => me.sitting, closeSpot: () => closeSpot(true), eatIce, act, setLite,
   zone: () => zoneId, inPhoto: () => mode === 'photo',
 });
 dressUp();
+if (S.lite) setLite(true);
 // 처음 화면에는 대기실 모습을 뒤에 보여 줘요
 enterZone('station');
 requestAnimationFrame(loop);
@@ -919,4 +945,4 @@ requestAnimationFrame(loop);
   UI.toast(first ? `🎉 반가워요, ${S.name}! 바닥을 누르면 걸어가요` : z === 'station' ? `🚏 ${S.name}, 다시 왔네요!` : `${ZONES[z].icon} ${ZONES[z].name}에서 이어 해요`);
 })();
 // 테스트에서 상태를 볼 수 있게 (게임에는 영향 없음)
-window.__snapzoo = { S, live, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), get zone() { return zoneId; }, get pos() { return pos.clone(); }, get walk() { return walkTo && { ...walkTo }; }, tp: (x, z) => pos.set(x, 0, z), enterZone, spawn: (id) => spawn(ANIMALS.find((a) => a.id === id), true), dexCount };
+window.__snapzoo = { S, live, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), get zone() { return zoneId; }, get pos() { return pos.clone(); }, get walk() { return walkTo && { ...walkTo }; }, get cam() { return [cam3.position.x, cam3.position.y, cam3.position.z].map((v) => +v.toFixed(2)); }, tp: (x, z) => pos.set(x, 0, z), enterZone, spawn: (id) => spawn(ANIMALS.find((a) => a.id === id), true), dexCount };

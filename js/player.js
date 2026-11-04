@@ -111,13 +111,19 @@ export class Player {
     const hood = HOODS.includes(wear.outfit);
     if (wear.body === 'bean') this.buildBean(wear, o, items, hood, camColor);
     else this.buildBlock(wear, o, items, hood, camColor);
-    // 동작 소품: 아이스크림 (왼손, 맛에 따라 색) · 연 (몸 위)
-    this.icecream = joint(this.arms[0], 0, this.handY - 0.04, 0.08);
-    box(this.icecream, '#d9a05b', 0.08, 0.16, 0.08, 0, -0.04, 0);
-    this.scoop = box(this.icecream, new THREE.MeshStandardMaterial({ roughness: 0.85,  color: this.flavor }), 0.14, 0.12, 0.14, 0, 0.08, 0);
+    // 동작 소품: 아이스크림 (입 앞에 크게, 맛에 따라 색) · 연 (몸 위) · 자전거
+    const bean = wear.body === 'bean';
+    this.icecream = joint(this.head, bean ? -0.2 : -0.22, bean ? 0.02 : 0.1, bean ? 0.46 : 0.42);
+    this.icecream.rotation.z = -0.35;
+    const coneM = add(this.icecream, G('icone', () => new THREE.ConeGeometry(0.09, 0.28, 12)), '#d9a05b', 0, -0.16, 0); coneM.rotation.x = Math.PI;
+    for (let i = 0; i < 4; i++) box(this.icecream, '#b98040', 0.012, 0.22, 0.012, Math.cos(i * 1.57) * 0.05, -0.15, Math.sin(i * 1.57) * 0.05).rotation.z = 0.25;
+    this.scoop = S(this.icecream, new THREE.MeshStandardMaterial({ roughness: 0.6, color: this.flavor }), 0.11, 0.1, 0.11, 0, 0.0, 0);
     this.scoop.userData.keep = true;   // 합치지 않아야 맛 색을 바꿀 수 있어요
-    box(this.icecream, '#fff2f6', 0.08, 0.06, 0.08, 0, 0.16, 0);
+    this.scoop2 = S(this.icecream, new THREE.MeshStandardMaterial({ roughness: 0.6, color: '#fff4ea' }), 0.09, 0.085, 0.09, 0.01, 0.13, 0);
+    this.scoop2.userData.keep = true;
+    S(this.icecream, '#e23b52', 0.035, 0.035, 0.035, 0.02, 0.22, 0.01);
     this.icecream.visible = false;
+    this.bike = this.buildBike(bean); this.root.add(this.bike); this.bike.visible = false;
     this.kite = joint(this.root); this.kite.visible = false;
     const k = joint(this.kite); this.kiteBody = k;
     box(k, '#ff6b8a', 0.6, 0.6, 0.03).rotation.z = Math.PI / 4;
@@ -277,6 +283,30 @@ export class Player {
     if (items.has('binocular')) for (const s of [-1, 1]) add(body, G('bino', () => new THREE.CylinderGeometry(0.04, 0.045, 0.09, 12)), '#2b2b33', s * 0.05, 0.36, 0.39).rotation.x = Math.PI / 2;
   }
 
+  // 자전거: 바퀴 두 개 · 몸통 · 안장 · 핸들 (바퀴는 달리는 만큼 돌아요)
+  buildBike(bean) {
+    const b = new THREE.Group(), sc = bean ? 0.85 : 1;
+    b.scale.setScalar(sc);
+    const W = G('wheel', () => new THREE.TorusGeometry(0.3, 0.045, 8, 24));
+    this.wheels = [-1, 1].map((sz) => {
+      const w = joint(b, 0, 0.34, sz * 0.52); add(w, W, '#2b2b33').rotation.y = Math.PI / 2;
+      for (let i = 0; i < 4; i++) box(w, '#d9d9d9', 0.02, 0.56, 0.02, 0, 0, 0).rotation.x = i * Math.PI / 4;
+      return w;
+    });
+    const frame = (x0, y0, z0, x1, y1, z1, r = 0.035, c = '#ff6b4a') => {
+      const a = new THREE.Vector3(x0, y0, z0), c2 = new THREE.Vector3(x1, y1, z1), len = a.distanceTo(c2);
+      const m = add(b, G('bar', () => new THREE.CylinderGeometry(1, 1, 1, 8)), c, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+      m.scale.set(r, len, r); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), c2.sub(a).normalize());
+    };
+    frame(0, 0.34, -0.52, 0, 0.62, -0.05); frame(0, 0.62, -0.05, 0, 0.34, 0.1); frame(0, 0.34, 0.1, 0, 0.34, -0.52);
+    frame(0, 0.62, -0.05, 0, 0.72, 0.42); frame(0, 0.34, 0.52, 0, 0.88, 0.42, 0.03, '#d9d9d9');
+    frame(-0.24, 0.9, 0.42, 0.24, 0.9, 0.42, 0.025, '#2b2b33');
+    box(b, '#2b2b33', 0.16, 0.05, 0.26, 0, 0.82, -0.08);   // 안장
+    add(b, G('bell', () => new THREE.SphereGeometry(0.04, 8, 6)), '#ffd23c', 0.16, 0.95, 0.42);
+    b.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    return b;
+  }
+
   addCamera(arm, y, col) {
     const cam = joint(arm, 0, y, 0.12);
     box(cam, col, 0.22, 0.14, 0.1, 0, 0, 0);
@@ -310,7 +340,7 @@ export class Player {
     let tg = this.sitting ? (bean ? SIT_BEAN : SIT) : STAND;
     if (act) tg = actionPose(act.id, act.t, tg, t);
     // 걷기 · 뛰기: 속도만큼 다리 · 팔을 흔들고, 뛸 때는 몸을 숙여요
-    if (!this.sitting && sp > 0.05 && this.onGround) {
+    if (!this.sitting && sp > 0.05 && this.onGround && act?.id !== 'bike') {
       const run = Math.min(1, Math.max(0, (sp - 3.2) / 1.6));
       this.walkT += dt * (6 + Math.min(sp, 3.2) * 2.5 + run * 4);
       const s = Math.sin(this.walkT) * Math.min(1, sp / 2) * (0.6 + run * 0.35) * (bean ? 0.8 : 1);
@@ -322,7 +352,8 @@ export class Player {
     const p = this.pose ||= { y: 0, hip: 0, head: 0, hy: 0, a0: [0, 0], a1: [0, 0], l0: [0, 0], l1: [0, 0] };
     for (const key of ['y', 'hip', 'head', 'hy']) p[key] += ((tg[key] ?? 0) - p[key]) * k;
     for (const key of ['a0', 'a1', 'l0', 'l1']) { p[key][0] += (tg[key][0] - p[key][0]) * k; p[key][1] += (tg[key][1] - p[key][1]) * k; }
-    const bob = !this.sitting && sp > 0.05 && this.onGround ? Math.abs(Math.sin(this.walkT)) * (sp > 4 ? 0.08 : 0.04) : 0;
+    if (act?.id === 'bike') this.walkT += dt * (2 + sp * 2.2);   // 페달 밟기
+    const bob = !this.sitting && sp > 0.05 && this.onGround && act?.id !== 'bike' ? Math.abs(Math.sin(this.walkT)) * (sp > 4 ? 0.08 : 0.04) : 0;
     const breathe = Math.sin(t * 1.1) * 0.01;
     this.hips.position.y = this.hipY + p.y + bob;
     this.body.rotation.set(p.hip, 0, bean && sp > 0.05 ? Math.sin(this.walkT) * 0.05 : 0);
@@ -332,14 +363,24 @@ export class Player {
     this.arms[1].rotation.set(p.a1[0], 0, p.a1[1]);
     this.legs[0].rotation.set(p.l0[0], 0, p.l0[1]);
     this.legs[1].rotation.set(p.l1[0], 0, p.l1[1]);
+    if (act?.id === 'bike') {
+      // 안장 높이에 엉덩이를 올리고, 두 발은 번갈아 페달을 돌려요
+      this.hips.position.y = (bean ? 0.62 : 0.86) * (bean ? 0.85 : 1) + (bean ? 0 : -0.02);
+      this.hips.position.z = bean ? -0.05 : -0.08;
+      const ped = Math.sin(this.walkT) * 0.55;
+      this.legs[0].rotation.x = -1.15 + ped; this.legs[1].rotation.x = -1.15 - ped;
+    } else this.hips.position.z = 0;
     if (this.tail) this.tail.rotation.y = Math.sin(t * 3) * 0.5;
     // 눈 깜빡
     const blink = (t % 3.6) < 0.12 ? 0.15 : 1;
     this.eyes.forEach((e) => { e.scale.y = blink; });
     // 소품
     this.icecream.visible = act?.id === 'icecream';
+    if (this.icecream.visible) this.icecream.position.y = (bean ? 0.02 : 0.1) + Math.max(0, Math.sin(act.t * 4)) * 0.03;   // 할짝할짝
+    this.bike.visible = act?.id === 'bike';
+    if (this.bike.visible) this.wheels.forEach((w) => { w.rotation.x += dt * sp * 3.2; });
     this.net.visible = act?.id === 'bugs';
-    this.cam.visible = !this.net.visible && !this.icecream.visible;
+    this.cam.visible = !this.net.visible && !this.icecream.visible && !this.bike.visible;
     this.kite.visible = act?.id === 'kite';
     if (this.kite.visible) {
       const up = Math.min(1, act.t / 1.5);
@@ -359,9 +400,9 @@ const STAND = { y: 0, hip: 0, head: 0, hy: 0, a0: [0, -0.08], a1: [-0.55, 0.1], 
 // 앉기: 의자 높이(0.58m)에 엉덩이를 올려요
 const SIT = { y: 0.1, hip: 0.04, head: 0.05, hy: 0, a0: [-0.55, -0.3], a1: [-0.6, 0.3], l0: [-1.5, 0.22], l1: [-1.5, -0.22] };
 const SIT_BEAN = { ...SIT, y: 0.44, l0: [-1.3, 0.3], l1: [-1.3, -0.3] };
-const MOVING = new Set(['kite', 'bugs']);                 // 걸으면서 하는 동작
+const MOVING = new Set(['kite', 'bugs', 'bike']);         // 걸으면서 하는 동작
 const SEATED_OK = new Set(['icecream', 'wave']);          // 앉아서도 하는 동작
-const ARM_ACTS = new Set(['kite', 'bugs', 'icecream']);   // 걸어도 팔은 동작 자세 그대로
+const ARM_ACTS = new Set(['kite', 'bugs', 'icecream', 'bike']);   // 걸어도 팔은 동작 자세 그대로
 const DUR = { wave: 2.2, icecream: 6 };
 const lerp = (a, b, k) => a + (b - a) * k;
 const ease = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
@@ -382,6 +423,8 @@ function actionPose(id, at, base, t) {
       const sw = Math.sin(at * 3.2);
       return mix(base, { a0: [-1.7 + sw * 0.6, -(0.2 + sw * 0.5)], a1: [-0.4, 0.2], head: -0.15, hip: 0.05 }, ease(at / 0.4));
     }
+    case 'bike':   // 안장에 앉아 핸들을 잡기 (페달 밟는 발은 animate 에서)
+      return { ...base, y: 0, hip: 0.22, head: -0.12, a0: [-1.25, -0.12], a1: [-1.25, 0.12], l0: [-1.3, 0.12], l1: [-1.3, -0.12] };
     case 'icecream': {   // 아이스크림을 입으로 가져가 할짝
       const lick = Math.max(0, Math.sin(at * 4));
       return mix(base, { a0: [-1.9 - lick * 0.3, 0.3], head: lick * 0.15 }, bump(at, 0, 0.3, 5.5, 6));

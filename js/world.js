@@ -257,7 +257,7 @@ function grassField(Z, extra = []) {
     im.setMatrixAt(i, m4.compose(v, q, sc)); im.setColorAt(i, col.set(c).offsetHSL(0, 0, (rnd() - 0.5) * 0.06));
   });
   im.receiveShadow = true; im.userData.keep = true;
-  g.add(im);
+  g.add(im); Z.grassMesh = im; Z.grassN = list.length;
 }
 
 // ---------- 출렁이는 물 (각진 면이 햇빛을 반짝 받아요) ----------
