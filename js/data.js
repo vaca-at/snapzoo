@@ -124,6 +124,13 @@ export const ACTIONS = [
   { id: 'kite',     icon: '🪁', name: '연날리기' },
 ];
 
+// 친구와 같이 (정거장 대기실): 방 중계 서버 (server/ 폴더, Cloudflare Durable Objects)
+// 서버가 아직 없거나 닿지 않으면 혼자 놀기로 그대로 동작해요.
+// 시험: 주소에 ?relay=http://localhost:8787 을 붙이면 그 서버를 써요
+export const RELAY_URL = 'https://snapzoo-rooms.bellachord.workers.dev';
+export const SERVER_COUNT = 12;   // 서버 1~12
+export const SERVER_CAP = 100;    // 서버 하나에 100명까지
+
 // 사진 점수: 가운데 40 · 크기 30 · 특별한 순간 30
 export const SCORE = { center: 40, size: 30, moment: 30 };
 export const starsOf = (s) => (s >= 80 ? 3 : s >= 55 ? 2 : 1);

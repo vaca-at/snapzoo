@@ -1,12 +1,13 @@
 // 동물 왕국 (snapzoo) 혼자 놀기 판: 걷기 · 점프 · 사진(화면 C) · 점수 · 도감 · 초당 포인트 · 상점 · 매표소 · 버스 · 배
 import * as THREE from 'three';
-import { ANIMALS, RARITY, ZONES, CAMERAS, SCORE, STAR_RATE, BEST_RATE, starsOf } from './data.js';
+import { ANIMALS, RARITY, ZONES, CAMERAS, SCORE, STAR_RATE, BEST_RATE, FACES, starsOf } from './data.js';
 import { S, save, perSec, secLeft, tickSecond, dexCount, camera as curCam, randomName } from './state.js';
 import { buildAnimal } from './animals.js';
 import { getZone, collide, bakeJoints } from './world.js';
 import { Player } from './player.js';
 import { addPhoto } from './album.js';
 import * as UI from './ui.js';
+import { Net } from './net.js';
 
 const $ = (s) => document.querySelector(s);
 const FAST = new URLSearchParams(location.search).has('fast');   // 시험용: 동물이 10배 자주 나와요
@@ -41,10 +42,82 @@ let yaw = Math.PI;              // 내가 바라보는 방향
 let camYaw = 0, camPitch = 0.36, camDist = 7.5;
 export function dressUp() { me.build(S.wear, curCam().color); }
 
+// ---------- 친구 (정거장 대기실에서만, 채팅 없음) ----------
+const friends = new Map();       // id -> { g, p, tag, face, st, cur, key, lastA, lastF }
+const SHOWN = 30;                // 가까운 친구 30명까지만 그려요 (휴대폰 부담)
+function labelTex(text, w, h, font, bg) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d');
+  if (bg) { x.fillStyle = 'rgba(255,253,246,.92)'; x.strokeStyle = '#24342b'; x.lineWidth = 4; x.beginPath(); x.roundRect(3, 3, w - 6, h - 6, h / 2 - 3); x.fill(); x.stroke(); }
+  x.fillStyle = '#24342b'; x.font = font; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, w / 2, h / 2 + 2);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const faceTex = {};
+function addFriend(id, st) {
+  const p = new Player();
+  const g = new THREE.Group(); g.add(p.root, p.shadow);
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex(st.n, 320, 72, '34px Jua, sans-serif', true), depthWrite: false }));
+  tag.scale.set(1.9, 0.43, 1); tag.position.y = 2.45; g.add(tag);
+  const face = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false })); face.scale.setScalar(0.8); face.position.y = 3.15; face.visible = false; g.add(face);
+  const f = { g, p, tag, face, st, cur: { x: st.x, z: st.z, y: st.y, r: st.r }, key: '', lastA: '', lastF: -1 };
+  friends.set(id, f);
+  if (zoneId === 'station') scene.add(g);
+  return f;
+}
+function removeFriend(id) { const f = friends.get(id); if (f) { scene.remove(f.g); friends.delete(id); } }
+const net = new Net({
+  onState(id, st) {
+    const f = friends.get(id) || addFriend(id, st);
+    f.st = st;
+    const key = JSON.stringify([st.w, st.c]);
+    if (key !== f.key) { f.key = key; f.p.build({ hair: st.w.h, outfit: st.w.o, item: st.w.i }, (CAMERAS.find((c) => c.id === st.c) || CAMERAS[0]).color); }
+    UI.setFriends(net, friends.size);
+  },
+  onLeave(id) { removeFriend(id); UI.setFriends(net, friends.size); },
+  onReset() { [...friends.keys()].forEach(removeFriend); UI.setFriends(net, 0); },
+  onStatus() { if (net.server) { S.server = net.server; save(); } UI.setFriends(net, friends.size); },
+  onFull(n) { UI.toast(`서버 ${n}이 가득 차서 다른 서버로 옮겨요`); },
+});
+export function pickServer(n) { if (zoneId !== 'station') return; S.server = n; save(); net.open(n); UI.toast(`👫 ${n}번 서버로 옮겼어요`); }
+export const serverCounts = () => net.fetchCounts();
+function updateFriends(dt) {
+  if (zoneId !== 'station') return;
+  const k = Math.min(1, dt * 10);
+  const near = [...friends.values()].sort((a, b) => Math.hypot(a.cur.x - pos.x, a.cur.z - pos.z) - Math.hypot(b.cur.x - pos.x, b.cur.z - pos.z));
+  near.forEach((f, i) => {
+    f.g.visible = i < SHOWN;
+    if (!f.g.visible) return;
+    const st = f.st, c = f.cur;
+    c.x += (st.x - c.x) * k; c.z += (st.z - c.z) * k; c.y += (st.y - c.y) * Math.min(1, dt * 16);
+    c.r += angDiff(c.r, st.r) * k;
+    f.g.position.set(c.x, 0, c.z);
+    f.p.root.position.y = c.y; f.p.root.rotation.y = c.r;
+    f.p.moving = st.m ? 1 : 0; f.p.onGround = c.y < 0.05;
+    if (st.a !== f.lastA) { f.lastA = st.a; if (st.a) f.p.doAction(st.a); else f.p.action = null; }
+    f.p.sitting = !!st.s;
+    f.p.animate(dt, clock);
+    if (st.f !== f.lastF) {
+      f.lastF = st.f;
+      f.face.visible = st.f >= 0;
+      if (st.f >= 0) { const e = FACES[st.f]; f.face.material.map = faceTex[e] ||= labelTex(e, 128, 128, '96px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif', false); f.face.material.needsUpdate = true; }
+    }
+  });
+}
+let faceIdx = -1;
+function sendMe() {
+  if (zoneId !== 'station' || !started) return;
+  const r2 = (v) => Math.round(v * 100) / 100;
+  net.send({ n: S.name, x: r2(pos.x), z: r2(pos.z), y: r2(pos.y), r: r2(((yaw % 6.2832) + 6.2832) % 6.2832), m: me.moving > 0.05 ? 1 : 0, s: me.sitting ? 1 : 0,
+    a: me.action?.id || '', f: clock < faceUntil ? faceIdx : -1, w: { h: S.wear.hair, o: S.wear.outfit, i: S.wear.item }, c: S.camera }, performance.now());
+}
+
 // ---------- 장소 ----------
 let Z = null, zoneId = 'station';
 const live = [];                // 지금 장소의 동물들
-const timers = {};              // 가끔 나오는 동물의 다음 등장 시각
+const timers = {};              // 가끔 나오는 동물: 이번 장소에서 '곧!' 알림을 했는지
+// 다음 등장 시각은 실제 시간으로 기록에 남겨요 (장소를 오가도 · 새로고침해도 '10분에 한 번쯤' 그대로)
+if (!S.next || typeof S.next !== 'object') S.next = {};
+const nowMs = () => Date.now();
 let clock = 0;                  // 게임 시간(초)
 
 function enterZone(id) {
@@ -66,9 +139,15 @@ function enterZone(id) {
   for (const k in timers) delete timers[k];
   for (const sp of ANIMALS.filter((a) => a.zone === id)) {
     const R = RARITY[sp.rarity];
-    if (R.appear === 'always') { for (let i = 0; i < R.count; i++) spawn(sp); }
-    else timers[sp.id] = { at: clock + R.first * TIME_X * (0.6 + Math.random() * 0.8) * boost(sp.rarity), alerted: false };
+    // 늘 있는 동물은 한 마리씩 입구 가까이 (처음에 금방 만나게)
+    if (R.appear === 'always') { for (let i = 0; i < R.count; i++) spawn(sp, false, i === 0); continue; }
+    const t = nowMs();
+    if (!S.next[sp.id]) S.next[sp.id] = t + R.first * 1000 * TIME_X * (0.6 + Math.random() * 0.8) * boost(sp.rarity);
+    // 없는 동안 때가 지났으면 들어오고 조금 뒤에
+    else if (S.next[sp.id] < t + 6000) S.next[sp.id] = t + (6000 + Math.random() * 12000) * (FAST ? 0.3 : 1);
+    timers[sp.id] = { alerted: false };
   }
+  if (id === 'station' && started) net.join(S.server); else net.close();
 }
 const boost = (r) => curCam().boost?.[r] || 1;
 
@@ -89,13 +168,18 @@ const SPEED = { sloth: 0.35, turtle: 0.7, capybara: 0.8, flounder: 0.6, clione: 
 const BLOB = new THREE.CircleGeometry(1, 14);
 const BLOB_MAT = new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.16, depthWrite: false });
 
-function spawn(sp, timed = false) {
+function spawn(sp, timed = false, near = false) {
   const m = buildAnimal(sp.model);
   bakeJoints(m.root);
   const g = new THREE.Group();
   g.add(m.root);
   const kind = sp.swim ? 'water' : 'land';
-  const p = Z.place(kind);
+  let p = Z.place(kind);
+  // 새로 나타나는 동물 · 입구 쪽 동물은 내 근처(7~16m)에
+  if (timed || near) {
+    const from = near && !timed ? Z.spawn : pos;
+    for (let i = 0; i < 40; i++) { const q = Z.place(kind); const d = Math.hypot(q.x - from.x, q.z - from.z); if (d > 7 && d < 16) { p = q; break; } }
+  }
   if (!sp.swim) { const sh = new THREE.Mesh(BLOB, BLOB_MAT); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.03; sh.scale.setScalar(m.size * 0.45); g.add(sh); }
   // 반짝이: 특별한 순간에 · 전설 · 신화는 늘 은은하게
   const sparks = new THREE.Group(); g.add(sparks);
@@ -131,14 +215,15 @@ function spawn(sp, timed = false) {
 
 function updateAnimals(dt) {
   // 가끔 나오는 동물 시간표
+  const t = nowMs();
   for (const id in timers) {
-    const tm = timers[id];
-    if (tm.at === null) continue;
+    const tm = timers[id], at = S.next[id];
+    if (!at) continue;   // 지금 나와 있어요
     const sp = ANIMALS.find((a) => a.id === id);
-    if (curCam().alert && !tm.alerted && (sp.rarity === 'legend' || sp.rarity === 'mythic') && tm.at - clock < 10) {
+    if (curCam().alert && !tm.alerted && (sp.rarity === 'legend' || sp.rarity === 'mythic') && at - t < 10000) {
       tm.alerted = true; UI.toast('📸 곧! 반짝이는 동물이 나타나요', 'gold');
     }
-    if (clock >= tm.at) { spawn(sp, true); tm.at = null; }
+    if (t >= at) { spawn(sp, true); S.next[id] = 0; tm.alerted = false; save(); }
   }
   for (let i = live.length - 1; i >= 0; i--) {
     const a = live[i], sp = a.sp;
@@ -150,7 +235,7 @@ function updateAnimals(dt) {
       if (a.leaving > 1) {
         scene.remove(a.g); live.splice(i, 1);
         const R = RARITY[sp.rarity];
-        timers[sp.id] = { at: clock + R.every * TIME_X * (0.7 + Math.random() * 0.6) * boost(sp.rarity), alerted: false };
+        S.next[sp.id] = nowMs() + R.every * 1000 * TIME_X * (0.7 + Math.random() * 0.6) * boost(sp.rarity);
         continue;
       }
     }
@@ -164,9 +249,9 @@ function updateAnimals(dt) {
     }
     // 겁 많은 동물은 가까이 가면 도망가요
     const d = Math.hypot(a.x - pos.x, a.z - pos.z);
-    if (sp.shy && d < 4.5 && a.act < 0) {
+    if (sp.shy && d < 3.2 && a.act < 0) {
       const ux = (a.x - pos.x) / (d || 1), uz = (a.z - pos.z) / (d || 1);
-      a.tx = a.x + ux * 7; a.tz = a.z + uz * 7; a.flee = true; a.wait = 0;
+      a.tx = a.x + ux * 5; a.tz = a.z + uz * 5; a.flee = true; a.wait = 0;
     }
     if (a.act < 0) {
       if (a.wait > 0) { a.wait -= dt; a.moving = false; }
@@ -395,7 +480,7 @@ function evaluate() {
     const center = Math.round(SCORE.center * Math.max(0, 1 - nd / 0.7));
     const hpx = a.m.size * a.g.scale.y / (2 * depth * tanH) * vh;
     const ratio = hpx / fr.height;
-    const size = ratio > 0.95 ? 0 : Math.round(SCORE.size * Math.max(0, 1 - Math.abs(ratio - 0.45) / 0.3));
+    const size = ratio > 0.95 ? 0 : Math.round(SCORE.size * Math.max(0, 1 - Math.abs(ratio - 0.4) / 0.32));
     const moment = a.act >= 0 ? SCORE.moment : 0;
     const total = center + size + moment;
     if (!best || total > best.total) best = { a, center, size, moment, total, ratio, depth };
@@ -449,7 +534,7 @@ async function shoot() {
 
 // ---------- 표정 · 동작 ----------
 let faceUntil = 0;
-export function showFace(f) { UI.setFace(f); faceUntil = clock + 2.6; }
+export function showFace(f) { UI.setFace(f); faceUntil = clock + 2.6; faceIdx = FACES.indexOf(f); }
 export function doAction(id) { if (mode === 'photo') exitPhoto(); me.doAction(id); UI.toast({ icecream: '🍦 냠냠', wave: '👋 안녕!', kite: '🪁 연이 하늘 높이!' }[id]); }
 
 // ---------- 이동 (버스 · 배) ----------
@@ -548,6 +633,7 @@ function loop(now) {
   if (Z) {
     if (mode === 'walk' && !UI.isOpen()) updateWalk(dt); else me.moving = 0;
     updateAnimals(dt);
+    updateFriends(dt);
     if (mode === 'photo') updatePhoto(dt);
     me.root.position.copy(pos); me.root.rotation.y = yaw;
     me.shadow.position.set(pos.x, 0.03, pos.z);
@@ -558,6 +644,7 @@ function loop(now) {
     if (marker.visible) { marker.position.y = 4.2 + Math.abs(Math.sin(clock * 3)) * 0.6; marker.rotation.y = clock * 2; }
     pointToGoal();
     updateCoins(dt);
+    sendMe();
     updateTags();
     renderer.render(scene, cam3);
   }
@@ -566,7 +653,7 @@ function loop(now) {
 
 // ---------- 시작 ----------
 UI.init({
-  enterPhoto, exitPhoto, shoot, zoomBy, travel, showFace, doAction, dressUp,
+  enterPhoto, exitPhoto, shoot, zoomBy, travel, showFace, doAction, dressUp, pickServer, serverCounts,
   zone: () => zoneId, inPhoto: () => mode === 'photo',
 });
 dressUp();
@@ -580,7 +667,7 @@ UI.showStart(S.name || randomName(), !!S.name, (name) => {
   lockScreen();
   UI.sfx('unlock');
   const z = S.zone && ZONES[S.zone] && (!ZONES[S.zone].ticket || S.tickets[ZONES[S.zone].ticket]) ? S.zone : 'station';
-  if (z !== 'station') enterZone(z);
+  if (z !== 'station') enterZone(z); else net.join(S.server);
   // 저장된 자리로 (같은 장소일 때만)
   if (S.pos && S.pos.zone === z && Number.isFinite(S.pos.x)) {
     const q = { x: S.pos.x, z: S.pos.z }; collide(Z, q, 0.35);

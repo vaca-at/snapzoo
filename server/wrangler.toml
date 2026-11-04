@@ -1,0 +1,15 @@
+# 동물 왕국 정거장 대기실 중계 서버 (Cloudflare Worker + Durable Objects)
+# 배포: 이 폴더에서 npx wrangler deploy  (처음 한 번은 npx wrangler login)
+# 배포 주소가 js/data.js 의 RELAY_URL 과 같아야 해요 (https://snapzoo-rooms.<계정>.workers.dev)
+name = "snapzoo-rooms"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+# 무료 요금제에서도 쓸 수 있는 SQLite 저장소 방식
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]

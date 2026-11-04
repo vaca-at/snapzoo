@@ -1,6 +1,6 @@
 // 화면: 위 알림판 · 아래 탭 다섯 칸 · 패널(도감 · 상점 · 표정 · 지도 · 매표소 · 버스/배) · 사진 결과 카드 · 소리
 import * as THREE from 'three';
-import { ANIMALS, RARITY, ZONES, ZONE_ORDER, CAMERAS, LOOKS, LOOK_TABS, TICKETS, FACES, ACTIONS, DAILY_SECONDS } from './data.js';
+import { ANIMALS, RARITY, ZONES, ZONE_ORDER, CAMERAS, LOOKS, LOOK_TABS, TICKETS, FACES, ACTIONS, DAILY_SECONDS, SERVER_COUNT, SERVER_CAP } from './data.js';
 import { S, save, perSec, secLeft, dexCount, camera as curCam, randomName } from './state.js';
 import { buildAnimal } from './animals.js';
 import { getPhoto, listPhotos } from './album.js';
@@ -28,6 +28,15 @@ export function init(game) {
 
 // ---------- 위 알림판 ----------
 export function setZone(z) { $('#zoneName').textContent = `${z.icon} ${z.name}`; }
+// 친구 수 (정거장에서만)
+export function setFriends(net, n) {
+  const el = $('#friends');
+  if (!el) return;
+  const inStation = !G || G.zone() === 'station';
+  el.hidden = !inStation || !document.body.classList.contains('playing');
+  el.textContent = net.online ? `👫 ${net.server}번 서버 · 친구 ${n}명` : '👤 혼자 놀기';
+  el.classList.toggle('on', net.online);
+}
 let goalCache = null;
 export function setGoal(t) {
   if (t === goalCache) return;
@@ -331,10 +340,28 @@ export function openMap() {
     return `<div class="mz mz-${z} ${here === z ? 'here' : ''} ${ok ? '' : 'locked'}"><b>${zd.icon} ${zd.name}</b><small>${here === z ? '📍 지금 여기' : ok ? n : '🔒 표 필요'}</small></div>`;
   }).join('');
   const sheet = panel('map', '🗺️ 지도', `<div class="map">${items}</div>
-    ${here === 'station' ? '<p class="lead">🚌 버스 정류장(왼쪽) · 🎫 매표소(가운데) · ⛵ 배 선착장(오른쪽)으로 걸어가요</p>'
-      : '<div class="row"><button class="btn big" type="button" id="goStation">🚏 정거장으로 돌아가기</button></div>'}`);
+    ${here === 'station' ? '<p class="lead">🚌 버스 정류장(왼쪽) · 🎫 매표소(가운데) · ⛵ 배 선착장(오른쪽)으로 걸어가요</p><div id="servers"></div>'
+      : '<div class="row"><button class="btn big" type="button" id="goStation">🚏 정거장으로 돌아가기</button></div>'}
+    <div class="row"><button class="btn" type="button" id="muteBtn">${S.mute ? '🔇 소리 꺼짐' : '🔊 소리 켜짐'}</button></div>`);
+  sheet.querySelector('#muteBtn').onclick = (e) => { S.mute = !S.mute; save(); e.currentTarget.textContent = S.mute ? '🔇 소리 꺼짐' : '🔊 소리 켜짐'; if (!S.mute) sfx('unlock'); };
   const b = sheet.querySelector('#goStation');
   if (b) b.onclick = () => G.travel('station');
+  if (here === 'station') renderServers();
+}
+// 서버 고르기: 선생님이 "모두 3번 서버로!" 하면 같은 곳에서 만나요
+async function renderServers() {
+  const box = $('#servers');
+  if (!box) return;
+  box.innerHTML = '<p class="fine">서버 인원을 불러오는 중…</p>';
+  const c = await G.serverCounts();
+  if (!$('#servers')) return;
+  if (!c) { box.innerHTML = '<p class="fine">👤 지금은 친구 서버에 닿지 않아 혼자 놀아요.</p>'; return; }
+  const cur = S.server;
+  box.innerHTML = `<p class="zonehead">👫 서버 고르기<i></i></p><div class="servers">${Array.from({ length: SERVER_COUNT }, (_, i) => {
+    const n = i + 1, v = c[n] || 0, full = v >= SERVER_CAP;
+    return `<button class="srv ${n === cur ? 'on' : ''}" type="button" data-srv="${n}" ${full ? 'disabled' : ''}><b>${n}</b><small>${full ? '가득' : `${v}명`}</small></button>`;
+  }).join('')}</div><p class="fine">같은 번호 서버에 있는 친구끼리 보여요. 채팅은 없어요.</p>`;
+  box.querySelectorAll('[data-srv]').forEach((b) => { b.onclick = () => { G.pickServer(+b.dataset.srv); closeAll(); }; });
 }
 
 // ---------- 표정 · 동작 ----------
@@ -392,6 +419,7 @@ export function showStart(name, returning, cb) {
 // ---------- 소리 (짧은 전자음, 파일 없음) ----------
 let ac = null;
 export function sfx(name) {
+  if (S.mute) return;
   try {
     if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
     if (ac.state === 'suspended') ac.resume();

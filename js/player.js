@@ -2,6 +2,10 @@
 // 동작: 걷기 · 점프 · 앉기 · 🍦 아이스크림 · 👋 손 흔들기 · 🪁 연날리기. 손에는 고른 카메라(그 색)를 들어요.
 import * as THREE from 'three';
 import { box } from './animals.js';
+import { bakeJoints } from './world.js';
+
+const SHADOW_GEO = new THREE.CircleGeometry(0.38, 16);
+const SHADOW_MAT = new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.18, depthWrite: false });
 
 const SKIN = '#ffd9b3', HAIR = '#3a2a20';
 const OUTFIT = {
@@ -21,6 +25,9 @@ export class Player {
     this.sitting = false;
     this.action = null;     // { id, t }
     this.face = null;       // 머리 위 표정 { el, t }
+    // 발밑 그림자 (한 번만 만들어요)
+    this.shadow = new THREE.Mesh(SHADOW_GEO, SHADOW_MAT);
+    this.shadow.rotation.x = -Math.PI / 2; this.shadow.position.y = 0.02;
     this.build({ hair: 'short', outfit: 'explorer', item: [] }, '#ffffff');
   }
 
@@ -105,9 +112,7 @@ export class Player {
     for (let i = 0; i < 4; i++) box(k, i % 2 ? '#4fb3ff' : '#ffd23c', 0.1, 0.06, 0.02, 0, -0.45 - i * 0.14, 0);
     const line = new THREE.Mesh(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 1, 0)]), new THREE.LineBasicMaterial({ color: '#ffffff' }));
     this.kite.add(line); this.kiteLine = line;
-    // 발밑 그림자
-    const sh = new THREE.Mesh(new THREE.CircleGeometry(0.38, 16), new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.18, depthWrite: false }));
-    sh.rotation.x = -Math.PI / 2; sh.position.y = 0.02; this.shadow = sh;
+    bakeJoints(R);   // 관절마다 상자를 합쳐 가볍게 (친구가 많아도 버티게)
   }
 
   buildHair(head, hair) {
