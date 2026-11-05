@@ -267,8 +267,19 @@ function faceTex() {
   x.strokeStyle = '#a0504a'; x.lineWidth = 3.4; x.beginPath(); x.moveTo(cx - 10, ey + 50); x.quadraticCurveTo(cx, ey + 56, cx + 10, ey + 50); x.stroke();
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
-function walker() {
-  const root = new THREE.Group(), SK = '#f6dcc4', HAIR = '#3b2a22', SH = '#f7f3ea', SKIRT = '#6f7d4c';
+// 산책자 모습 여덟 벌 (친구마다 달라 보이게): 치마 · 윗옷 · 머리 · 모자 띠 · 가방
+const LOOKS = [
+  { skirt: '#6f7d4c', shirt: '#f7f3ea', hair: '#3b2a22', band: '#c84a3e', bag: '#a0683e' },
+  { skirt: '#4f6a8a', shirt: '#f4efe6', hair: '#2a2220', band: '#e0a53a', bag: '#8a5a3a' },
+  { skirt: '#a8604a', shirt: '#f6f0e2', hair: '#5a3a28', band: '#4f7aa8', bag: '#6a4a32' },
+  { skirt: '#d8b062', shirt: '#ffffff', hair: '#3b2a22', band: '#6b8f4a', bag: '#a0683e' },
+  { skirt: '#7a5a8a', shirt: '#f2ece4', hair: '#1e1a1c', band: '#e86a6a', bag: '#8a5632' },
+  { skirt: '#3f6a5a', shirt: '#f8f2e8', hair: '#6a4a30', band: '#f2c84a', bag: '#7a4a2e' },
+  { skirt: '#c8907a', shirt: '#faf6ee', hair: '#2e2420', band: '#3f6a5a', bag: '#9a6a42' },
+  { skirt: '#5a5a62', shirt: '#efe8dc', hair: '#4a3024', band: '#c84a3e', bag: '#6a4a32' },
+];
+function walker(look = 0) {
+  const L = LOOKS[look % LOOKS.length], root = new THREE.Group(), SK = '#f6dcc4', HAIR = L.hair, SH = L.shirt, SKIRT = L.skirt;
   const hips = J(root, 0, 0.86, 0);
   const legs = [-1, 1].map((s) => { const l = J(hips, s * 0.07, 0, 0); M(l, tube([[0, 0.04, 0], [0, -0.42, 0.0]], (t) => 0.062 - 0.012 * t, 8, 12), plain(SK)); const k = J(l, 0, -0.42, 0); M(k, tube([[0, 0.02, 0], [0, -0.38, -0.01]], (t) => 0.048 - 0.014 * t, 8, 12), plain(SK)); M(k, ell(0.05, 0.035, 0.1, 14), plain('#6a4430'), undefined, 0, -0.4, 0.035); return { l, k }; });
   const body = J(hips);
@@ -280,7 +291,7 @@ function walker() {
   M(body, tube([[0, 0.38, 0], [0, 0.5, 0]], () => 0.038, 4, 10), plain(SK));
   const arms = [-1, 1].map((s) => { const a = J(body, s * 0.17, 0.39, 0); M(a, ell(0.06, 0.065, 0.06, 16), plain(SH), undefined, s * 0.01, -0.02, 0); M(a, tube([[0, -0.02, 0], [s * 0.01, -0.25, 0]], (t) => 0.034 - 0.006 * t, 8, 10), plain(SK)); const f = J(a, s * 0.01, -0.25, 0); M(f, tube([[0, 0, 0], [0, -0.21, 0.02]], (t) => 0.029 - 0.006 * t, 8, 10), plain(SK)); M(f, ell(0.03, 0.042, 0.022, 12), plain(SK), undefined, 0, -0.24, 0.02); a.rotation.z = s * 0.08; return { a, f }; });
   // 가방 · 끈
-  const bag = J(body, 0.2, 0.0, 0.02); M(bag, new THREE.BoxGeometry(0.16, 0.13, 0.05, 2, 2, 1), plain('#a0683e')); M(bag, new THREE.BoxGeometry(0.165, 0.05, 0.055), plain('#8a5632'), undefined, 0, 0.045, 0.002);
+  const bag = J(body, 0.2, 0.0, 0.02); M(bag, new THREE.BoxGeometry(0.16, 0.13, 0.05, 2, 2, 1), plain(L.bag)); M(bag, new THREE.BoxGeometry(0.165, 0.05, 0.055), plain('#8a5632'), undefined, 0, 0.045, 0.002);
   M(body, tube([[-0.13, 0.4, 0.07], [0, 0.26, 0.11], [0.15, 0.1, 0.08], [0.2, 0.05, 0.03]], () => [0.008, 0.012], 16, 6), plain('#7a4a2e'));
   // 머리
   const head = J(body, 0, 0.61, 0); head.scale.setScalar(1.12);
@@ -298,8 +309,8 @@ function walker() {
   const hat = J(head, 0, 0.1, -0.005); hat.rotation.x = -0.12;
   M(hat, new THREE.CylinderGeometry(0.255, 0.262, 0.012, S === 'low' ? 10 : 44), plain('#e6c98a'));
   M(hat, new THREE.SphereGeometry(0.118, S === 'low' ? 10 : 30, S === 'low' ? 5 : 12, 0, PI * 2, 0, PI * 0.5), plain('#ecd296'), undefined, 0, 0.0, 0).scale.set(1, 0.72, 1);
-  M(hat, new THREE.CylinderGeometry(0.119, 0.12, 0.028, S === 'low' ? 10 : 36, 1, true), plain('#c84a3e', { side: THREE.DoubleSide }), undefined, 0, 0.018, 0);
-  const rib = J(hat, 0.05, 0.015, -0.11); const rb = M(rib, new THREE.BoxGeometry(0.03, 0.17, 0.006), plain('#c84a3e', { side: THREE.DoubleSide }), undefined, 0, -0.08, 0);
+  M(hat, new THREE.CylinderGeometry(0.119, 0.12, 0.028, S === 'low' ? 10 : 36, 1, true), plain(L.band, { side: THREE.DoubleSide }), undefined, 0, 0.018, 0);
+  const rib = J(hat, 0.05, 0.015, -0.11); const rb = M(rib, new THREE.BoxGeometry(0.03, 0.17, 0.006), plain(L.band, { side: THREE.DoubleSide }), undefined, 0, -0.08, 0);
   outlines(root);
   const st = { root, walk: 0, step: 0 };
   st.update = (t, dt) => {
@@ -388,4 +399,4 @@ function acaciaGeos(seed = 1) {
   const strip = (gs) => mergeGeometries(gs.map((g) => { const n = g.index ? g.toNonIndexed() : g; for (const k of Object.keys(n.attributes)) if (k !== 'position' && k !== 'normal') n.deleteAttribute(k); return n; }));
   return { bark: strip(bark), leaf: strip(leaf) };
 }
-export { THREE, S, plain, tube, ell, M, J, V, rng, smooth, NOISE, coatMat, bakeCoat, SPECIES, walker, skyDome, cloudTex, LOOK, acaciaGeos };
+export { LOOKS, THREE, S, plain, tube, ell, M, J, V, rng, smooth, NOISE, coatMat, bakeCoat, SPECIES, walker, skyDome, cloudTex, LOOK, acaciaGeos };

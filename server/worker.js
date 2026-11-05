@@ -6,7 +6,8 @@ import { DurableObject } from 'cloudflare:workers';
 import { NAME_A, NAME_B, LOOKS, BODIES, ANIMALS, CAMERAS, ACTIONS, FACES, SERVER_COUNT, SERVER_CAP } from '../kids/js/data.js';
 
 const GRACE = 30e3;   // 끊긴 분 자리를 남겨 두는 시간 (다른 앱에 잠깐 다녀오기, 화면 끄기)
-const ROOM_RE = new RegExp(`^station-([1-9]|1[0-9]|20)$`);
+const ROOM_RE = new RegExp(`^(station-([1-9]|1[0-9]|20)|island-([1-9]|1[0-2]))$`);   // island = 어른용 스냅주 섬 (world/)
+const ISLANDS = 12;
 const ORIGINS = ['https://snapzoo.site', 'https://www.snapzoo.site', 'https://vaca-at.github.io', 'https://jsun.site', 'http://localhost:8765', 'http://127.0.0.1:8765'];
 
 function cors(req) {
@@ -43,10 +44,11 @@ export default {
         env.ROOMS.get(env.ROOMS.idFromName(`station-${i + 1}`)).fetch('https://room/count').then((r) => r.json()).then((j) => j.n).catch(() => 0)));
       return json(req, { ...s, rooms, online: rooms.reduce((a, b) => a + b, 0), now: Date.now() });
     }
-    // 서버별 인원 (숫자만)
+    // 서버별 인원 (숫자만). ?kind=island 이면 어른용 섬 방
     if (url.pathname === '/counts') {
-      const counts = await Promise.all(Array.from({ length: SERVER_COUNT }, (_, i) =>
-        env.ROOMS.get(env.ROOMS.idFromName(`station-${i + 1}`)).fetch('https://room/count').then((r) => r.json()).then((j) => j.n).catch(() => 0)));
+      const isl = url.searchParams.get('kind') === 'island';
+      const counts = await Promise.all(Array.from({ length: isl ? ISLANDS : SERVER_COUNT }, (_, i) =>
+        env.ROOMS.get(env.ROOMS.idFromName(`${isl ? 'island' : 'station'}-${i + 1}`)).fetch('https://room/count').then((r) => r.json()).then((j) => j.n).catch(() => 0)));
       return json(req, { counts });
     }
     return json(req, { ok: true, name: 'snapzoo-rooms' });
@@ -113,6 +115,13 @@ export function cleanState(d) {
   };
 }
 
+// 섬(어른용): 이름(같은 낱말 조합) · 자리 · 방향 · 걷는 중 · 케이블카 · 모습 번호 · 찰칵 횟수만
+export function cleanIsland(d) {
+  if (!d || typeof d !== 'object' || !NAMES.has(d.n)) return null;
+  return { n: d.n, x: num(d.x, 345), z: num(d.z, 345), y: Math.max(-5, num(d.y, 260)), r: num(d.r, 7), m: d.m ? 1 : 0, k: d.k ? 1 : 0,
+    l: Number.isInteger(d.l) && d.l >= 0 && d.l < 8 ? d.l : 0, p: Number.isInteger(d.p) && d.p >= 0 && d.p < 1000 ? d.p : 0 };
+}
+
 export class Room extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -151,7 +160,8 @@ export class Room extends DurableObject {
         try { m.close(4000, 'replaced'); } catch {}
       }
     }
-    server.serializeAttachment({ id, k, st, n: 0, w: Date.now() });
+    const isl = String(url.searchParams.get('room') || '').startsWith('island') ? 1 : 0;
+    server.serializeAttachment({ id, k, st, n: 0, w: Date.now(), isl });
     const gone = await this.ctx.storage.list({ prefix: 'gone:' });
     const peers = [...this.members().filter((m) => m.ws !== server).map((m) => m.a), ...gone.values()].map((a) => ({ id: a.id, st: a.st }));
     server.send(JSON.stringify({ t: 'hello', id, peers }));
@@ -174,7 +184,7 @@ export class Room extends DurableObject {
       return;
     }
     if (m.t !== 'st') return;
-    const st = cleanState(m.d);
+    const st = a.isl ? cleanIsland(m.d) : cleanState(m.d);
     if (!st) return;
     const first = !a.st;
     a.st = st;
