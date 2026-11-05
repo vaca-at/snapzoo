@@ -27,7 +27,8 @@ function critter(o) {
   const head = J(body, 0, L * 0.2, L * 0.44); head.rotation.x = up * 1.15 * 0.85;
   M(head, ell(L * 0.24, L * 0.22, L * 0.26), C);
   M(head, ell(L * 0.13, L * 0.11, L * 0.13), B, undefined, 0, -L * 0.06, L * 0.18);
-  M(head, ell(L * 0.045, L * 0.035, L * 0.03, 10), plain(o.nose || '#3a2a2a'), undefined, 0, -L * 0.02, L * 0.3).userData.noLine = true;
+  if (o.snout) { M(head, new THREE.ConeGeometry(L * 0.1, L * 0.26, 14), plain(o.belly || o.c), undefined, 0, -L * 0.05, L * 0.3).rotation.x = PI / 2; M(head, ell(L * 0.04, L * 0.035, L * 0.03, 10), plain(o.nose || '#2a1a1a'), undefined, 0, -L * 0.05, L * 0.44); }
+  else M(head, ell(L * 0.045, L * 0.035, L * 0.03, 10), plain(o.nose || '#3a2a2a'), undefined, 0, -L * 0.02, L * 0.3).userData.noLine = true;
   const eyes = [-1, 1].map((s) => eye(head, L * 0.045 * (o.bigEye || 1), s * L * 0.13, L * 0.06, L * 0.17, s * 0.5));
   const ears = [-1, 1].map((s) => { const e = J(head, s * L * 0.11, L * 0.16, -L * 0.04); const kind = o.ears || 'round';
     if (kind === 'long') { e.rotation.set(-0.25, 0, s * 0.18); M(e, ell(L * 0.07, L * 0.3, L * 0.03), C, undefined, 0, L * 0.28, 0); M(e, ell(L * 0.04, L * 0.24, L * 0.01), plain(o.earIn || '#f2c0c0'), undefined, 0, L * 0.28, L * 0.02); }
@@ -59,13 +60,14 @@ function critter(o) {
 // ───────── 새 (닭 · 오리 · 타조 · 홍학 · 앵무새 · 공작 · 갈매기 · 펠리컨 · 퍼핀 · 올빼미 …) ─────────
 function bird(o) {
   const s = o.size, root = new THREE.Group(), body = J(root, 0, o.legL + s * 0.42, 0), C = plain(o.c), W = plain(o.wing || o.c);
-  M(body, ell(s * 0.36, s * 0.4, s * 0.55), C);
+  M(body, ell(s * 0.36 * (o.bw || 1), s * 0.4 * (o.bh || 1), s * 0.55 * (o.bl || 1)), C);
   if (o.belly) M(body, ell(s * 0.3, s * 0.32, s * 0.42), plain(o.belly), undefined, 0, -s * 0.07, s * 0.1);
   const wings = [-1, 1].map((k) => { const w = J(body, k * s * 0.33, s * 0.08, -s * 0.05); M(w, ell(s * 0.07, s * 0.26, s * 0.42), W, undefined, 0, -s * 0.05, -s * 0.06); w.rotation.z = -k * 0.05; return w; });
   // 꼬리
   const tail = J(body, 0, s * 0.1, -s * 0.5);
   if (o.tail === 'fan') { const cols = ['#2f8a6a', '#3a6ab0', '#2e9a8a']; for (let i = 0; i < 13; i++) { const a = (i / 12 - 0.5) * 2.4, f = J(tail); f.rotation.set(-0.35, 0, a); M(f, ell(s * 0.09, s * 0.75, s * 0.02), plain(cols[i % 3]), undefined, 0, s * 0.72, 0); M(f, ell(s * 0.05, s * 0.06, s * 0.025, 10), plain('#e8b84a'), undefined, 0, s * 1.3, 0.005); } }
   else if (o.tail === 'long') M(tail, ell(s * 0.08, s * 0.05, s * 0.6), plain(o.tailC || o.c), undefined, 0, -s * 0.05, -s * 0.45);
+  else if (o.tail === 'up') { for (let i = 0; i < 5; i++) { const f = J(tail); f.rotation.set(-0.9 - i * 0.12, 0, (i - 2) * 0.16); M(f, ell(s * 0.07, s * 0.34, s * 0.03), plain(i % 2 ? (o.tailC || o.c) : (o.tailC2 || o.tailC || o.c)), undefined, 0, s * 0.3, 0); } }   // 닭: 위로 솟은 꼬리깃
   else M(tail, ell(s * 0.14, s * 0.06, s * 0.2), plain(o.tailC || o.c), undefined, 0, s * 0.04, -s * 0.12).rotation.x = -0.4;
   // 목 · 머리
   const neck = J(body, 0, s * 0.2, s * 0.38), nl = o.neckL || s * 0.15;
@@ -83,6 +85,7 @@ function bird(o) {
   else if (bt === 'parrot') { M(bk, ell(hr * 0.42, hr * 0.5, hr * 0.5), plain(o.beakC || '#f2e6d0'), undefined, 0, -hr * 0.15, hr * 0.12); }
   else if (bt === 'puffin') { M(bk, ell(hr * 0.3, hr * 0.55, hr * 0.55), BK, undefined, 0, -hr * 0.1, hr * 0.2); }
   else M(bk, new THREE.ConeGeometry(hr * 0.26, hr * 0.6, 10), BK, undefined, 0, 0, hr * 0.25).rotation.x = PI / 2;
+  if (o.wattle) for (const k of [-1, 1]) M(head, ell(hr * 0.12, hr * 0.22, hr * 0.08, 10), plain(o.wattle), undefined, k * hr * 0.1, -hr * 0.55, hr * 0.7);
   if (o.comb) for (let i = 0; i < 3; i++) M(head, ell(hr * 0.12, hr * 0.22, hr * 0.12, 10), plain(o.comb), undefined, 0, hr * 1.05, hr * (0.35 - i * 0.28));
   if (o.crest) for (let i = 0; i < 5; i++) { const c = J(head, 0, hr * 0.9, -hr * 0.1); c.rotation.set(-0.6 + i * 0.1, 0, (i - 2) * 0.22); M(c, ell(hr * 0.04, hr * 0.32, hr * 0.04, 8), plain(o.crest), undefined, 0, hr * 0.3, 0); }
   if (o.tufts) for (const k of [-1, 1]) M(head, new THREE.ConeGeometry(hr * 0.18, hr * 0.42, 6), plain(o.c), undefined, k * hr * 0.55, hr * 0.95, 0).rotation.z = -k * 0.3;
@@ -240,10 +243,10 @@ Object.assign(SPECIES, {
   cat: Q('cat', ['#e0a060', '#f6efe2', '#c87a3a'], 0.46, 0.26, { neckA: 1.05, neckL: 0.06, headA: 0.15, headL: 0.12, headR: 0.06, earW: 0.035, earL: 0.05, earOut: 0.25, earIn: '#f2b8b0', tailL: 0.34, tailA: 1.5, legR: 0.018, hoof: 0.02, hoofC: '#f6efe2', graze: 0 }, `vec3 c=C0; if(reg<0.5 && fract(T.x*7.0)<0.3 && T.z>-0.2) c=C2; if(reg>3.5&&reg<4.5&&fract(T.x*8.0)<0.35) c=C2; if((reg<0.5||(reg>1.5&&reg<2.5))&&T.z<-0.35) c=C1; return c;`),
   dog: Q('dog', ['#c89a5a', '#f2e6cc', '#8a6438'], 0.7, 0.46, { neckA: 0.75, neckL: 0.14, headA: 0.4, headL: 0.22, headR: 0.08, earW: 0.05, earL: 0.09, earOut: 2.4, earIn: '#8a6438', tailL: 0.26, tailA: 1.3, legR: 0.026, hoof: 0.03, hoofC: '#f2e6cc', graze: 0.4 }),
   rabbit: () => critter({ L: 0.3, c: '#d8ccbc', belly: '#f6f0e6', ears: 'long', tail: 'puff' }),
-  hen: () => bird({ size: 0.3, legL: 0.1, c: '#f6f0e4', wing: '#ece4d4', beak: 'cone', comb: '#d84a3a', neckL: 0.06, peck: true, tail: 'short', tailC: '#e8e0d0' }),
-  duck: () => bird({ size: 0.3, legL: 0.05, c: '#f6f4ee', beak: 'duck', beakC: '#f0a03a', neckL: 0.08, waddle: true, tail: 'short', legR: 0.04 }),
+  hen: () => bird({ size: 0.32, legL: 0.1, c: '#b8683a', belly: '#d8925a', wing: '#8a4a2a', beak: 'cone', beakC: '#e8b84a', comb: '#d84a3a', wattle: '#d84a3a', neckL: 0.08, neckC: '#d88a4a', headC: '#d88a4a', peck: true, tail: 'up', tailC: '#2a3a2a', tailC2: '#5a2a1a', bh: 1.1, legC: '#e8b84a' }),
+  duck: () => bird({ size: 0.3, legL: 0.05, c: '#f6f4ee', wing: '#ece8dc', beak: 'duck', beakC: '#f0a03a', neckL: 0.12, neckR: 0.13, waddle: true, tail: 'short', legR: 0.04, bl: 1.35, bh: 0.8, bw: 1.05 }),
   squirrel: () => critter({ L: 0.22, c: '#b8683a', belly: '#f2e2c8', ears: 'pointy', tail: 'bushy', feet: '#9a5430' }),
-  hedgehog: () => critter({ L: 0.24, c: '#c8a888', belly: '#e8d8c0', ears: 'round', tail: 'none', spikes: '#6a5440', bigEye: 0.8, gait: 'scurry', feet: '#a88a70' }),
+  hedgehog: () => critter({ L: 0.24, c: '#c8a888', belly: '#e8d8c0', ears: 'round', tail: 'none', spikes: '#6a5440', bigEye: 0.8, gait: 'scurry', feet: '#a88a70', snout: true }),
   sheep: Q('sheep', ['#f2eee4', '#e8e2d4', '#3a3230'], 1.0, 0.72, { bodyH: 0.52, neckA: 0.95, neckL: 0.16, headA: 0.55, headL: 0.24, headR: 0.09, earW: 0.05, earL: 0.08, earOut: 1.7, earIn: '#5a4a44', tailL: 0.12, legR: 0.03, hoof: 0.05, graze: 1.0 }, `vec3 c=C0; if(reg>0.5&&reg<1.5&&R.y<0.38) c=C2; if(reg>2.5&&reg<3.5&&T.x>0.06) c=C2; return c;`),
   goat: Q('goat', ['#f2ece0', '#e0d8c8', '#5a4a3a'], 0.9, 0.68, { neckA: 0.6, neckL: 0.24, headA: 0.6, headL: 0.24, headR: 0.07, earOut: 1.4, legR: 0.026, hoof: 0.05, graze: 1.1,
     horn: horns('#8a7a64', (s, r) => [[s * r * 0.35, r * 0.75, -r * 0.2], [s * r * 0.6, r * 1.8, -r * 1.0], [s * r * 0.7, r * 2.0, -r * 2.0]]) }),
@@ -269,7 +272,7 @@ Object.assign(SPECIES, {
   dorcas: () => SPECIES.gazelle(),
   lizard: () => lizard({ size: 0.34, c: '#c8a46a', beard: '#a8844a', spikes: '#a8844a' }),
   gerbil: () => critter({ L: 0.14, c: '#d8b07a', belly: '#f6efe2', ears: 'round', tail: 'thin', bigEye: 1.4 }),
-  armadillo: () => critter({ L: 0.4, c: '#a8987a', belly: '#d8c8a8', ears: 'pointy', tail: 'thin', bands: '#8a7a5a', bigEye: 0.6, gait: 'scurry' }),
+  armadillo: () => critter({ L: 0.4, c: '#a8987a', belly: '#d8c8a8', ears: 'pointy', tail: 'thin', bands: '#8a7a5a', bigEye: 0.6, gait: 'scurry', snout: true }),
   oryx: Q('oryx', ['#e8dcc8', '#f6f2ea', '#2a2422'], 1.5, 1.15, { neckA: 0.6, neckL: 0.42, headA: 0.6, headL: 0.36, headR: 0.09, earOut: 0.9, legR: 0.04, tailL: 0.5, tuft: 0.08, graze: 1.0,
     horn: horns('#3a3230', (s, r) => [[s * r * 0.3, r * 0.8, -r * 0.2], [s * r * 0.45, r * 3.5, -r * 3.2], [s * r * 0.55, r * 6.0, -r * 6.0]]) }, `vec3 c=C0; if(reg>2.5&&reg<3.5&&abs(T.y)>0.5&&T.z>-0.2) c=C2; if(reg<0.5&&abs(T.z+0.1)<0.12) c=C2; if(reg>0.5&&reg<1.5&&R.y>0.45&&R.y<0.6) c=C2; return c;`),
   deserttortoise: () => turtle({ size: 0.42, shell: '#a8844a', plate: '#c8a46a', skin: '#b89a6a' }),

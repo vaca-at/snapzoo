@@ -49,7 +49,7 @@ export class IslandSound {
     const wind = { arctic: 0.55, desert: 0.42, jungle: 0.12, sea: 0.35 }[z] ?? 0.22;
     this.wind.g.gain.setTargetAtTime(wind * (0.8 + Math.random() * 0.4), t, k);
     this.wind.f.frequency.setTargetAtTime((z === 'arctic' ? 700 : z === 'desert' ? 900 : 500) * (0.8 + Math.random() * 0.5), t, 2);
-    this.waterN.g.gain.setTargetAtTime(Math.min(1, this.water) * 0.5, t, k);
+    this.waterN.g.gain.setTargetAtTime(Math.min(1, this.water + (this.rain || 0) * 1.2 + (this.fire || 0) * 0.35) * 0.5, t, k);   // 물가 · 빗소리 · 모닥불 타닥
     const nk = this.night || 0;   // 밤엔 풀벌레가 크게, 새는 잠들어요
     this.crick.gain.setTargetAtTime((z === 'jungle' ? 0.7 : z === 'savanna' ? 0.35 : z === 'village' ? 0.2 : 0) * (1 - nk) + (z === 'arctic' || z === 'sea' ? 0 : 0.85) * nk, t, k);
   }

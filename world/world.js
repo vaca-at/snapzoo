@@ -88,7 +88,9 @@ function zoneAt(x, z, y = height(x, z)) {
 
 // ───────── 장면 ─────────
 const canvas = $('#gl');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: !MOBILE, powerPreference: 'high-performance' });
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: !MOBILE, powerPreference: 'high-performance' }); }
+catch (e) { $('#loading').innerHTML = '<b>Snapzoo</b><span>이 기기 · 브라우저에서는 3D 섬을 그릴 수 없어요.<br>크롬 · 사파리 · 엣지 최신판에서, 또는 설정의 ‘하드웨어 가속’을 켜고 다시 들어와 주세요.</span>'; throw e; }
 // ⚙ 그래픽: 휴대폰은 처음부터 '가볍게'(해상도 1배 · 그림자 작게 · 풀 · 동물 보이는 거리 줄임). 설정에서 바꾸면 다시 불러와요
 const LOWQ = (() => { try { const v = JSON.parse(localStorage.getItem('snapzoo-island-settings') || '{}').lowq; return v === undefined ? MOBILE : !!v; } catch { return MOBILE; } })();
 renderer.setPixelRatio(LOWQ ? 1 : Math.min(devicePixelRatio, 2));
@@ -347,7 +349,8 @@ function applyTime(T) {
   stars.material.opacity = tod.night * 0.95; stars.visible = tod.night > 0.02; moon.visible = tod.night > 0.05; moon.material.opacity = tod.night;
   GLASS.emissiveIntensity = tod.night * 1.4; if (villageFire) villageFire.intensity = 4 + tod.night * 14;
   grassMat.uniforms.uSun.value.copy(sun.color);
-  tod.label = h < 5.2 || h >= 20.5 ? '🌙 밤' : h < 9 ? '🌅 아침' : h < 16.5 ? '☀️ 낮' : '🌇 저녁';
+  sun.intensity *= wx.sunK; tod.hemiI *= 0.75 + 0.25 * wx.sunK;
+  tod.label = (h < 5.2 || h >= 20.5 ? '🌙 밤' : h < 9 ? '🌅 아침' : h < 16.5 ? '☀️ 낮' : '🌇 저녁') + WX_LABEL[wx.kind];
 }
 // 별 · 달
 const stars = (() => { const n = 1400, p = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, y = Math.abs(u) * 0.95 + 0.05, rr = Math.sqrt(1 - y * y); p.set([Math.cos(a) * rr * 1500, y * 1500, Math.sin(a) * rr * 1500], i * 3); }
@@ -369,9 +372,10 @@ const raft = new THREE.Group(), boat = new THREE.Group(); scene.add(raft, boat);
   const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 2.6, 8), toon('#7a5638')); mast.position.set(0, 1.2, 0.35); boat.add(mast);
   const sail = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(0, 2.1), new THREE.Vector2(-0.95, 0.05)])), toon('#fbf6ea', { side: THREE.DoubleSide })); sail.position.set(-0.02, 0.3, 0.35); sail.rotation.y = Math.PI / 2; boat.add(sail); boat.userData.sail = sail; }
 // 지금 서 있는 곳의 물: 'river' · 'sea' · null, 그리고 물 높이
+const waveAt = (x, z) => { const T = clock ? clock.elapsedTime : 0; return Math.sin(x * 0.04 + T * 0.9) * 0.35 + Math.cos(z * 0.05 + T * 0.7) * 0.3; };   // 바다 출렁과 같은 식
 function waterAt(x, z) {
   const y = height(x, z);
-  if (y < 0.05) return { kind: 'sea', y: 0 };
+  if (y < 0.05) return { kind: 'sea', y: waveAt(x, z) };
   const rv = riverNear(x, z);
   if (rv.i >= 0 && rv.d < riverW(rv.i) * 0.6) { const p = RS[rv.i], wy = Math.max(height(p.x, p.z) + 1.0, 0.25); if (y < wy - 0.05) return { kind: 'river', y: wy }; }
   return null;
@@ -380,8 +384,8 @@ function waterAt(x, z) {
 // ───────── 동물: 구역마다 10종 (fauna.js 의 ROSTER). 사람을 해치는 동물은 없어요 ─────────
 // 움직임: walk 구역 안을 거닐어요 · still 거의 가만히 · shore 바닷가 모래 · swim 물속 · jump 돌고래(아래에서 따로)
 const SEA_Y = { whale: -0.9, fish: -0.35, seaturtle: -0.18, octopus: -0.05, seaotter: 0.02 };
-const onBeach = (x, z) => { const y = height(x, z); return y > 0.35 && y < 2.6 && riverNear(x, z).d > 6; };
-const inSea = (x, z) => { const y = height(x, z); return y < -1.2 && y > -15 && riverNear(x, z).d > 4; };   // 너무 멀리(깊이)는 안 가요
+const onBeach = (x, z) => { const y = height(x, z); return y > 0.7 && y < 2.6 && riverNear(x, z).d > 6 && z - 0.6 * x > 150; };   // 남서쪽 강 하구 바닷가
+const inSea = (x, z) => { const y = height(x, z); return y < -1.2 && y > -15 && riverNear(x, z).d > 4 && z - 0.6 * x > 150; };   // 너무 멀리(깊이)는 안 가요
 const inVillage = (x, z) => { const r = Math.hypot(x - VIL.x, z - VIL.z); return r < 27 && r > 3.5 && Math.abs(r - 15) > 4.2 && riverNear(x, z).d > 6; };
 function okFor(a, x, z) {
   if (a.zone === 'village') return inVillage(x, z);
@@ -464,7 +468,7 @@ function layGrass(cx, cz) {
     const rv = riverNear(x, z); if (rv.i >= 0 && rv.d < riverW(rv.i) * 0.75) continue;
     if (Math.hypot(x - STA.x, z - STA.z) < 4) continue;
     const s = 0.32 + h1 * 0.3; GQ.setFromEuler(GE.set(0, h2 * 6.28, (h1 - 0.5) * 0.3));
-    M4.compose(V.set(x, y - 0.03, z), GQ, GS.set(s, s * (0.55 + h2 * 0.7), s)); grass.setMatrixAt(k, M4);
+    const lawn = zn === 'village' ? 0.42 : 1; M4.compose(V.set(x, y - 0.03, z), GQ, GS.set(s, s * (0.55 + h2 * 0.7) * lawn, s));   // 마을은 잔디처럼 짧게 grass.setMatrixAt(k, M4);
     GC.copy(GCOL[zn]).multiplyScalar(0.9 + fbm(x * 0.08, z * 0.08) * 0.25); grass.setColorAt(k, GC); k++;
   }
   grass.count = k; grass.instanceMatrix.needsUpdate = true; if (grass.instanceColor) grass.instanceColor.needsUpdate = true;
@@ -532,7 +536,7 @@ $('#drawer').addEventListener('click', (e) => { if (e.target.closest('button') &
 function closeManual() { $('#manual').classList.remove('on'); $('#manual').setAttribute('aria-hidden', 'true'); }
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 $('#credits').innerHTML = ROSTER.filter(([, id]) => DEX_PHOTOS[id]).map(([, id, name]) => { const c = DEX_PHOTOS[id]; return `<p>${name} — ${esc(c.by)} · ${esc(c.license)} · <a href="${esc(c.link)}" target="_blank" rel="noopener">원본</a></p>`; }).join('');
-$('#helpBtn').onclick = () => { closeAlbum(); closeDex(); $('#manual').classList.add('on'); $('#manual').setAttribute('aria-hidden', 'false'); };
+$('#helpBtn').onclick = () => { closeAlbum(); closeDex(); $('#manual').classList.add('on'); $('#manual').setAttribute('aria-hidden', 'false'); $('#manualX').focus(); };
 $('#manualX').onclick = closeManual;
 addEventListener('keydown', (e) => { if (e.key === 'Escape') closeManual(); });
 addEventListener('pointerdown', (e) => { if (!e.target.closest('#drawer, #drawerBtn, #settings')) closeDrawer(); });
@@ -561,7 +565,7 @@ $('#home').onclick = () => travelTo('🏘 마을로 돌아가는 중', () => VIL
 $('#goSav').onclick = () => travelTo('🦁 초원으로 가는 중', () => herdOf('savanna'));
 $('#goDes').onclick = () => travelTo('🏜️ 사막으로 가는 중', () => herdOf('desert'));
 $('#goJun').onclick = () => travelTo('🌴 정글로 가는 중', () => herdOf('jungle'));
-$('#goSea').onclick = () => travelTo('🌊 바닷가로 가는 중', () => { const b = (POOLS.get('seashore') || [])[0]; return b ? b.clone() : VIL.clone(); });
+$('#goSea').onclick = () => travelTo('🌊 바닷가로 가는 중', () => { const b = (POOLS.get('seashore') || [])[0]; return b ? b.clone() : RIVER.getPointAt(0.97).clone().add(V.set(10, 0, -10)); });
 // 지금 있는 구역의 단추는 숨겨요 (마을에선 '마을로'가 없어요). 산꼭대기에선 케이블카가 '마을로 내려가기'
 function updMoves(z) {
   const atTop = z === 'arctic';
@@ -597,10 +601,10 @@ let dex = (() => { try { return JSON.parse(localStorage.getItem('snapzoo-island-
 const saveDex = () => { try { localStorage.setItem('snapzoo-island-dex', JSON.stringify(dex)); } catch {} };
 const starsOf = (sc) => (sc >= 85 ? 3 : sc >= 60 ? 2 : sc > 0 ? 1 : 0);
 const starHTML = (n) => `<span class="st" aria-label="별 ${n}개"><i>${'★'.repeat(n)}</i><u>${'★'.repeat(3 - n)}</u></span>`;   // 빈 별은 흐린 색으로 (글꼴이 ☆ 를 ★ 처럼 그려서)
-let wantShot = false, shots = 0, mode = 'walk', zoom = 1, target = null, manualAim = 0, hintT2 = 0, raiseT = 0;
+let withFriends = false, wantShot = false, shots = 0, mode = 'walk', zoom = 1, target = null, manualAim = 0, hintT2 = 0, raiseT = 0;
 const aim = { yaw: 0, pitch: 0 }, fcam = new THREE.PerspectiveCamera(50, 1, 0.1, 2600), EYE = new THREE.Vector3();
 function enterPhoto() {
-  if (me.riding || mode === 'photo') return;
+  if (me.riding || mode === 'photo') return; standUp();
   mode = 'photo'; me.target = null; zoom = 1; target = null; manualAim = 0; raiseT = 0.55; me.st.aim = 1;
   camera.getWorldDirection(V); aim.yaw = Math.atan2(V.x, V.z); aim.pitch = 0;
   const tg = (EYE.copy(me.pos).y += [1.5, 1.32, 1.02][MY.body], pickTarget()); if (tg) aim.yaw = Math.atan2(tg.c.x - EYE.x, tg.c.z - EYE.z);
@@ -610,6 +614,7 @@ function enterPhoto() {
 function exitPhoto() { if (mode !== 'photo') return; mode = 'walk'; me.g.visible = true; me.st.aim = 0; controls.enabled = true; document.body.classList.remove('photo', 'raising'); $('#finder').setAttribute('aria-hidden', 'true'); }
 $('#shot').onclick = enterPhoto;
 $('#fExit').onclick = exitPhoto;
+$('#fFr').onclick = () => { withFriends = !withFriends; $('#fFr').setAttribute('aria-pressed', String(withFriends)); };
 $('#fShot').onclick = () => { wantShot = true; };
 const updZoom = () => { $('#zLab').textContent = `${zoom.toFixed(1)}×`; };
 const setZoom = (z) => { zoom = clamp(Math.round(z * 10) / 10, 1, camOf().zoom); updZoom(); };   // 사진기마다 최대 배율
@@ -638,7 +643,7 @@ function subjects() {
   const out = [], eye = (EYE.lengthSq() ? EYE : me.pos);
   for (const a of animals) {
     if (!a.g.visible) continue; const h = a.tagH - 0.35, c = a.pos.clone(); c.y += h * 0.55;
-    if (c.distanceTo(eye) > 45 || !seenFrom(eye, c)) continue;   // 멀거나 언덕 너머면 안 찍혀요
+    if (c.distanceTo(eye) > Math.min(45, Math.max(9, h * 30)) || !seenFrom(eye, c)) continue;   // 멀거나 언덕 너머면 안 찍혀요 (작은 동물은 가까이서만)
     const toMe = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z), look = Math.abs(Math.atan2(Math.sin(toMe - a.g.rotation.y), Math.cos(toMe - a.g.rotation.y))) < 0.55 && a.pos.distanceTo(me.pos) < 20;
     out.push({ id: a.id, name: a.name, c, h, moment: a.heart > 0 || a.call > 0 ? '♥ 반가워해요' : look ? '👀 나를 바라봐요' : '' });
   }
@@ -702,22 +707,14 @@ function shoot() {
   $('#flash').classList.add('on'); requestAnimationFrame(() => setTimeout(() => $('#flash').classList.remove('on'), 60)); snd.shutter();
   shots = (shots + 1) % 1000;   // 친구들 화면에 '📷' 이 잠깐 떠요
   let badge = '', isNew = false;
-  let earn = 0;
+  let earn = 0; const spot = spotHere();
   if (sp) {
     const old = dex[sp.id];
     earn = Math.max(1, Math.round(score / 10)) + (old ? 0 : 20) + (old && score > old.score ? 5 : 0); MY.coins += earn; saveMy(); updCoins();
-// 🪙 섬에 머문 1초 = 코인 1개. 하루 최대 1시간(3600개)까지. 화면을 보고 있을 때만 세요
-setInterval(() => {
-  if (document.hidden) return; const day = new Date().toDateString();
-  if (MY.today.day !== day) MY.today = { day, sec: 0 };
-  if (MY.today.sec >= 3600) return;
-  MY.today.sec++; MY.coins++; updCoins(); if (MY.today.sec % 10 === 0) saveMy();
-}, 1000);
-addEventListener('pagehide', saveMy);
     if (!old) { badge = '📖 새 도감 등록!'; isNew = true; dex[sp.id] = { score, stars, shots: 1, at: Date.now() }; }
     else if (score > old.score) { badge = '최고 사진 바꿈!'; Object.assign(old, { score, stars, shots: old.shots + 1, at: Date.now() }); }
     else { badge = `최고 사진은 ${old.score}점이에요`; old.shots++; }
-    saveDex();
+    saveDex(); if (spot) { MY.coins += 30; saveMy(); updCoins(); } if (isNew) checkTitles();
   }
   document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => {
     const c = document.createElement('canvas'); c.width = 1080; c.height = 1010; const g = c.getContext('2d');
@@ -726,14 +723,15 @@ addEventListener('pagehide', saveMy);
     g.drawImage(shot, 40, 40); g.strokeStyle = 'rgba(60,40,20,.25)'; g.lineWidth = 2; g.strokeRect(40, 40, 1000, 750);
     g.fillStyle = '#3a2e24'; g.font = '58px OngleipUnz, sans-serif'; g.fillText(sp ? sp.name : zone, 52, 870);
     if (sp) { const x0 = 52 + g.measureText(sp.name).width + 26; g.font = '46px OngleipUnz, sans-serif'; for (let i = 0; i < 3; i++) { g.fillStyle = i < stars ? '#e0a030' : '#ddd3c2'; g.fillText('★', x0 + i * 50, 866); } }
-    g.fillStyle = '#7a6a5a'; g.font = '38px OngleipUnz, sans-serif'; g.fillText(sp ? `${zone} · ${score}점${sp.moment ? ' · ' + sp.moment : ''}` : '조용한 한때', 54, 930);
+    g.fillStyle = '#7a6a5a'; g.font = '38px OngleipUnz, sans-serif'; g.fillText(sp ? `${spot ? '📍 ' + spot.name : zone} · ${score}점${sp.moment ? ' · ' + sp.moment : ''}` : '조용한 한때', 54, 930);
+    g.font = '24px OngleipUnz, sans-serif'; g.fillStyle = 'rgba(90,70,50,.55)'; g.textAlign = 'right'; g.fillText('Snapzoo · snapzoo.site', 1032, 985); g.textAlign = 'left';   // 공유할 때 보이는 작은 표시
     g.textAlign = 'right'; g.font = '32px OngleipUnz, sans-serif'; g.fillText(`${at.getFullYear()}. ${at.getMonth() + 1}. ${at.getDate()}`, 1032, 930);
     c.toBlob(async (blob) => {
       if (!blob) return;
       await addPhoto({ blob, zone, seen: sp ? [sp.name] : [], animal: sp?.id || '', score });
       if (sp && (isNew || badge === '최고 사진 바꿈!')) await addPhoto({ id: `best-${sp.id}`, blob, zone, seen: [sp.name], animal: sp.id, score });
       const t = $('#toast'), u = URL.createObjectURL(blob); t.querySelector('img').src = u;
-      t.querySelector('span').innerHTML = sp ? `<b>${sp.name} ${starHTML(stars)} ${score}점</b><small>${badge} · 🪙 +${earn}</small>` : '<b>찰칵!</b><small>동물은 안 찍혔어요</small>';
+      t.querySelector('span').innerHTML = sp ? `<b>${sp.name} ${starHTML(stars)} ${score}점</b><small>${badge} · 🪙 +${earn}${spot ? ` · 📍 ${spot.name} +30` : ''}</small>` : '<b>찰칵!</b><small>동물은 안 찍혔어요</small>';
       t.classList.add('on'); clearTimeout(shoot.tt); shoot.tt = setTimeout(() => { t.classList.remove('on'); URL.revokeObjectURL(u); }, 3200);
       if (isNew) snd.chime();
     }, 'image/jpeg', 0.9);
@@ -744,12 +742,13 @@ let dexUrls = [];
 async function openDex() {
   dexUrls.forEach((u) => URL.revokeObjectURL(u)); dexUrls = [];
   const got = DEX.filter(([id]) => dex[id]).length; $('#dexN').textContent = `${got} / ${DEX.length}`;
+  $('#dexTitles').innerHTML = Object.entries(TITLES).map(([z, t]) => `<span class="tt ${(MY.titles || []).includes(z) ? 'on' : ''}">${t}</span>`).join('');
   const cards = DEX.map(([id, name, zone, night]) => {
     const d = dex[id], ph = DEX_PHOTOS[id], img = ph ? `<img src="world/${ph.src || 'dex/' + id + '.jpg'}" alt="${name} 실제 사진" loading="lazy">` : '?';
     return `<div class="dcard ${d ? '' : 'none'}"><div class="ph">${img}${d ? '' : '<span class="q">?</span>'}</div><b>${name}${d ? ' ' + starHTML(d.stars) : ''}</b><small>${d ? `내 사진 ${d.score}점 · ${d.shots}장` : `${ZLAB[zone]}${night ? ' · 🌙 밤에만' : ''} 어딘가`}</small></div>`;
   });
   $('#dexGrid').innerHTML = cards.join('');
-  $('#dex').classList.add('on'); $('#dex').setAttribute('aria-hidden', 'false');
+  $('#dex').classList.add('on'); $('#dex').setAttribute('aria-hidden', 'false'); $('#dexX').focus({ preventScroll: true });
 }
 function closeDex() { $('#dex').classList.remove('on'); $('#dex').setAttribute('aria-hidden', 'true'); }
 $('#dexBtn').onclick = () => ($('#dex').classList.contains('on') ? closeDex() : (closeAlbum(), openDex()));
@@ -816,12 +815,155 @@ $('#closet').addEventListener('click', (e) => {
   else if (b.dataset.hat) closetTap('hat', +b.dataset.hat);
   else if (b.dataset.cam) closetTap('cam', b.dataset.cam);
 });
-function openCloset() { closeAlbum(); closeDex(); pendingBuy = null; $('#cMsg').textContent = ''; drawCloset(); $('#closet').classList.add('on'); $('#closet').setAttribute('aria-hidden', 'false'); }
+function openCloset() { closeAlbum(); closeDex(); pendingBuy = null; $('#cMsg').textContent = ''; drawCloset(); $('#closet').classList.add('on'); $('#closet').setAttribute('aria-hidden', 'false'); $('#closetX').focus({ preventScroll: true }); }
 function closeCloset() { $('#closet').classList.remove('on'); $('#closet').setAttribute('aria-hidden', 'true'); }
 $('#closetBtn').onclick = () => ($('#closet').classList.contains('on') ? closeCloset() : openCloset());
 $('#closetX').onclick = closeCloset;
 addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCloset(); });
 updCoins();
+
+
+// 🪙 섬에 머문 1초 = 코인 1개. 하루 최대 1시간(3600개)까지. 화면을 보고 있고, 이 기기에서 '맨 앞 탭' 하나일 때만 세요 (탭 여러 개로 더 모을 수 없게)
+const TAB_ID = Math.random().toString(36).slice(2);
+function coinLeader() {
+  try { const now = Date.now(), L = JSON.parse(localStorage.getItem('snapzoo-island-coinlock') || 'null');
+    if (!L || L.id === TAB_ID || now - L.t > 3000) { localStorage.setItem('snapzoo-island-coinlock', JSON.stringify({ id: TAB_ID, t: now })); return true; } return false; } catch { return true; }
+}
+setInterval(() => {
+  if (document.hidden || !coinLeader()) return; const day = new Date().toDateString();
+  try { const saved = JSON.parse(localStorage.getItem(LOOK_KEY) || '{}'); if (saved.coins !== undefined && saved.coins < MY.coins - 15) MY.coins = saved.coins; } catch {}   // 다른 탭에서 쓴 코인을 따라가요
+  if (MY.today.day !== day) MY.today = { day, sec: 0 };
+  if (MY.today.sec >= 3600) return;
+  MY.today.sec++; MY.coins++; updCoins(); if (MY.today.sec % 10 === 0) saveMy();
+}, 1000);
+addEventListener('pagehide', saveMy);
+
+
+// ───────── 🔥 모닥불 · 🪑 통나무 의자 (마을 · 산꼭대기): 앉아서 쉬어요 ─────────
+const SEATS = [], FIRES = [];
+function campfire(c, faceTo) {
+  const g = new THREE.Group(); g.position.set(c.x, height(c.x, c.z), c.z); scene.add(g);
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2, st = new THREE.Mesh(new THREE.DodecahedronGeometry(0.18, 1), toon('#8a8478')); st.position.set(Math.sin(a) * 0.62, 0.08, Math.cos(a) * 0.62); st.scale.y = 0.6; g.add(st); }
+  for (let i = 0; i < 4; i++) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.9, 10), toon('#6a4a30')); w.rotation.set(Math.PI / 2 - 0.5, i * Math.PI / 2, 0); w.position.y = 0.2; g.add(w); }
+  const flames = []; for (let i = 0; i < 3; i++) { const f = new THREE.Mesh(new THREE.ConeGeometry(0.2 - i * 0.05, 0.7 - i * 0.12, 12), new THREE.MeshBasicMaterial({ color: ['#ff8a2a', '#ffb83a', '#fff0a0'][i], transparent: true, opacity: 0.9, fog: false })); f.position.y = 0.45 - i * 0.02; g.add(f); flames.push(f); }
+  const light = new THREE.PointLight('#ff9a4a', 6, 14, 1.6); light.position.y = 0.9; g.add(light);
+  FIRES.push({ g, flames, light });
+  for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + 0.4, x = c.x + Math.sin(a) * 1.9, z = c.z + Math.cos(a) * 1.9, y = height(x, z);
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.18, 1.1, 14), toon('#8a5e3a')); log.rotation.set(0, a, Math.PI / 2); log.position.set(x, y + 0.17, z); log.castShadow = log.receiveShadow = true; scene.add(log);
+    SEATS.push({ pos: new THREE.Vector3(x, y, z), face: Math.atan2(c.x - x, c.z - z), fire: c }); }
+}
+campfire(VIL.clone().add(V.set(6.5, 0, -5)));
+campfire(TOPS.clone().add(V.set(-7, 0, 6)));
+
+// ───────── 📍 포토 스팟: 경치 좋은 곳 여섯. 둥근 빛 안에서 찍으면 보너스 ─────────
+const SPOTS = [];
+function addSpot(name, p) {
+  if (!p) return; const y = height(p.x, p.z), g = new THREE.Group(); g.position.set(p.x, Math.max(y, 0.05) + 0.06, p.z); scene.add(g);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(2.6, 3.0, 48), new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.55, depthWrite: false, fog: false })); ring.rotation.x = -Math.PI / 2; g.add(ring);
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128; const x = c.getContext('2d'); x.fillStyle = 'rgba(18,14,12,.6)'; x.beginPath(); x.roundRect(8, 16, 496, 96, 40); x.fill(); x.fillStyle = '#fff3d6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.fillText('📍 ' + name, 256, 84);
+  const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })); sign.scale.set(4, 1, 1); sign.position.y = 3.4; g.add(sign);
+  SPOTS.push({ name, pos: new THREE.Vector3(p.x, y, p.z), g, ring, sign, tex: c });
+}
+document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => {
+  addSpot('산꼭대기 전망대', TOPS.clone().add(V.set(12, 0, -6)));
+  addSpot('노을 물웅덩이', (POOLS.get('savanna') || [])[0]);
+  addSpot('붉은 메사 언덕', (POOLS.get('desert') || [])[1]);
+  addSpot('안개 숲 빈터', (POOLS.get('jungle') || [])[0]);
+  addSpot('돌고래 해변', (POOLS.get('seashore') || [])[0]);
+  addSpot('강가 모닥불', VIL.clone().add(V.set(6.5, 0, -1.5)));
+});
+const spotHere = () => SPOTS.find((sp) => Math.hypot(sp.pos.x - me.pos.x, sp.pos.z - me.pos.z) < 3.2);
+
+// ───────── 🌦 날씨: 맑음 · 비 · 안개 · 비 갠 뒤 무지개 (3~5분마다 바뀌어요). 북극은 비 대신 눈 ─────────
+const wx = { kind: 'clear', until: 120, sunK: 1, fogK: 1, rain: 0, bow: 0 };
+const rainG = new THREE.BufferGeometry(), RN = 1400, rainP = new Float32Array(RN * 6);
+for (let i = 0; i < RN; i++) { const x = (Math.random() - 0.5) * 60, y = Math.random() * 30, z = (Math.random() - 0.5) * 60; rainP.set([x, y, z, x + 0.05, y - 0.7, z], i * 6); }
+rainG.setAttribute('position', new THREE.BufferAttribute(rainP, 3));
+const rain = new THREE.LineSegments(rainG, new THREE.LineBasicMaterial({ color: '#c8d8e8', transparent: true, opacity: 0, depthWrite: false })); rain.frustumCulled = false; scene.add(rain);
+const bow = new THREE.Group(); scene.add(bow); bow.visible = false;
+['#ff5a5a', '#ff9a3a', '#ffe24a', '#5ad25a', '#4a9aff', '#5a5ad8', '#a05ad8'].forEach((c, i) => { const t = new THREE.Mesh(new THREE.TorusGeometry(420 - i * 9, 4.5, 6, 80, Math.PI), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0, depthWrite: false, fog: false })); bow.add(t); });
+const WX_LABEL = { clear: '', rain: ' · 🌧 비', fog: ' · 🌫 안개', rainbow: ' · 🌈 무지개' };
+function updWeather(T, dt, z0) {
+  if (T > wx.until) { const r = Math.random(); wx.kind = wx.kind === 'rain' ? (tod.night < 0.5 ? 'rainbow' : 'clear') : r < 0.55 ? 'clear' : r < 0.8 ? 'rain' : 'fog'; wx.until = T + (wx.kind === 'rainbow' ? 70 : 180 + Math.random() * 120); }
+  const k = Math.min(1, dt * 0.4), wantRain = wx.kind === 'rain' && z0 !== 'arctic' && z0 !== 'desert' ? 1 : 0;
+  wx.rain += (wantRain - wx.rain) * k; wx.sunK += ((wx.kind === 'rain' ? 0.45 : wx.kind === 'fog' ? 0.7 : 1) - wx.sunK) * k; wx.fogK += ((wx.kind === 'fog' ? 0.28 : wx.kind === 'rain' ? 0.55 : 1) - wx.fogK) * k;
+  wx.bow += ((wx.kind === 'rainbow' && tod.night < 0.3 ? 1 : 0) - wx.bow) * k * 0.5;
+  rain.visible = wx.rain > 0.02; rain.material.opacity = wx.rain * 0.55;
+  if (rain.visible) { rain.position.set(camera.position.x, camera.position.y - 12, camera.position.z); for (let i = 0; i < RN; i++) { const o = i * 6; rainP[o + 1] -= dt * 22; rainP[o + 4] -= dt * 22; if (rainP[o + 4] < 0) { rainP[o + 1] += 30; rainP[o + 4] += 30; } } rainG.attributes.position.needsUpdate = true; }
+  bow.visible = wx.bow > 0.02; if (bow.visible) { bow.position.copy(camera.position).addScaledVector(V.set(-sunDir.x, 0, -sunDir.z).normalize(), 900); bow.position.y = camera.position.y - 60; bow.lookAt(camera.position.x, bow.position.y, camera.position.z); bow.children.forEach((m) => (m.material.opacity = wx.bow * 0.32)); }
+  snd.rain = wx.rain;
+}
+
+// ───────── 🥕 먹이 주기 · 🪑 앉기: 가까이 가면 한가운데 위에 단추가 떠요 ─────────
+let sitting = null, ctxKind = '', ctxA = null;
+function nearAnimal() { let best = null, bd = 3; for (const a of animals) { if (!a.g.visible || !a.speed || a.move === 'swim' || a.move === 'fly') continue; const d = Math.hypot(a.pos.x - me.pos.x, a.pos.z - me.pos.z); if (d < bd) { bd = d; best = a; } } return best; }
+function nearSeat() { return SEATS.find((s) => Math.hypot(s.pos.x - me.pos.x, s.pos.z - me.pos.z) < 2.4); }
+function updCtx() {
+  if (mode === 'photo' || me.riding) { $('#ctx').hidden = true; return; }
+  let kind = '', label = '';
+  if (sitting) { kind = 'stand'; label = '🚶 일어나기'; }
+  else if (nearSeat()) { kind = 'sit'; label = '🪑 모닥불 곁에 앉기'; }
+  else { ctxA = nearAnimal(); if (ctxA) { kind = 'feed'; label = (ctxA.fedT > 0 ? '🤲 쓰다듬기 · ' : '🥕 먹이 주기 · ') + ctxA.name; } }
+  ctxKind = kind; $('#ctx').hidden = !kind; if ($('#ctx').textContent !== label) $('#ctx').textContent = label;
+}
+function sitDown(seat) { sitting = seat; me.target = null; me.pos.copy(seat.pos); me.face = seat.face; me.st.sit = 1; me.st.seat = 0.3; toastMsg('🔥 모닥불 곁에 앉았어요', '움직이면 일어나요 · 타닥타닥 불소리를 들어 보세요'); snd.fire = 1; }
+function standUp() { if (!sitting) return; sitting = null; me.st.sit = 0; snd.fire = 0; }
+$('#ctx').onclick = () => {
+  if (ctxKind === 'sit') sitDown(nearSeat());
+  else if (ctxKind === 'stand') standUp();
+  else if (ctxKind === 'feed' && ctxA) {
+    const a = ctxA, pet = a.fedT > 0; a.face = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z); a.target = null; a.v = 0; a.visit = true; a.wait = 6; a.heart = 6; a.fedT = 30;
+    me.face = Math.atan2(a.pos.x - me.pos.x, a.pos.z - me.pos.z); me.st.waveT = 1.0;
+    if (!pet && !(a.coinT > 0)) { MY.coins += 2; a.coinT = 120; saveMy(); updCoins(); }
+    toastMsg(pet ? `🤲 ${a.name}${josa(a.name) === '과' ? '이' : '가'} 좋아해요` : `🥕 ${a.name}${josa(a.name) === '과' ? '이' : '가'} 맛있게 먹어요`, '6초 동안 곁에 머물러요 · 지금 찍으면 ♥ 특별한 순간!'); snd.chime();
+  }
+};
+
+// ───────── 😊 감정 표현 (친구에게 보여요) ─────────
+const EMOS = ['😊', '👍', '❤️', '😂', '🙏', '😮'];
+let emoN = 0, emoI = 0;
+$('#emoBtn').onclick = (e) => { e.stopPropagation(); $('#emo').classList.toggle('on'); };
+$('#emo').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; emoI = +b.dataset.i; emoN = (emoN + 1) % 1000; showEmo($('#meEmo'), EMOS[emoI]); $('#emo').classList.remove('on'); });
+addEventListener('pointerdown', (e) => { if (!e.target.closest('#emo, #emoBtn')) $('#emo').classList.remove('on'); });
+function showEmo(el, ch) { el.textContent = ch; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('pop'), 2600); }
+
+// ───────── 🏅 도감 칭호: 구역 식구를 다 찍으면 칭호 + 코인 ─────────
+const TITLES = { village: '🏘 마을 산책가', savanna: '🦁 초원 사진가', jungle: '🌴 정글 탐험가', desert: '🏜️ 사막 여행자', arctic: '🐧 눈꽃 사진가', sea: '🌊 바다 친구', all: '🌏 섬 도감 박사' };
+function checkTitles() {
+  MY.titles ||= []; const got = [];
+  for (const z of Object.keys(ZLAB)) { if (MY.titles.includes(z)) continue; const ids = DEX.filter((d) => d[2] === z).map((d) => d[0]); if (ids.length && ids.every((id) => dex[id])) { MY.titles.push(z); got.push(z); } }
+  if (!MY.titles.includes('all') && DEX.every(([id]) => dex[id])) { MY.titles.push('all'); got.push('all'); }
+  if (got.length) { MY.coins += 500 * got.length; saveMy(); updCoins(); setTimeout(() => toastMsg(`🏅 칭호를 얻었어요: ${TITLES[got[0]]}`, `구역 식구를 모두 찍었어요 · 🪙 +${500 * got.length}`), 3400); snd.chime(); showPeople(); }
+}
+const myTitle = () => (MY.titles && MY.titles.length ? TITLES[MY.titles[MY.titles.length - 1]] + ' ' : '');
+
+// ───────── 💾 내 기록 내보내기 · 불러오기 (기기를 바꿔도 이어 하게) ─────────
+const blobToData = (b) => new Promise((r) => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(b); });
+$('#expBtn').onclick = async () => {
+  const photos = await listPhotos(), out = { app: 'snapzoo-island', v: 1, at: Date.now(), me: MY, dex, settings: SET, photos: [] };
+  for (const p of photos) out.photos.push({ id: p.id, zone: p.zone, seen: p.seen, animal: p.animal, score: p.score, at: p.at, data: await blobToData(p.blob) });
+  const u = URL.createObjectURL(new Blob([JSON.stringify(out)], { type: 'application/json' })), a = document.createElement('a'), d = new Date();
+  a.href = u; a.download = `스냅주-내기록-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.json`; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
+  toastMsg('💾 내 기록을 파일로 저장했어요', `사진 ${photos.length}장 · 코인 · 도감 · 꾸미기`);
+};
+$('#impBtn').onclick = () => $('#impFile').click();
+$('#impFile').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text()); if (j.app !== 'snapzoo-island') throw new Error('not ours');
+    localStorage.setItem(LOOK_KEY, JSON.stringify(j.me)); localStorage.setItem('snapzoo-island-dex', JSON.stringify(j.dex || {})); localStorage.setItem('snapzoo-island-settings', JSON.stringify(j.settings || {}));
+    for (const p of j.photos || []) { const blob = await (await fetch(p.data)).blob(); await addPhoto({ id: p.id, zone: p.zone, seen: p.seen, animal: p.animal, score: p.score, blob }); }
+    toastMsg('📂 기록을 불러왔어요', '잠시 뒤 다시 시작해요'); setTimeout(() => location.reload(), 1200);
+  } catch { toastMsg('📂 불러오지 못했어요', '스냅주에서 내보낸 기록 파일(.json)을 골라 주세요'); }
+};
+
+// ───────── 📤 사진 공유 ─────────
+$('#vShare').onclick = async () => {
+  if (!viewing) return; const file = new File([viewing.blob], `snapzoo-${viewing.id}.jpg`, { type: 'image/jpeg' });
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Snapzoo', text: '노을 진 섬에서 찍었어요 📷 snapzoo.site' }); return; } } catch (err) { if (err && err.name === 'AbortError') return; }
+  $('#vSave').click(); try { await navigator.clipboard.writeText('https://snapzoo.site'); } catch {}
+  toastMsg('📤 사진을 저장했어요', '사진과 함께 snapzoo.site 를 친구에게 보내 보세요 (주소를 복사했어요)');
+};
 
 // ───────── 🕹 조이스틱 (휴대폰 · 태블릿): 왼쪽 아래, 카메라가 보는 쪽 기준으로 걸어요 ─────────
 const joy = { x: 0, y: 0, id: null };
@@ -861,14 +1003,14 @@ function friendOf(id, d) {
 }
 function dropFriend(id) { const f = friends.get(id); if (!f) return; scene.remove(f.st.root); f.tag.remove(); friends.delete(id); }
 const net = new IslandNet({
-  onState(id, d) { let f = friendOf(id, d);
+  onState(id, d) { let f = friendOf(id, d); if (d.ec !== undefined && d.ec !== f.ec) { if (f.ec !== undefined) { f.emoT = 2.6; f.emo = EMOS[d.e || 0]; } f.ec = d.ec; } f.st.sit = d.s ? 1 : 0; f.st.seat = 0.3;
     if (f.st.look !== (d.l || 0) || f.st.g !== (d.g ? 'm' : 'f') || f.st.hat !== (d.h || 0) || f.st.body !== (d.b ?? START_BODY) || f.st.cam !== (CAMERAS[d.c || 0]?.id)) {   // 친구가 옷을 갈아입었어요
       const ns = makeWalker(d.l || 0, { g: d.g ? 'm' : 'f', hat: d.h || 0, body: d.b ?? START_BODY, cam: CAMERAS[d.c || 0]?.id }); ns.root.position.copy(f.st.root.position); ns.root.rotation.y = f.st.root.rotation.y; scene.remove(f.st.root); scene.add(ns.root); f.st = ns; } if (d.p !== f.p) { f.p = d.p; f.snapT = 2.2; f.st.aim = 1; f.st.snapT = 0.2; clearTimeout(f.aimT); f.aimT = setTimeout(() => (f.st.aim = 0), 1600); } if (d.w !== f.w) { if (f.w !== undefined) { f.st.waveT = 2.4; f.waveT = 2.4; } f.w = d.w; } f.d = d; f.name = d.n; f.to.set(d.x, d.y, d.z); f.r = d.r; },
   onLeave: dropFriend,
   onReset() { [...friends.keys()].forEach(dropFriend); },
   onStatus() { showPeople(); },
 });
-function showPeople() { const n = friends.size; $('#people').textContent = `${myName}${net.online ? (n ? ` · 👥 친구 ${n}명과 함께` : ' · 섬에 혼자예요') : ''}`; }
+function showPeople() { const n = friends.size; $('#people').textContent = `${myTitle()}${myName}${net.online ? (n ? ` · 👥 친구 ${n}명과 함께` : ' · 섬에 혼자예요') : ''}`; }
 showPeople(); setTimeout(() => net.join(), 1500);   // 첫 그림이 나온 뒤에 붙어요
 addEventListener('pagehide', () => net.close());
 function updateFriends(dt) {
@@ -879,9 +1021,9 @@ function updateFriends(dt) {
     const d = Math.hypot(g.position.x - me.pos.x, g.position.z - me.pos.z);
     g.visible = !f.d.k && d < 220;
     f.st.walk = lerp(f.st.walk, f.d.m ? 1 : 0, 0.15); if (g.visible) f.st.update(clock.elapsedTime, dt);
-    f.snapT = Math.max(0, f.snapT - dt); f.waveT = Math.max(0, (f.waveT || 0) - dt);
+    f.snapT = Math.max(0, f.snapT - dt); f.waveT = Math.max(0, (f.waveT || 0) - dt); f.emoT = Math.max(0, (f.emoT || 0) - dt);
     const on = g.visible && d < 60; f.tag.classList.toggle('on', on);
-    if (on) { V.copy(g.position); V.y += 2.1; V.project(camera); if (V.z > 1) { f.tag.classList.remove('on'); continue; } f.tag.textContent = (f.waveT > 0 ? '👋 ' : f.snapT > 0 ? '📷 ' : '') + f.name; f.tag.style.transform = `translate(${(V.x * 0.5 + 0.5) * innerWidth}px, ${(-V.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`; }
+    if (on) { V.copy(g.position); V.y += 2.1; V.project(camera); if (V.z > 1) { f.tag.classList.remove('on'); continue; } f.tag.textContent = (f.emoT > 0 ? f.emo + ' ' : f.waveT > 0 ? '👋 ' : f.snapT > 0 ? '📷 ' : '') + f.name; f.tag.style.transform = `translate(${(V.x * 0.5 + 0.5) * innerWidth}px, ${(-V.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`; }
   }
   if (friends.size !== showPeople.n) { showPeople.n = friends.size; showPeople(); }
 }
@@ -926,6 +1068,7 @@ addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
 const fwd = new THREE.Vector3(), right = new THREE.Vector3(), mv = new THREE.Vector3();
 let miniT = 0; const V2C = new THREE.Color();
+let perf = { n: 0, t: 0, done: false }, AUTO_LOW = false;
 function frame() {
   const dt = Math.min(0.05, clock.getDelta()), T = clock.elapsedTime;
   // 걷기
@@ -940,7 +1083,8 @@ function frame() {
     if (Math.hypot(joy.x, joy.y) > 0.15) { mv.addScaledVector(fwd, -joy.y).addScaledVector(right, joy.x); }
     if (me.target) { mv.set(me.target.x - me.pos.x, 0, me.target.z - me.pos.z); if (mv.length() < 0.6) { me.target = null; mv.set(0, 0, 0); } }
   }
-  const moving = mv.lengthSq() > 0;
+  if (sitting && mv.lengthSq() > 0) standUp();
+  const moving = mv.lengthSq() > 0 && !sitting;
   if (moving) {
     mv.normalize();
     const inWater = !!waterAt(me.pos.x, me.pos.z);
@@ -956,7 +1100,7 @@ function frame() {
     if (k >= 1) { const end = r.dir > 0 ? TOPS : STA; me.pos.copy(end).add(V.set(3, 0, 3)); me.pos.y = height(me.pos.x, me.pos.z); me.riding = null; $('#cable').disabled = false; setTimeout(() => $('#ride').classList.remove('on'), 700); }
   } else {
     const wa = waterAt(me.pos.x, me.pos.z), deck = wa ? (wa.kind === 'sea' ? 0.22 : 0.28) : 0;
-    me.pos.y = lerp(me.pos.y, wa ? wa.y + deck + Math.sin(T * 1.6) * 0.04 : height(me.pos.x, me.pos.z), 0.3);
+    me.pos.y = lerp(me.pos.y, wa ? wa.y + deck + (wa.kind === 'sea' ? 0.12 : 0) : height(me.pos.x, me.pos.z), 0.3);
     raft.visible = wa?.kind === 'river'; boat.visible = wa?.kind === 'sea';
     const vessel = raft.visible ? raft : boat.visible ? boat : null;
     if (vessel) { vessel.position.set(me.pos.x, me.pos.y - deck, me.pos.z); vessel.rotation.set(Math.sin(T * 1.3) * 0.03, me.g.rotation.y, Math.sin(T * 1.1) * 0.04); if (vessel === boat) boat.userData.sail.rotation.x = Math.sin(T * 0.9) * 0.08; }
@@ -975,10 +1119,11 @@ function frame() {
   V.copy(me.pos).project(camera); const fx = (V.x * 0.5 + 0.5) * innerWidth, fy0 = (-V.y * 0.5 + 0.5) * innerHeight;
   V.copy(me.pos); V.y += 2.0; V.project(camera); const fy1 = (-V.y * 0.5 + 0.5) * innerHeight, fw = Math.max(18, (fy0 - fy1) * 0.42);
   const behindMe = (px, py, d) => me.g.visible && d > camD && px > fx - fw && px < fx + fw && py > fy1 - 10 && py < fy0 + 6;
+  if ((frame.rk = (frame.rk || 0) + dt) > 0.3) { frame.rk = 0; const near = animals.filter((a) => a.g.visible && Math.abs(a.pos.x - me.pos.x) < 14 && Math.abs(a.pos.z - me.pos.z) < 14).sort((p, q) => p.pos.distanceToSquared(me.pos) - q.pos.distanceToSquared(me.pos)); animals.forEach((a) => (a.tagRank = 99)); const seen = new Set(); let r = 0; for (const a of near) { if (seen.has(a.id) && r >= 1) continue; seen.add(a.id); a.tagRank = r++; } }
   // 동물: 집 둘레를 천천히 거닐다 멈춰 쉬어요. 가까이 가면 나를 바라보고 이름표
   for (const a of animals) {
     const dMe = Math.hypot(a.pos.x - me.pos.x, a.pos.z - me.pos.z);
-    a.g.visible = dMe < (LOWQ ? 70 : 120) && (!a.night || tod.night > 0.35);   // 🌙 밤 친구는 해가 지면 나와요
+    a.g.visible = dMe < (LOWQ || AUTO_LOW ? 60 : 120) && (!a.night || tod.night > 0.35);   // 🌙 밤 친구는 해가 지면 나와요
     if (a.move === 'fly') { a.flyA += dt * a.flySp / a.flyR; a.pos.x = a.home.x + Math.sin(a.flyA) * a.flyR; a.pos.z = a.home.z + Math.cos(a.flyA) * a.flyR; }
     // 걸음: 목표 쪽으로 먼저 몸을 돌리고, 천천히 출발 · 멈춤. 다리는 실제 빠르기에 맞춰요
     let want = 0;
@@ -1016,7 +1161,7 @@ function frame() {
     if (a.st) { a.st.walk = a.speed ? Math.min(1, a.v / a.speed) : 0; if (a.g.visible) a.st.update(T, dt); }
     if (a.heart > 0) a.heart -= dt;
     // 이름표
-    const on = dMe < 14 && mode !== 'photo';
+    const on = dMe < 14 && mode !== 'photo' && a.tagRank < 3;   // 가까운 셋만 (겹치지 않게)
     a.tag.classList.toggle('on', on);
     if (on) { const tx = (a.heart > 0 ? '♥ ' : '') + a.name; if (a.tag.textContent !== tx) a.tag.textContent = tx; V.copy(a.pos); V.y += a.tagH; V.project(camera); const tx2 = (V.x * 0.5 + 0.5) * innerWidth, ty2 = (-V.y * 0.5 + 0.5) * innerHeight; a.tag.style.transform = `translate(${tx2}px, ${ty2}px) translate(-50%, -100%)`; if (V.z > 1 || behindMe(tx2, ty2, camera.position.distanceTo(a.pos))) a.tag.classList.remove('on'); }
   }
@@ -1043,6 +1188,7 @@ function frame() {
     controls.target.add(delta); camera.position.add(delta);
   }
   controls.update();
+  { const minY = Math.max(height(camera.position.x, camera.position.z), 0.6) + 0.8; if (camera.position.y < minY) camera.position.y = minY; }   // 카메라는 땅 · 물 아래로 들어가지 않아요
   // 해 · 그림자: 나를 따라와요
   if ((frame.tt = (frame.tt || 0) + dt) > 0.25 || !frame.tod) { frame.tt = 0; frame.tod = 1; applyTime(T); }
   sun.position.copy(me.pos).addScaledVector(sunDir, 160); sun.target.position.copy(me.pos); sky.position.copy(camera.position); stars.position.copy(camera.position); moon.position.copy(camera.position).addScaledVector(sunDir, 1300);
@@ -1051,7 +1197,11 @@ function frame() {
   const z0 = me.pos.distanceTo(VIL) < 26 ? 'village' : zoneAt(me.pos.x, me.pos.z);
   setZone(z0); if (z0 !== updMoves.z) { updMoves.z = z0; updMoves(z0); }
   const fogNear = z0 === 'jungle' ? 30 : z0 === 'arctic' ? 60 : 120, fogFar = z0 === 'jungle' ? 260 : z0 === 'arctic' ? 420 : 720;
-  scene.fog.near = lerp(scene.fog.near, fogNear, 0.02); scene.fog.far = lerp(scene.fog.far, fogFar, 0.02);
+  updWeather(T, dt, z0);
+  scene.fog.near = lerp(scene.fog.near, fogNear * wx.fogK, 0.02); scene.fog.far = lerp(scene.fog.far, fogFar * wx.fogK, 0.02);
+  FIRES.forEach((f, i) => { const k = 0.85 + Math.sin(T * 11 + i) * 0.08 + Math.sin(T * 23 + i * 2) * 0.06; f.flames.forEach((m, j) => { m.scale.set(1, k + j * 0.05, 1); m.rotation.y = T * (1 + j); }); f.light.intensity = (4 + tod.night * 10) * k; });
+  SPOTS.forEach((sp, i) => { sp.ring.material.opacity = 0.35 + Math.sin(T * 2 + i) * 0.15; sp.g.visible = Math.hypot(sp.pos.x - me.pos.x, sp.pos.z - me.pos.z) < 160; });
+  if ((frame.cx = (frame.cx || 0) + dt) > 0.2) { frame.cx = 0; updCtx(); }
   const ZL = { jungle: ['#a9bf8e', 1.75], arctic: ['#dde5ee', 1.35], desert: ['#f2d2a2', 1.1] }[z0] || [LK.fog, LK.hemi[2] * 1.4];   // 정글은 초록 안개 · 밝은 하늘빛
   V2C.copy(tod.fog).lerp(TCa.set(ZL[0]), 0.55 * (1 - tod.night)); scene.fog.color.lerp(V2C, 0.05); grassMat.uniforms.uFog.value.copy(scene.fog.color); hemi.intensity = lerp(hemi.intensity, tod.hemiI * (ZL[1] / (LK.hemi[2] * 1.4)), 0.05);
   if (z0 === 'jungle' || clearView.on) { clearView.on = z0 === 'jungle'; if ((clearView.t = (clearView.t || 0) + dt) > 0.12) { clearView.t = 0; clearView(); } }
@@ -1064,20 +1214,22 @@ function frame() {
   }
   if ((miniT += dt) > 0.2) { miniT = 0; drawMini(); }
   updateFriends(dt);
-  net.send({ n: myName, x: +me.pos.x.toFixed(2), z: +me.pos.z.toFixed(2), y: +me.pos.y.toFixed(2), r: +me.g.rotation.y.toFixed(2), m: moving ? 1 : 0, k: me.riding ? 1 : 0, l: MY.look, g: MY.g === 'm' ? 1 : 0, h: MY.hat, b: MY.body, c: Math.max(0, CAMERAS.findIndex((c) => c.id === MY.cam)), p: shots, w: waves }, performance.now());
+  if ($('#meEmo').classList.contains('pop')) { V.copy(me.pos); V.y += [2.0, 1.75, 1.45][MY.body]; V.project(camera); $('#meEmo').style.transform = `translate(${(V.x * 0.5 + 0.5) * innerWidth}px, ${(-V.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`; }
+  net.send({ n: myName, x: +me.pos.x.toFixed(2), z: +me.pos.z.toFixed(2), y: +me.pos.y.toFixed(2), r: +me.g.rotation.y.toFixed(2), m: moving ? 1 : 0, k: me.riding ? 1 : 0, l: MY.look, g: MY.g === 'm' ? 1 : 0, h: MY.hat, b: MY.body, c: Math.max(0, CAMERAS.findIndex((c) => c.id === MY.cam)), p: shots, w: waves, s: sitting ? 1 : 0, e: emoI, ec: emoN }, performance.now());
   // 소리: 구역 · 물가(강 · 바다) 가까움
   if ((frame.st = (frame.st || 0) + dt) > 0.5) { frame.st = 0; const rv = riverNear(me.pos.x, me.pos.z), w = Math.max(rv.i >= 0 ? 1 - rv.d / 30 : 0, me.pos.y < 6 ? 1 - me.pos.y / 6 : 0); snd.setPlace(z0 === 'village' ? 'village' : z0, Math.max(0, w)); }
   if (mode === 'photo') updatePhoto(dt);
   snd.night = tod.night; if ($('#tod').textContent !== tod.label) $('#tod').textContent = tod.label;
   updMark(dt);
   const finder = mode === 'photo' && raiseT <= 0;
-  if (finder) for (const f of friends.values()) f.st.root.visible = false;   // 사진엔 동물만 (친구는 잠깐 숨겨요)
+  if (finder && !withFriends) for (const f of friends.values()) f.st.root.visible = false;   // 사진엔 동물만 (👥 친구도 켜면 같이)
   renderer.render(scene, finder ? fcam : camera);
   if (wantShot && raiseT <= 0) { wantShot = false; shoot(); }   // 사진기를 드는 중에 누르면 다 든 뒤에 찍어요   // 그린 바로 다음에 찍어야 화면이 비지 않아요
+  if (!perf.done) { perf.t += dt; perf.n++; if (perf.t > 8) { perf.done = true; const fps = perf.n / perf.t; if (fps < 25 && !LOWQ) { renderer.setPixelRatio(Math.max(0.75, renderer.getPixelRatio() * 0.6)); AUTO_LOW = true; toastMsg('📱 화면을 조금 가볍게 했어요', '⚙ 설정에서 바꿀 수 있어요'); } else if (fps < 20) { renderer.setPixelRatio(0.75); AUTO_LOW = true; } } }
   requestAnimationFrame(frame);
 }
 drawMini();
 requestAnimationFrame(frame);
 $('#loading').classList.add('out');
 setTimeout(() => $('#loading').remove(), 900);
-window.__world = { me, animals, height, zoneAt, camera, controls, VIL, TOPS, STA, net, friends, dex, SET, snd, enterPhoto, evaluate };   // 화면 점검용
+window.__world = { wx, SPOTS, SEATS, sitDown, me, animals, height, zoneAt, camera, controls, VIL, TOPS, STA, net, friends, dex, SET, snd, enterPhoto, evaluate };   // 화면 점검용
