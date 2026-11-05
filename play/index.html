@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>스냅주 · 초원</title>
+<meta name="theme-color" content="#9cc8ea">
+<style>
+/* 글꼴: 온글잎 언즈체 (웹에서 불러 쓰기만, 파일은 저장소에 두지 않아요) */
+@font-face { font-family: 'OngleipUnz'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2406-1@1.0/Ownglyph_UNZ-Rg.woff2') format('woff2'); font-display: swap; }
+:root { --ink: #2e3a2c; --paper: #fffcf3; --moss: #5f8a4a; --hand: "OngleipUnz", "Apple SD Gothic Neo", sans-serif; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #9cc8ea; color: var(--ink); font-family: var(--hand); -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+#view { position: fixed; inset: 0; overflow: hidden; touch-action: none; cursor: pointer; }
+/* 세계: 가로 3200 × 세로 675 (그림 좌표). 화면 높이에 맞춰 키우고, 산책자를 따라 옆으로 움직여요 */
+.layer { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.layer > svg.bg { display: block; }
+.ch { position: absolute; will-change: transform; pointer-events: none; }
+.ch svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* 움직임 (시안과 같아요) */
+svg g { transform-box: view-box; }
+.breath { animation: breath 3.2s ease-in-out infinite; }
+.flap, .ear { animation: flap 1.9s ease-in-out infinite; }
+.wag, .tail { animation: wag 1.2s ease-in-out infinite; }
+.swish { animation: swish 2.2s ease-in-out infinite; }
+.blink { animation: blink 4.4s infinite; }
+.hair { animation: swayS 3.4s ease-in-out infinite; }
+.ribbon { animation: sway 1.3s ease-in-out infinite; }
+.skirt { animation: skirt 2.8s ease-in-out infinite; }
+.arm { animation: swayS 4s ease-in-out infinite; }
+.head { animation: tilt 5.5s ease-in-out infinite; }
+.graze { animation: graze 7s ease-in-out infinite; }
+.chew { animation: chew 0.5s ease-in-out infinite; }
+.tree { animation: swayS 6s ease-in-out infinite; }
+.cloud { animation: drift 40s linear infinite alternate; }
+.grassw { animation: swayS 2.6s ease-in-out infinite; }
+@keyframes breath { 50% { transform: translateY(-1.6px); } }
+@keyframes tilt { 0%, 100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.8deg); } }
+@keyframes flap { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.84); } }
+@keyframes sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@keyframes swayS { 0%, 100% { transform: rotate(-1.4deg); } 50% { transform: rotate(1.4deg); } }
+@keyframes wag { 0%, 100% { transform: rotate(-16deg); } 50% { transform: rotate(16deg); } }
+@keyframes swish { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(10deg); } }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
+@keyframes skirt { 0%, 100% { transform: skewX(-2.4deg); } 50% { transform: skewX(2.4deg); } }
+@keyframes graze { 0%, 30%, 100% { transform: rotate(0); } 42%, 82% { transform: rotate(38deg); } }
+@keyframes chew { 50% { transform: translateY(0.8px); } }
+@keyframes drift { from { transform: translateX(-30px); } to { transform: translateX(40px); } }
+
+/* 산책자 걷기: 다리를 번갈아 앞뒤로, 몸은 살짝 통통 */
+.walking .legL { animation: stepL 0.56s ease-in-out infinite; }
+.walking .legR { animation: stepR 0.56s ease-in-out infinite; }
+.walking > svg { animation: bob 0.28s ease-in-out infinite alternate; }
+.walking .arm { animation: swing 0.56s ease-in-out infinite; }
+@keyframes stepL { 0%, 100% { transform: rotate(12deg); } 50% { transform: rotate(-12deg); } }
+@keyframes stepR { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg); } }
+@keyframes bob { from { transform: translateY(0); } to { transform: translateY(-2.5%); } }
+@keyframes swing { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+
+/* 동물이 산책자를 알아봤을 때: 풀 뜯기를 멈추고 고개를 들어 반겨요 */
+.seen .graze { animation: none; }
+.seen > svg { animation: perk 0.7s ease-out 1; }
+@keyframes perk { 30% { transform: translateY(-3%); } 60% { transform: translateY(0); } }
+.heart { position: absolute; left: 50%; top: 4%; font-size: 26px; color: #e86a7a; transform: translateX(-50%); animation: up 1.6s ease-out forwards; text-shadow: 0 1px 0 #fff; }
+@keyframes up { from { opacity: 0; transform: translate(-50%, 10px) scale(.6); } 20% { opacity: 1; } to { opacity: 0; transform: translate(-50%, -40px) scale(1.1); } }
+/* 이름표는 캐릭터와 함께 작아지니 글씨를 크게 잡아요 */
+.tag { position: absolute; left: 50%; top: -12%; transform: translateX(-50%); white-space: nowrap; background: rgba(255,252,243,.94); border: 3px solid #ddd6c2; border-radius: 999px; padding: 4px 24px; font-size: 46px; line-height: 1.2; opacity: 0; transition: opacity .3s; }
+.heart { font-size: 54px; }
+.seen .tag { opacity: 1; }
+
+/* 화면 위 글: 작게, 덮개 없이 */
+#hud { position: fixed; left: max(14px, env(safe-area-inset-left)); top: max(10px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); display: flex; justify-content: space-between; align-items: center; pointer-events: none; z-index: 5; }
+#hud .t { font-size: 28px; color: #fff; text-shadow: 0 1px 3px rgba(40,60,40,.45); }
+#hud .t small { font-size: 18px; margin-left: 6px; opacity: .9; }
+#albumBtn { pointer-events: auto; font: 22px var(--hand); background: rgba(255,252,243,.9); color: var(--ink); border: 1.5px solid #ddd6c2; border-radius: 999px; padding: 4px 14px; cursor: pointer; }
+#hint { position: fixed; left: 50%; top: calc(max(10px, env(safe-area-inset-top)) + 46px); transform: translateX(-50%); font-size: 20px; color: #fff; text-shadow: 0 1px 3px rgba(40,60,40,.5); transition: opacity 1s; pointer-events: none; z-index: 5; white-space: nowrap; }
+#snap { position: fixed; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); transform: translateX(-50%) scale(.8); opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 6;
+  font: 26px var(--hand); background: #fffcf3; color: var(--ink); border: 2px solid #5a463a; border-radius: 999px; padding: 10px 26px; box-shadow: 0 4px 0 #5a463a; cursor: pointer; white-space: nowrap; }
+#snap.on { opacity: 1; transform: translateX(-50%) scale(1); pointer-events: auto; }
+#snap:active { transform: translateX(-50%) translateY(3px); box-shadow: 0 1px 0 #5a463a; }
+#flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 8; }
+#flash.on { animation: flash .5s ease-out; }
+@keyframes flash { from { opacity: .9; } to { opacity: 0; } }
+#toast { position: fixed; left: 50%; bottom: calc(max(22px, env(safe-area-inset-bottom)) + 70px); transform: translateX(-50%); background: rgba(46,58,44,.88); color: #fffcf3; font-size: 21px; padding: 6px 18px; border-radius: 999px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 7; white-space: nowrap; }
+#toast.on { opacity: 1; }
+/* 앨범: 찍은 사진(폴라로이드) */
+#album { position: fixed; inset: auto 0 0 0; z-index: 9; background: rgba(243,239,228,.97); border-top: 1.5px solid #ddd6c2; padding: 12px max(14px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-bottom)); transform: translateY(105%); transition: transform .35s; }
+#album.on { transform: none; }
+#album h2 { margin: 0 0 8px; font-weight: 400; font-size: 26px; display: flex; justify-content: space-between; align-items: center; }
+#album h2 button { font: 20px var(--hand); background: none; border: 0; color: var(--moss); cursor: pointer; }
+#photos { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; }
+.pol { flex: 0 0 auto; width: 150px; background: #fff; padding: 8px 8px 6px; box-shadow: 0 3px 10px rgba(0,0,0,.15); transform: rotate(var(--r)); text-align: center; font-size: 19px; }
+.pol svg { width: 100%; height: auto; display: block; aspect-ratio: 300 / 360; }
+.pol.empty { display: grid; place-items: center; height: 196px; color: #a8a090; border: 2px dashed #ddd6c2; box-shadow: none; background: none; }
+@media (prefers-reduced-motion: reduce) { svg g, .walking > svg, .seen > svg { animation: none !important; } }
+</style>
+</head>
+<body>
+<div id="view" aria-label="스냅주 초원. 화면을 누르면 산책자가 그곳으로 걸어가요">
+  <div class="layer" id="sky"></div>
+  <div class="layer" id="world"></div>
+</div>
+<div id="hud"><span class="t">스냅주<small>초원</small></span><button type="button" id="albumBtn" aria-controls="album">📷 0 / 5</button></div>
+<div id="hint">화면을 누르면 그곳으로 걸어가요 · 방향키로도 걸어요</div>
+<button type="button" id="snap">📷 찰칵</button>
+<div id="flash"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<section id="album" aria-label="사진 앨범"><h2>초원 앨범 <button type="button" id="albumX">닫기</button></h2><div id="photos"></div></section>
+<script src="cel.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
