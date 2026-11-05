@@ -35,7 +35,7 @@ function critter(o) {
     else if (kind === 'none') { /* 귀 없음 */ }
     else M(e, ell(L * 0.07, L * 0.07, L * 0.03), C, undefined, s * L * 0.02, L * 0.03, 0);
     return e; });
-  const feet = [[-1, 1], [1, 1], [-1, -1], [1, -1]].map(([sx, sz]) => M(hop, ell(L * 0.08, L * 0.05, L * (sz < 0 ? 0.16 : 0.09), 10), C, undefined, sx * L * 0.17, L * 0.04, sz * L * (0.22 - up * 0.1)));
+  const feet = [[-1, 1], [1, 1], [-1, -1], [1, -1]].map(([sx, sz]) => { const f = M(hop, ell(L * 0.075, L * 0.06, L * (sz < 0 && o.gait !== 'scurry' ? 0.14 : 0.08), 10), plain(o.feet || o.c), undefined, sx * L * 0.15, L * 0.05, sz * L * (0.24 - up * 0.1)); f.userData.z0 = f.position.z; return f; });
   if (up) for (const s of [-1, 1]) M(body, ell(L * 0.05, L * 0.12, L * 0.05, 10), B, undefined, s * L * 0.18, L * 0.05, L * 0.3);
   const tail = J(body, 0, L * 0.02, -L * 0.48);
   const tk = o.tail || 'puff';
@@ -45,7 +45,8 @@ function critter(o) {
   const ph = Math.random() * 9, st = { root, walk: 0, step: 0 };
   st.update = (t, dt) => {
     t += ph; st.step += dt * st.walk * 9;
-    const h = abs(sin(st.step)) * L * 0.35 * st.walk; hop.position.y = h; body.rotation.z = 0;
+    const scurry = o.gait === 'scurry', h = scurry ? abs(sin(st.step * 1.6)) * L * 0.04 * st.walk : abs(sin(st.step)) * L * 0.35 * st.walk; hop.position.y = h; body.rotation.z = scurry ? sin(st.step * 1.6) * 0.05 * st.walk : 0;
+    if (scurry) feet.forEach((f, i) => { f.position.z = f.userData.z0 + sin(st.step * 1.6 + (i % 3 ? PI : 0)) * L * 0.08 * st.walk; });
     if (!st.walk) { head.rotation.y = sin(t * 0.7) * 0.5 * (up ? 1 : 0.4); head.rotation.z = sin(t * 0.4) * 0.1; }
     body.scale.y = 1 + sin(t * 3) * 0.02;
     if (o.ears === 'long') ears.forEach((e, i) => { e.rotation.x = -0.25 + sin(t * 1.3 + i) * 0.1; });
@@ -241,8 +242,8 @@ Object.assign(SPECIES, {
   rabbit: () => critter({ L: 0.3, c: '#d8ccbc', belly: '#f6f0e6', ears: 'long', tail: 'puff' }),
   hen: () => bird({ size: 0.3, legL: 0.1, c: '#f6f0e4', wing: '#ece4d4', beak: 'cone', comb: '#d84a3a', neckL: 0.06, peck: true, tail: 'short', tailC: '#e8e0d0' }),
   duck: () => bird({ size: 0.3, legL: 0.05, c: '#f6f4ee', beak: 'duck', beakC: '#f0a03a', neckL: 0.08, waddle: true, tail: 'short', legR: 0.04 }),
-  squirrel: () => critter({ L: 0.2, c: '#b8683a', belly: '#f2e2c8', ears: 'pointy', tail: 'bushy', up: true }),
-  hedgehog: () => critter({ L: 0.24, c: '#c8a888', belly: '#e8d8c0', ears: 'round', tail: 'none', spikes: '#6a5440', bigEye: 0.8 }),
+  squirrel: () => critter({ L: 0.22, c: '#b8683a', belly: '#f2e2c8', ears: 'pointy', tail: 'bushy', feet: '#9a5430' }),
+  hedgehog: () => critter({ L: 0.24, c: '#c8a888', belly: '#e8d8c0', ears: 'round', tail: 'none', spikes: '#6a5440', bigEye: 0.8, gait: 'scurry', feet: '#a88a70' }),
   sheep: Q('sheep', ['#f2eee4', '#e8e2d4', '#3a3230'], 1.0, 0.72, { bodyH: 0.52, neckA: 0.95, neckL: 0.16, headA: 0.55, headL: 0.24, headR: 0.09, earW: 0.05, earL: 0.08, earOut: 1.7, earIn: '#5a4a44', tailL: 0.12, legR: 0.03, hoof: 0.05, graze: 1.0 }, `vec3 c=C0; if(reg>0.5&&reg<1.5&&R.y<0.38) c=C2; if(reg>2.5&&reg<3.5&&T.x>0.06) c=C2; return c;`),
   goat: Q('goat', ['#f2ece0', '#e0d8c8', '#5a4a3a'], 0.9, 0.68, { neckA: 0.6, neckL: 0.24, headA: 0.6, headL: 0.24, headR: 0.07, earOut: 1.4, legR: 0.026, hoof: 0.05, graze: 1.1,
     horn: horns('#8a7a64', (s, r) => [[s * r * 0.35, r * 0.75, -r * 0.2], [s * r * 0.6, r * 1.8, -r * 1.0], [s * r * 0.7, r * 2.0, -r * 2.0]]) }),
@@ -268,7 +269,7 @@ Object.assign(SPECIES, {
   dorcas: () => SPECIES.gazelle(),
   lizard: () => lizard({ size: 0.34, c: '#c8a46a', beard: '#a8844a', spikes: '#a8844a' }),
   gerbil: () => critter({ L: 0.14, c: '#d8b07a', belly: '#f6efe2', ears: 'round', tail: 'thin', bigEye: 1.4 }),
-  armadillo: () => critter({ L: 0.4, c: '#a8987a', belly: '#d8c8a8', ears: 'pointy', tail: 'thin', bands: '#8a7a5a', bigEye: 0.6 }),
+  armadillo: () => critter({ L: 0.4, c: '#a8987a', belly: '#d8c8a8', ears: 'pointy', tail: 'thin', bands: '#8a7a5a', bigEye: 0.6, gait: 'scurry' }),
   oryx: Q('oryx', ['#e8dcc8', '#f6f2ea', '#2a2422'], 1.5, 1.15, { neckA: 0.6, neckL: 0.42, headA: 0.6, headL: 0.36, headR: 0.09, earOut: 0.9, legR: 0.04, tailL: 0.5, tuft: 0.08, graze: 1.0,
     horn: horns('#3a3230', (s, r) => [[s * r * 0.3, r * 0.8, -r * 0.2], [s * r * 0.45, r * 3.5, -r * 3.2], [s * r * 0.55, r * 6.0, -r * 6.0]]) }, `vec3 c=C0; if(reg>2.5&&reg<3.5&&abs(T.y)>0.5&&T.z>-0.2) c=C2; if(reg<0.5&&abs(T.z+0.1)<0.12) c=C2; if(reg>0.5&&reg<1.5&&R.y>0.45&&R.y<0.6) c=C2; return c;`),
   deserttortoise: () => turtle({ size: 0.42, shell: '#a8844a', plate: '#c8a46a', skin: '#b89a6a' }),
@@ -285,7 +286,7 @@ Object.assign(SPECIES, {
   walrus: () => swimBody({ size: 1.4, c: '#a8846a', lie: true, tusks: true, whiskers: '#c8a88a' }),
   muskox: Q('muskox', ['#4a3a30', '#3a2e26', '#e8dcc4'], 1.6, 1.15, { bodyH: 0.8, neckA: 1.2, neckL: 0.18, mane: 0.16, headA: 0.9, headL: 0.36, headR: 0.15, earW: 0.03, earL: 0.04, legR: 0.07, hoof: 0.06, tailL: 0.06, graze: 0.7,
     horn: horns('#d8ccb4', (s, r) => [[s * r * 0.2, r * 1.0, 0], [s * r * 1.3, r * 0.9, 0], [s * r * 1.6, -r * 0.4, r * 0.2], [s * r * 1.4, -r * 0.6, r * 1.0]]) }, `vec3 c=C0; if(reg>0.5&&reg<1.5&&R.y<0.22) c=C2; if(reg<0.5&&T.z<-0.3) c=C1; return c;`),
-  lemming: () => critter({ L: 0.13, c: '#c89a6a', belly: '#f2e6d0', ears: 'none', tail: 'none' }),
+  lemming: () => critter({ L: 0.13, c: '#c89a6a', belly: '#f2e6d0', ears: 'none', tail: 'none', gait: 'scurry' }),
   puffin: () => bird({ size: 0.22, legL: 0.05, c: '#1e1c20', belly: '#ffffff', face: '#f6f6f2', beak: 'puffin', beakC: '#f0702a', neckL: 0.03, waddle: true, legC: '#f0702a', legR: 0.05 }),
   // 🌊 바다 · 바닷가
   seaturtle: () => turtle({ size: 0.8, shell: '#6a7a4a', plate: '#8a9a5a', skin: '#8a9a7a', sea: true }),

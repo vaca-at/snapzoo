@@ -1,0 +1,242 @@
+<meta charset="utf-8">
+<title>스냅주 사람 시안</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+@font-face { font-family: 'OngleipUnz'; src: url(data:font/woff2;base64,__FONT__) format('woff2'); font-display: block; }
+/* 레이아웃: 소개 → 방식 A~E 한 줄씩 (큰 3D 무대: 여 · 남 나란히, 끌어서 돌리기) */
+:root {
+  --bg: #f4eee4; --paper: #fffaf2; --ink: #33281f; --soft: #7a6a5a; --line: #e4d8c6; --accent: #c8553d;
+  --hand: "OngleipUnz", "Apple SD Gothic Neo", sans-serif; --body: "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #1d1915; --paper: #29231d; --ink: #f1e7d9; --soft: #b9a995; --line: #3d342b; --accent: #e8836a; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg: #1d1915; --paper: #29231d; --ink: #f1e7d9; --soft: #b9a995; --line: #3d342b; --accent: #e8836a; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.6; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 26px 60px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 18px; }
+.eyebrow { margin: 0; font-family: var(--hand); color: var(--accent); font-size: 18px; }
+h1 { margin: 2px 0 6px; font-family: var(--hand); font-weight: 400; font-size: clamp(34px, 6vw, 52px); line-height: 1.05; text-wrap: balance; }
+.lead { margin: 0; color: var(--soft); max-width: 70ch; }
+.opt { background: var(--paper); border: 1.5px solid var(--line); border-radius: 20px; padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: center; }
+@media (max-width: 760px) { .opt { grid-template-columns: 1fr; } }
+.stage { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #e8b88a; cursor: grab; touch-action: pan-y; max-width: 100%; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.t { display: flex; gap: 10px; align-items: center; }
+.t i { font-style: normal; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--ink); color: var(--paper); font-family: var(--hand); font-size: 21px; flex: none; }
+.t b { font-family: var(--hand); font-weight: 400; font-size: 28px; line-height: 1.1; }
+.info p { margin: 8px 0; color: var(--soft); font-size: 14.5px; }
+.info ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.info li { font-size: 12.5px; padding: 2px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--soft); }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">노을 진 섬 · 주인공 다시 그리기</p>
+    <h1>사람 시안, 서로 다른 다섯 가지</h1>
+    <p class="lead">같은 노을빛 3D 섬 안에서 사람을 빚는 방식을 다섯 가지로 달리 했어요. 방식마다 여자와 남자를 나란히 세웠고, 걷기 · 손 흔들기 · 사진기 들기를 번갈아 해요. 끌면 돌려 볼 수 있어요. 하나를 골라 주시면 그 방식으로 옷 · 모자 꾸미기까지 다시 맞출게요.</p>
+  </header>
+  <div id="list" style="display:flex;flex-direction:column;gap:16px"></div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+</script>
+<script type="module">
+__ZOO__
+// =====================================================================
+// 사람 다섯 방식. 뼈대(엉덩이 · 다리 · 무릎 · 몸 · 팔 · 아래팔 · 머리)는 같고, 비율 · 재질 · 얼굴이 달라요
+// =====================================================================
+const { sin: S_, cos: C_, PI: P_, abs: A_, max: MX, min: MN } = Math;
+function canvasTex2(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; }
+const noiseTex = (base, amt, seed, strokes) => canvasTex2(256, 256, (x, w, h) => { const r = rng(seed); x.fillStyle = base; x.fillRect(0, 0, w, h); for (let i = 0; i < (strokes ? 900 : 6000); i++) { const l = r() * 30 - 15; x.fillStyle = `rgba(${l > 0 ? 255 : 0},${l > 0 ? 250 : 0},${l > 0 ? 240 : 0},${r() * amt})`; if (strokes) { x.save(); x.translate(r() * w, r() * h); x.rotate(r() * 0.6 - 0.3); x.fillRect(-14, -2, 28 + r() * 20, 3 + r() * 4); x.restore(); } else x.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2); } });
+// 얼굴 그림 (구의 정면 = 가로 1/4 지점)
+function faceTex2(kind, skin) {
+  return canvasTex2(1024, 512, (x) => {
+    x.fillStyle = skin; x.fillRect(0, 0, 1024, 512);
+    const cx = 256, ey = 262;
+    const blush = (r, a) => { for (const s of [-1, 1]) { const g = x.createRadialGradient(cx + s * 58, ey + 42, 2, cx + s * 58, ey + 42, r); g.addColorStop(0, `rgba(240,130,120,${a})`); g.addColorStop(1, 'rgba(240,130,120,0)'); x.fillStyle = g; x.fillRect(cx + s * 58 - r, ey + 42 - r, r * 2, r * 2); } };
+    if (kind === 'film') {   // 크고 맑은 눈: 흰자 · 갈색 홍채 · 동공 · 반짝 두 점 · 속눈썹
+      blush(30, 0.45);
+      for (const s of [-1, 1]) {
+        const X = cx + s * 40;
+        x.fillStyle = '#fbf8f4'; x.beginPath(); x.ellipse(X, ey, 19, 23, 0, 0, 7); x.fill();
+        const g = x.createLinearGradient(0, ey - 20, 0, ey + 20); g.addColorStop(0, '#3a2418'); g.addColorStop(1, '#8a5a34'); x.fillStyle = g; x.beginPath(); x.ellipse(X, ey + 2, 14, 18, 0, 0, 7); x.fill();
+        x.fillStyle = '#1a100c'; x.beginPath(); x.ellipse(X, ey + 2, 7, 9, 0, 0, 7); x.fill();
+        x.fillStyle = '#fff'; x.beginPath(); x.ellipse(X - 6, ey - 7, 5.5, 6.5, 0, 0, 7); x.fill(); x.beginPath(); x.ellipse(X + 6, ey + 10, 2.4, 2.6, 0, 0, 7); x.fill();
+        x.strokeStyle = '#2a1a14'; x.lineWidth = 5; x.lineCap = 'round'; x.beginPath(); x.moveTo(X - 21, ey - 6); x.quadraticCurveTo(X, ey - 30, X + 22, ey - 10); x.stroke();
+        x.lineWidth = 4; x.strokeStyle = '#5a3a28'; x.beginPath(); x.moveTo(X - 18, ey - 42); x.quadraticCurveTo(X, ey - 50, X + 18, ey - 42); x.stroke();
+      }
+      x.strokeStyle = '#c88a74'; x.lineWidth = 3; x.beginPath(); x.moveTo(cx + 2, ey + 26); x.lineTo(cx - 1, ey + 34); x.stroke();
+      x.strokeStyle = '#a04a44'; x.lineWidth = 4; x.beginPath(); x.moveTo(cx - 11, ey + 50); x.quadraticCurveTo(cx, ey + 57, cx + 11, ey + 50); x.stroke();
+    } else if (kind === 'chibi') {   // 아주 큰 눈, 볼 크게
+      blush(40, 0.55);
+      for (const s of [-1, 1]) { const X = cx + s * 52; x.fillStyle = '#20140e'; x.beginPath(); x.ellipse(X, ey + 6, 18, 25, 0, 0, 7); x.fill(); x.fillStyle = '#fff'; x.beginPath(); x.ellipse(X - 6, ey - 4, 7, 8, 0, 0, 7); x.fill(); x.beginPath(); x.ellipse(X + 6, ey + 16, 3, 3, 0, 0, 7); x.fill(); }
+      x.fillStyle = '#c8504a'; x.beginPath(); x.ellipse(cx, ey + 48, 9, 6, 0, 0, P_); x.fill();
+    } else if (kind === 'book') {   // 그림책: 점 눈 · 짧은 눈썹 · 작은 입 · 붓 볼
+      blush(26, 0.35);
+      for (const s of [-1, 1]) { const X = cx + s * 36; x.fillStyle = '#2a1e18'; x.beginPath(); x.ellipse(X, ey, 7, 9, 0, 0, 7); x.fill(); x.strokeStyle = 'rgba(70,50,40,.8)'; x.lineWidth = 3; x.beginPath(); x.moveTo(X - 10, ey - 22); x.lineTo(X + 10, ey - 24); x.stroke(); }
+      x.strokeStyle = '#8a4a40'; x.lineWidth = 3; x.beginPath(); x.moveTo(cx - 7, ey + 40); x.quadraticCurveTo(cx, ey + 44, cx + 7, ey + 40); x.stroke();
+      const r = rng(4); for (let i = 0; i < 1600; i++) { x.fillStyle = `rgba(120,80,50,${r() * 0.05})`; x.fillRect(r() * 1024, r() * 512, 3, 3); }
+    } else if (kind === 'felt') {   // 펠트: 바느질 입 · 동그란 볼 천
+      for (const s of [-1, 1]) { x.fillStyle = 'rgba(240,140,130,.7)'; x.beginPath(); x.arc(cx + s * 60, ey + 40, 18, 0, 7); x.fill(); }
+      x.strokeStyle = '#7a3a34'; x.lineWidth = 3; x.setLineDash([6, 5]); x.beginPath(); x.moveTo(cx - 14, ey + 48); x.quadraticCurveTo(cx, ey + 58, cx + 14, ey + 48); x.stroke(); x.setLineDash([]);
+      const r = rng(3); for (let i = 0; i < 9000; i++) { x.fillStyle = `rgba(${r() < 0.5 ? 255 : 90},${r() < 0.5 ? 240 : 60},${r() < 0.5 ? 230 : 40},${r() * 0.06})`; x.fillRect(r() * 1024, r() * 512, 1 + r() * 3, 1); }
+    }
+  });
+}
+// 재질: 방식마다 다르게
+function matSet(kind) {
+  if (kind === 'felt') { const bump = noiseTex('#808080', 0.5, 9); return (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 1, bumpMap: bump, bumpScale: 3 }); }
+  if (kind === 'book') { const m = new Map(); return (c) => { if (!m.has(c)) m.set(c, new THREE.MeshLambertMaterial({ color: c, map: noiseTex('#ffffff', 0.09, c.length * 7 + c.charCodeAt(2), true) })); return m.get(c); }; }
+  if (kind === 'mini') return (c) => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.4 });
+  return (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: o.r ?? 0.62, ...(o.sheen ? { } : {}) });
+}
+const DOME = (r, sy, back) => { const g = new THREE.SphereGeometry(r, 36, 18, 0, P_ * 2, 0, P_ * 0.5); g.scale(1, sy, 1); g.rotateX(-back); return g; };   // 머리 위 반구 (뒤로 젖혀 이마가 보이게)
+const SPH = (r, sy = 1, sz = 1, seg = 32) => { const g = new THREE.SphereGeometry(r, seg, Math.round(seg * 0.7)); g.scale(1, sy, sz); return g; };
+const CAP = (r0, r1, len, seg = 20) => { const g = new THREE.CylinderGeometry(r1, r0, len, seg, 1); g.translate(0, -len / 2, 0); return g; };
+
+// 공통 뼈대 만들기. P = 비율, K = 재질 · 얼굴 종류, G = 'f' | 'm'
+function person(P, K, G) {
+  const mat = matSet(K.mat), root = new THREE.Group(), add = (p, g, m, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(g, m); o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true; p.add(o); return o; };
+  const F = G === 'f', C = F ? K.f : K.m, skin = mat(K.skin), hip = P.leg;
+  const hips = J(root, 0, hip, 0), body = J(hips);
+  // 다리 · 신발
+  const legs = [-1, 1].map((s) => {
+    const l = J(hips, s * P.hipW, 0, 0), thigh = P.leg * 0.5, shin = P.leg * 0.5;
+    add(l, CAP(P.legR * 1.15, P.legR * 0.9, thigh), mat(F && !C.pants ? K.skin : C.pants));
+    const k = J(l, 0, -thigh, 0); add(k, CAP(P.legR * 0.9, P.legR * 0.65, shin - P.foot * 0.6), mat(F && !C.pants ? K.skin : C.pants));
+    if (C.socks) add(k, CAP(P.legR * 0.72, P.legR * 0.66, shin * 0.25), mat(C.socks), 0, -shin * 0.6, 0);
+    const sh = add(k, SPH(P.foot * 0.55, 0.55, 1.5, 20), mat(C.shoe), 0, -shin + P.foot * 0.25, P.foot * 0.35);
+    return { l, k };
+  });
+  // 몸통
+  const tl = P.torso;
+  add(body, CAP(P.waist, P.chest, tl, 28), mat(C.top), 0, tl, 0).scale.z = 0.78;
+  add(body, SPH(P.chest * 1.02, 0.5, 0.82, 28), mat(C.top), 0, tl, 0);   // 어깨 둥글게
+  if (C.collar) add(body, new THREE.TorusGeometry(P.neckR * 1.5, P.neckR * 0.4, 8, 24), mat(C.collar), 0, tl + P.chest * 0.32, 0).rotation.x = P_ / 2;
+  let skirt = null;
+  if (F && C.skirt) { const pts = []; for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push(new THREE.Vector2(P.waist * 1.02 + P.skirtFlare * Math.pow(t, 1.2), -t * P.skirtLen)); } skirt = add(body, new THREE.LatheGeometry(pts, 40), mat(C.skirt), 0, P.waist * 0.4, 0); skirt.material.side = THREE.DoubleSide; skirt.scale.z = 0.85; }
+  else add(body, SPH(P.waist * 1.08, 0.6, 0.8, 24), mat(C.pants || C.top), 0, 0, 0);
+  if (C.belt) add(body, new THREE.TorusGeometry(P.waist * 1.0, P.waist * 0.08, 8, 28), mat(C.belt), 0, P.waist * 0.35, 0).rotation.x = P_ / 2;
+  // 팔 · 손
+  const arms = [-1, 1].map((s) => {
+    const a = J(body, s * P.chest * 0.95, tl - P.armR * 0.6, 0);
+    add(a, SPH(P.armR * 1.35, 1, 1, 16), mat(C.top));
+    add(a, CAP(P.armR * 1.15, P.armR, P.arm * 0.5), mat(C.sleeve === 'short' ? K.skin : C.top));
+    const f = J(a, 0, -P.arm * 0.5, 0); add(f, CAP(P.armR * 0.95, P.armR * 0.8, P.arm * 0.46), mat(C.sleeve === 'long' ? C.top : K.skin));
+    const hand = J(f, 0, -P.arm * 0.48, 0); add(hand, SPH(P.hand, 1.15, 0.6, 16), skin, 0, -P.hand * 0.6, 0);
+    if (P.thumb) add(hand, CAP(P.hand * 0.28, P.hand * 0.24, P.hand * 0.7, 10), skin, -s * P.hand * 0.6, -P.hand * 0.2, P.hand * 0.25).rotation.z = s * 0.6;
+    a.rotation.z = s * 0.1; return { a, f };
+  });
+  // 목 · 머리
+  add(body, CAP(P.neckR, P.neckR, P.neck + 0.03), skin, 0, tl + P.chest * 0.3 + P.neck, 0);
+  const head = J(body, 0, tl + P.chest * 0.3 + P.neck + P.head * 0.9, 0);
+  const faceM = K.face ? new THREE.MeshStandardMaterial({ map: faceTex2(K.face, K.skin), roughness: 0.75 }) : mat(K.skin);
+  if (K.mat === 'felt') faceM.bumpMap = noiseTex('#808080', 0.5, 9), faceM.bumpScale = 2;
+  add(head, SPH(P.head, P.headY, 0.96, 40), faceM);
+  if (K.ears) for (const s of [-1, 1]) add(head, SPH(P.head * 0.17, 1.3, 0.6, 12), skin, s * P.head * 0.98, -P.head * 0.05, 0);
+  if (K.nose) add(head, SPH(P.head * 0.09, 0.9, 0.8, 12), skin, 0, -P.head * 0.12, P.head * 0.95);
+  if (K.button) for (const s of [-1, 1]) { add(head, new THREE.CylinderGeometry(P.head * 0.12, P.head * 0.12, P.head * 0.05, 20), mat('#1e1614'), s * P.head * 0.36, P.head * 0.02, P.head * 0.92).rotation.x = P_ / 2; add(head, SPH(P.head * 0.03, 1, 1, 8), new THREE.MeshBasicMaterial({ color: '#fff' }), s * P.head * 0.33, P.head * 0.07, P.head * 0.97); }
+  // 머리카락
+  const H = mat(C.hair), hairG = J(head), tips = [];
+  if (K.mat === 'felt') {   // 털실 머리: 굵은 실 고리
+    add(hairG, DOME(P.head * 1.06, 0.95, 0.38), H, 0, P.head * 0.02, -P.head * 0.02);
+    for (let i = 0; i < (F ? 14 : 9); i++) { const a = -1.3 + i * (2.6 / (F ? 13 : 8)), t = J(hairG, S_(a) * P.head * 0.98, P.head * 0.05, C_(a) * -P.head * 0.6); add(t, CAP(P.head * 0.11, P.head * 0.1, P.head * (F ? 1.1 : 0.55), 10), H); tips.push(t); }
+  } else if (K.mat === 'mini') {   // 매끈한 덩어리 머리
+    add(hairG, DOME(P.head * 1.06, 0.98, 0.42), H, 0, P.head * 0.04, -P.head * 0.02);
+    if (F) add(hairG, SPH(P.head * 0.45, 0.45, 0.45, 20), H, 0, P.head * 0.55, -P.head * 0.85);
+  } else {
+    add(hairG, DOME(P.head * 1.08, 1.0, 0.32), H, 0, P.head * 0.05, -P.head * 0.02);   // 정수리 (반구)
+    const back = add(hairG, SPH(P.head * 1.02, F ? 1.12 : 0.8, 0.85, 32), H, 0, F ? -P.head * 0.2 : 0.0, -P.head * 0.32);   // 뒤통수
+    const nB = F ? 9 : 7; for (let i = 0; i < nB; i++) { const a = -0.9 + i * (1.8 / (nB - 1)), b = J(hairG, S_(a) * P.head * 0.86, P.head * 0.66, C_(a) * P.head * 0.66); b.rotation.set(1.05, a, -a * 0.3); add(b, SPH(P.head * 0.19, F ? 0.8 : 0.6, 0.4, 14), H, 0, -P.head * 0.1, 0); tips.push(b); }   // 앞머리 갈래
+    if (F && P.long) for (let i = 0; i < 7; i++) { const a = P_ * 0.62 + i * (P_ * 0.76 / 6), t = J(hairG, S_(a) * P.head * 0.88, -P.head * 0.1, C_(a) * P.head * 0.88); add(t, CAP(P.head * 0.22, P.head * 0.12, P.head * 1.5, 12), H); t.rotation.x = -0.12; tips.push(t); }
+    if (!F) for (const s of [-1, 1]) add(hairG, SPH(P.head * 0.32, 0.6, 0.6, 14), H, s * P.head * 0.9, P.head * 0.2, -P.head * 0.05);
+  }
+  // 모자 (A~D 는 밀짚모자, E 는 둥근 챙모자)
+  const hat = J(head, 0, P.head * (P.headY * 0.72), -P.head * 0.02); hat.rotation.x = -0.15;
+  const HM = mat(K.hat || '#e6c98a');
+  add(hat, new THREE.CylinderGeometry(P.head * 1.7, P.head * 1.75, P.head * 0.08, 48), HM);
+  add(hat, SPH(P.head * 1.03, 0.62, 1.03, 32).translate(0, 0, 0), HM).scale.y = 1;
+  add(hat, new THREE.CylinderGeometry(P.head * 1.04, P.head * 1.05, P.head * 0.22, 40, 1, true), mat(K.band || '#c84a3e'), 0, P.head * 0.14, 0).material.side = THREE.DoubleSide;
+  // 사진기 (목에 걸고)
+  const cam = J(body, 0, tl * 0.62, P.chest * 0.82 + 0.03);
+  add(cam, new THREE.BoxGeometry(P.head * 1.1, P.head * 0.7, P.head * 0.5), mat('#2e2a28')); add(cam, new THREE.CylinderGeometry(P.head * 0.28, P.head * 0.3, P.head * 0.4, 20), mat('#1a1818'), 0, -P.head * 0.03, P.head * 0.38).rotation.x = P_ / 2;
+  add(cam, new THREE.BoxGeometry(P.head * 1.12, P.head * 0.22, P.head * 0.52), mat('#c8b490'), 0, P.head * 0.32, 0);
+  root.traverse((o) => { if (o.isMesh && o.material?.map === undefined) {} });
+  const st = { root, mode: 0 };
+  st.update = (t, dt) => {
+    const ph = (t % 18) / 6, mode = Math.floor(ph), k = ph - mode, ease = MN(1, k * 4, (1 - k) * 4);
+    const w = mode === 0 ? ease : 0, step = t * 8.5 * P.stride;
+    legs.forEach(({ l, k: kn }, i) => { const q = step + i * P_; l.rotation.x = S_(q) * 0.45 * w; kn.rotation.x = MX(0, -S_(q - 0.9)) * 0.7 * w; });
+    arms.forEach(({ a, f }, i) => { a.rotation.x = -S_(step + i * P_) * 0.38 * w + S_(t * 0.8 + i) * 0.03; a.rotation.z = (i ? 0.1 : -0.1); f.rotation.x = -0.18 - 0.1 * w; f.rotation.z = 0; });
+    hips.position.y = hip + A_(S_(step)) * P.bounce * w + S_(t * 1.6) * 0.004 * (1 - w);
+    if (skirt) skirt.rotation.x = S_(step * 2) * 0.04 * w + S_(t * 1.9) * 0.02;
+    if (mode === 1) { const R = arms[1], wv = ease; R.a.rotation.z = 0.1 + wv * 2.6; R.f.rotation.z = wv * S_(t * 12) * 0.5; R.f.rotation.x = -0.2 * (1 - wv); }
+    if (mode === 2) { const ak = ease; arms.forEach(({ a, f }, i) => { const s = i ? 1 : -1; a.rotation.x = -1.05 * ak; a.rotation.z = (i ? 0.1 : -0.1) * (1 - ak) - s * 0.42 * ak; f.rotation.x = -1.6 * ak; f.rotation.z = -s * 0.75 * ak; }); cam.position.y = tl * 0.62 + (P.neck + P.head * 1.2 + P.chest * 0.2) * ak; cam.position.z = P.chest * 0.82 + 0.03 + P.head * 0.9 * ak; }
+    else { cam.position.y = tl * 0.62; cam.position.z = P.chest * 0.82 + 0.03; cam.rotation.x = S_(t * 2) * 0.1; }
+    head.rotation.set(S_(t * 0.5) * 0.04, S_(t * 0.33) * 0.2 * (1 - w), S_(t * 0.7) * 0.03);
+    tips.forEach((b, i) => { b.rotation.z = (b.rotation.z * 0.9) + S_(t * 2.1 + i) * 0.005; });
+    root.position.z = 0;
+  };
+  return st;
+}
+// 다섯 방식: 비율 P · 재질 K
+const SKIN = '#f4d6bc';
+const PEOPLE = [
+  ['A', '극장판 자연형', '6등신의 자연스러운 비율에 크고 맑은 눈(홍채 · 반짝임 · 속눈썹), 볼륨 있는 앞머리와 긴 머리, 엄지가 있는 손. 따뜻한 3D 애니메이션 영화의 주인공 느낌이에요.', ['영화 주인공', '맑은 눈', '자연 비율'],
+    { leg: 0.78, legR: 0.055, hipW: 0.075, foot: 0.12, torso: 0.4, waist: 0.12, chest: 0.15, armR: 0.035, arm: 0.56, hand: 0.042, thumb: true, neck: 0.05, neckR: 0.04, head: 0.125, headY: 1.08, skirtLen: 0.5, skirtFlare: 0.17, long: true, stride: 1, bounce: 0.025 },
+    { face: 'film', ears: true, nose: true, skin: SKIN, f: { top: '#f7f3ea', skirt: '#6f7d4c', shoe: '#7a4a32', hair: '#4a2e22', collar: '#ffffff', belt: '#8a5a3a', sleeve: 'short' }, m: { top: '#e8dcc4', pants: '#4f5a6a', shoe: '#5a3a28', hair: '#3a2620', sleeve: 'short', belt: '#6a4a32' } }],
+  ['B', '꼬마 2.5등신', '머리가 몸만큼 큰 귀여운 비율. 큰 눈과 볼, 짧은 팔다리로 통통 튀며 걸어요. 동물들과 나란히 섰을 때 가장 사랑스러워요.', ['귀여움', '큰 머리', '통통 걸음'],
+    { leg: 0.36, legR: 0.07, hipW: 0.08, foot: 0.14, torso: 0.3, waist: 0.15, chest: 0.17, armR: 0.045, arm: 0.34, hand: 0.055, thumb: false, neck: 0.01, neckR: 0.05, head: 0.27, headY: 0.95, skirtLen: 0.28, skirtFlare: 0.12, long: true, stride: 1.3, bounce: 0.05 },
+    { face: 'chibi', ears: false, nose: false, skin: SKIN, f: { top: '#fbf4e6', skirt: '#e88a74', shoe: '#a8604a', hair: '#5a3a28', sleeve: 'short', socks: '#ffffff' }, m: { top: '#9ac0d8', pants: '#5a6a3a', shoe: '#7a4a32', hair: '#3a2620', sleeve: 'short' } }],
+  ['C', '그림책 수채화', '옷 · 피부 · 머리에 붓질 결이 남은 천 같은 재질, 점 눈과 짧은 눈썹의 담백한 얼굴. 손으로 그린 그림책 인물이 그대로 걸어 나온 느낌이에요.', ['붓질 결', '담백한 얼굴', '손맛'],
+    { leg: 0.74, legR: 0.05, hipW: 0.07, foot: 0.11, torso: 0.4, waist: 0.12, chest: 0.14, armR: 0.032, arm: 0.54, hand: 0.04, thumb: false, neck: 0.05, neckR: 0.038, head: 0.13, headY: 1.05, skirtLen: 0.56, skirtFlare: 0.2, long: false, stride: 0.9, bounce: 0.02 },
+    { face: 'book', ears: true, nose: false, skin: '#f2d8c0', mat: 'book', f: { top: '#f2e8d4', skirt: '#7a8ab0', shoe: '#6a4a3a', hair: '#3a2a24', sleeve: 'long', collar: '#c84a3e' }, m: { top: '#c8a06a', pants: '#5a6a5a', shoe: '#4a3428', hair: '#2e2420', sleeve: 'long' } }],
+  ['D', '펠트 인형', '보송한 펠트 천으로 빚은 인형. 단추 눈, 털실 머리, 바느질 입. 손으로 만든 따뜻함이 가장 크고, 힐링 게임의 포근함과 잘 맞아요.', ['포근함', '단추 눈', '털실 머리'],
+    { leg: 0.6, legR: 0.075, hipW: 0.085, foot: 0.13, torso: 0.38, waist: 0.15, chest: 0.17, armR: 0.05, arm: 0.48, hand: 0.055, thumb: false, neck: 0.03, neckR: 0.05, head: 0.18, headY: 1.0, skirtLen: 0.42, skirtFlare: 0.14, long: false, stride: 1, bounce: 0.035 },
+    { face: 'felt', button: true, ears: false, skin: '#f2d4bc', mat: 'felt', hat: '#e8cf98', f: { top: '#f2a88a', skirt: '#6a8ab0', shoe: '#7a4a3a', hair: '#8a4a2e', sleeve: 'long' }, m: { top: '#8ab07a', pants: '#6a5a8a', shoe: '#5a3a2e', hair: '#4a3024', sleeve: 'long' } }],
+  ['E', '미니멀 조각', '얼굴을 그리지 않은 매끈한 도자기 같은 사람. 길쭉하고 우아한 비율과 단색 옷. 풍경과 동물이 주인공이 되고, 보는 사람이 자신을 겹쳐 보기 좋아요.', ['세련됨', '얼굴 없음', '풍경이 주인공'],
+    { leg: 0.86, legR: 0.045, hipW: 0.065, foot: 0.1, torso: 0.44, waist: 0.1, chest: 0.13, armR: 0.03, arm: 0.6, hand: 0.035, thumb: false, neck: 0.07, neckR: 0.035, head: 0.11, headY: 1.12, skirtLen: 0.66, skirtFlare: 0.15, long: false, stride: 0.85, bounce: 0.015 },
+    { face: null, ears: false, skin: '#f2e2d2', mat: 'mini', hat: '#f2ece0', band: '#2e2a28', f: { top: '#fbf8f2', skirt: '#c8604a', shoe: '#2e2a28', hair: '#2e2a28', sleeve: 'long' }, m: { top: '#2e4a5a', pants: '#e8dcc8', shoe: '#2e2a28', hair: '#2e2a28', sleeve: 'long' } }],
+];
+document.getElementById('list').innerHTML = PEOPLE.map(([L, n, d, tags], i) => `<section class="opt"><div class="stage" data-i="${i}" role="img" aria-label="${n} 사람 시안: 여자와 남자"></div><div class="info"><div class="t"><i>${L}</i><b>${n}</b></div><p>${d}</p><ul>${tags.map((t) => `<li>${t}</li>`).join('')}</ul></div></section>`).join('');
+
+// 무대 (노을빛 들판)
+const LK0 = LOOK.soft, stages = [];
+document.querySelectorAll('.stage').forEach((el) => {
+  const [, , , , P, K] = PEOPLE[+el.dataset.i], cv = document.createElement('canvas'); el.append(cv);
+  const r = new THREE.WebGLRenderer({ canvas: cv, antialias: true }); r.setPixelRatio(Math.min(devicePixelRatio, 2)); r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = LK0.exp; r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
+  const sc = new THREE.Scene(); sc.add(skyDome(LK0.top, LK0.mid, LK0.hor, new THREE.Vector3(0.7, 0.2, -0.7), LK0.glow)); sc.fog = new THREE.Fog(LK0.fog, 8, 40);
+  sc.add(new THREE.HemisphereLight('#ffe8d0', '#5a4a30', 1.25));
+  const d = new THREE.DirectionalLight('#ffe2b8', 2.4); d.position.set(-2.5, 4, 3.5); d.castShadow = true; d.shadow.mapSize.set(1024, 1024); Object.assign(d.shadow.camera, { left: -3, right: 3, top: 3, bottom: -1, near: 0.5, far: 15 }); d.shadow.bias = -0.0005; sc.add(d);
+  const rim = new THREE.DirectionalLight('#ffc888', 2.2); rim.position.set(3, 2, -4); sc.add(rim);
+  const fl = new THREE.Mesh(new THREE.CircleGeometry(30, 48), new THREE.MeshStandardMaterial({ color: '#b8a05a', roughness: 1 })); fl.rotation.x = -P_ / 2; fl.receiveShadow = true; sc.add(fl);
+  const f = person(P, K, 'f'), m = person(P, K, 'm'); f.root.position.x = -0.45; m.root.position.x = 0.45; sc.add(f.root, m.root);
+  const tall = P.leg + P.torso + P.chest * 0.3 + P.neck + P.head * 2.2;
+  const cam = new THREE.PerspectiveCamera(30, 16 / 9, 0.05, 3000); const dist = tall * 1.75 + 0.5; cam.position.set(0, tall * 0.62, dist); cam.lookAt(0, tall * 0.5, 0);
+  const face = new THREE.PerspectiveCamera(22, 1, 0.02, 3000), hy = P.leg + P.torso + P.chest * 0.3 + P.neck + P.head * 0.9;   // 얼굴 가까이 보기
+  face.position.set(-0.45, hy + P.head * 0.1, P.head * 9 + 0.15); face.lookAt(-0.45, hy, 0);
+  const s = { el, r, sc, cam, face, f, m, yaw: 0.25, drag: null };
+  el.addEventListener('pointerdown', (e) => { s.drag = e.clientX; el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointermove', (e) => { if (s.drag === null) return; s.yaw += (e.clientX - s.drag) * 0.01; s.drag = e.clientX; });
+  el.addEventListener('pointerup', () => (s.drag = null));
+  stages.push(s);
+});
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches, clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(0.05, clock.getDelta()), t = still ? 7 : clock.elapsedTime;
+  for (const s of stages) {
+    const b = s.el.getBoundingClientRect(); if (b.bottom < 0 || b.top > innerHeight) continue;
+    const w = Math.round(b.width), h = Math.round(b.height); if (s.w !== w || s.h !== h) { s.r.setSize(w, h, false); s.cam.aspect = w / h; s.cam.updateProjectionMatrix(); s.w = w; s.h = h; }
+    if (!still && s.drag === null) s.yaw += dt * 0.25;
+    s.f.root.rotation.y = s.yaw; s.m.root.rotation.y = s.yaw + 0.3;
+    s.f.update(t, dt); s.m.update(t + 2.2, dt);
+    s.r.setScissorTest(false); s.r.setViewport(0, 0, w, h); s.r.render(s.sc, s.cam);
+    const iw = Math.round(w * 0.3), ih = Math.round(iw * 0.9), x0 = w - iw - 10;   // 오른쪽 아래: 여자 얼굴 가까이 (정면)
+    const keep = s.f.root.rotation.y; s.f.root.rotation.y = 0; s.face.aspect = iw / ih; s.face.updateProjectionMatrix();
+    s.r.setScissorTest(true); s.r.setScissor(x0, 10, iw, ih); s.r.setViewport(x0, 10, iw, ih); s.r.render(s.sc, s.face); s.r.setScissorTest(false); s.f.root.rotation.y = keep;
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+window.__ok = stages.length;
+</script>
