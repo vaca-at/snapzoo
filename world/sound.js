@@ -50,7 +50,8 @@ export class IslandSound {
     this.wind.g.gain.setTargetAtTime(wind * (0.8 + Math.random() * 0.4), t, k);
     this.wind.f.frequency.setTargetAtTime((z === 'arctic' ? 700 : z === 'desert' ? 900 : 500) * (0.8 + Math.random() * 0.5), t, 2);
     this.waterN.g.gain.setTargetAtTime(Math.min(1, this.water) * 0.5, t, k);
-    this.crick.gain.setTargetAtTime(z === 'jungle' ? 0.7 : z === 'savanna' ? 0.35 : z === 'village' ? 0.2 : 0, t, k);
+    const nk = this.night || 0;   // 밤엔 풀벌레가 크게, 새는 잠들어요
+    this.crick.gain.setTargetAtTime((z === 'jungle' ? 0.7 : z === 'savanna' ? 0.35 : z === 'village' ? 0.2 : 0) * (1 - nk) + (z === 'arctic' || z === 'sea' ? 0 : 0.85) * nk, t, k);
   }
   // 100ms 마다: 앞으로 0.6초 안의 음을 미리 예약
   tick() {
@@ -83,7 +84,7 @@ export class IslandSound {
     o.start(t); o2.start(t); o.stop(t + 1.7); o2.stop(t + 1.7);
   }
   bird() {   // 새: 짧게 휘어 올라가는 소리 두세 번 (초원 · 정글 · 마을)
-    const z = this.zone; if (!['savanna', 'jungle', 'village'].includes(z)) return;
+    const z = this.zone; if (!['savanna', 'jungle', 'village'].includes(z) || (this.night || 0) > 0.5) return;
     const c = this.ctx, t = c.currentTime + 0.05, n = 2 + Math.floor(Math.random() * 3), base = 2600 + Math.random() * 2200, pan = c.createStereoPanner ? c.createStereoPanner() : null;
     if (pan) { pan.pan.value = Math.random() * 1.6 - 0.8; pan.connect(this.amb); }
     for (let i = 0; i < n; i++) {

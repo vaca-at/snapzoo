@@ -46,6 +46,15 @@ const SPH = (r, sy = 1, sz = 1, seg = 28) => { const g = new THREE.SphereGeometr
 const CAP = (r0, r1, len, seg = 18) => { const g = new THREE.CylinderGeometry(r1, r0, len, seg, 1); g.translate(0, -len / 2, 0); return g; };
 const DOME = (r, sy, back) => { const g = new THREE.SphereGeometry(r, 32, 16, 0, PI * 2, 0, PI * 0.5); g.scale(1, sy, 1); g.rotateX(-back); return g; };
 const SKIN = '#f4d6bc';
+// 📷 사진기 종류 (🛍 상점): 확대 배율 · 사진 색감 · 모양
+export const CAMERAS = [
+  { id: 'basic', name: '기본 필름 사진기', price: 0, zoom: 4, filter: '', frame: '#fbf8f0', body: '#2e2a28', top: '#c8b490', lens: 0.045, icon: '📷', desc: '확대 4배 · 있는 그대로' },
+  { id: 'instant', name: '즉석 사진기', price: 1200, zoom: 3, filter: 'saturate(1.15) contrast(0.95) brightness(1.05)', frame: '#ffffff', body: '#f2ece0', top: '#e86a5a', lens: 0.035, icon: '🖼', desc: '확대 3배 · 맑고 화사하게' },
+  { id: 'vintage', name: '빈티지 사진기', price: 1800, zoom: 4, filter: 'sepia(0.55) contrast(1.05) saturate(0.9)', frame: '#f2e6c8', body: '#6a4a32', top: '#d8b878', lens: 0.05, icon: '🎞', desc: '확대 4배 · 옛날 사진 빛깔' },
+  { id: 'mono', name: '흑백 사진기', price: 2000, zoom: 5, filter: 'grayscale(1) contrast(1.15)', frame: '#f6f6f2', body: '#1e1e20', top: '#a8a8a8', lens: 0.05, icon: '⚫', desc: '확대 5배 · 흑백' },
+  { id: 'pastel', name: '파스텔 사진기', price: 2400, zoom: 4, filter: 'saturate(0.8) brightness(1.1) hue-rotate(-8deg)', frame: '#fde8ee', body: '#f2b8c8', top: '#a8d8e8', lens: 0.04, icon: '🌸', desc: '확대 4배 · 부드러운 파스텔' },
+  { id: 'tele', name: '망원 사진기', price: 3600, zoom: 8, filter: 'contrast(1.05)', frame: '#fbf8f0', body: '#3a3e42', top: '#e8e2d4', lens: 0.11, icon: '🔭', desc: '확대 8배 · 먼 동물도 크게' },
+];
 
 export function person(look = 0, opts = {}) {
   const L = LOOKS[look % LOOKS.length], F = opts.g !== 'm', HAT = opts.hat ?? 0, BI = Math.min(2, Math.max(0, opts.body ?? START_BODY)), B = BODIES[BI], P = B.P;
@@ -102,10 +111,15 @@ export function person(look = 0, opts = {}) {
   else if (HAT === 3) { hat.position.y -= P.head * 0.25; add(hat, new THREE.CylinderGeometry(0.18, 0.185, 0.01, 36), mat('#c8b48a')); add(hat, new THREE.CylinderGeometry(0.1, 0.12, 0.1, 30), mat('#d4c098'), 0, 0.05, 0); add(hat, new THREE.CylinderGeometry(0.121, 0.121, 0.022, 30, 1, true), mat('#6a5038', { side: THREE.DoubleSide }), 0, 0.02, 0); }
   else if (HAT === 4) { hat.position.y -= P.head * 0.32; const fc = ['#f2a0b8', '#fff2a8', '#ffffff', '#c8a8f0', '#f6b07a']; for (let i = 0; i < 12; i++) { const a = i / 12 * PI * 2; add(hat, SPH(0.026, 0.8, 1, 10), mat(fc[i % 5]), sin(a) * 0.112, 0.02, cos(a) * 0.105); } }
   // 📷 목에 건 사진기 · 끈
+  const CM = CAMERAS.find((c) => c.id === opts.cam) || CAMERAS[0];
   const cs = P.head / 0.116, cz = P.chest * 0.84 + 0.04 * cs * 0.8, camG = J(body, 0, tl * 0.62, cz), cb = J(camG);
-  add(cb, new THREE.BoxGeometry(0.13 * cs * 0.8, 0.085 * cs * 0.8, 0.06 * cs * 0.8), mat('#2e2a28')); add(cb, new THREE.BoxGeometry(0.13 * cs * 0.8, 0.026 * cs * 0.8, 0.062 * cs * 0.8), mat('#c8b490'), 0, 0.036 * cs, 0);
-  add(cb, new THREE.CylinderGeometry(0.028 * cs, 0.031 * cs, 0.045 * cs, 18), mat('#1a1818'), 0, -0.004, 0.04 * cs).rotation.x = PI / 2;
-  const st = { root, walk: 0, step: 0, waveT: 0, aim: 0, aimK: 0, snapT: 0, rate: 1, look, g: F ? 'f' : 'm', hat: HAT, body: BI };
+  add(cb, new THREE.BoxGeometry(0.13 * cs * 0.8, 0.085 * cs * 0.8, 0.06 * cs * 0.8), mat(CM.body)); add(cb, new THREE.BoxGeometry(0.13 * cs * 0.8, 0.026 * cs * 0.8, 0.062 * cs * 0.8), mat(CM.top), 0, 0.036 * cs, 0);
+  add(cb, new THREE.CylinderGeometry(0.028 * cs, 0.031 * cs, CM.lens * cs, 18), mat('#1a1818'), 0, -0.004, (0.018 + CM.lens / 2) * cs).rotation.x = PI / 2;
+  add(cb, new THREE.CylinderGeometry(0.02 * cs, 0.02 * cs, 0.004 * cs, 16), new THREE.MeshStandardMaterial({ color: '#5a7a98', roughness: 0.05, metalness: 0.6 }), 0, -0.004, (0.02 + CM.lens) * cs).rotation.x = PI / 2;
+  // 목줄: 사진기 양옆 고리에서 어깨를 지나 목 뒤로 (사진기를 들면 같이 따라 올라가요)
+  const strapM = mat('#6a4430'), strapPts = (lift) => { const yC = tl * 0.62 + lift, zC = cz, w = 0.06 * cs, nY = nTop + P.neck * 0.6; return [[-w, yC + 0.02 * cs, zC], [-P.chest * 0.55, (yC + nY) / 2 + 0.02, P.chest * 0.7], [-P.neckR * 1.25, nY, P.neckR * 0.2], [0, nY + 0.01, -P.neckR * 1.35], [P.neckR * 1.25, nY, P.neckR * 0.2], [P.chest * 0.55, (yC + nY) / 2 + 0.02, P.chest * 0.7], [w, yC + 0.02 * cs, zC]].map(([x, y, z]) => new THREE.Vector3(x, y, z)); };
+  const strap = add(body, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(strapPts(0)), 40, 0.007 * cs, 6), strapM); let strapLift = 0;
+  const st = { root, walk: 0, step: 0, waveT: 0, aim: 0, aimK: 0, snapT: 0, rate: 1, look, g: F ? 'f' : 'm', hat: HAT, body: BI, cam: CM.id };
   st.update = (t, dt) => {
     st.step += dt * st.walk * 8.4 * P.stride * (st.rate || 1); const p = st.step, w = st.walk;
     legs.forEach(({ l, k: kn }, i) => { const q = p + i * PI; l.rotation.x = sin(q) * 0.44 * w; kn.rotation.x = max(0, -sin(q - 0.9)) * 0.7 * w; });
@@ -117,7 +131,8 @@ export function person(look = 0, opts = {}) {
     st.aimK += ((st.aim ? 1 : 0) - st.aimK) * min(1, dt * 7); const ak = st.aimK * st.aimK * (3 - 2 * st.aimK);
     if (st.snapT > 0) st.snapT = max(0, st.snapT - dt);
     if (ak > 0.01) arms.forEach(({ a, f, s }) => { a.rotation.x = a.rotation.x * (1 - ak) - 1.0 * ak; a.rotation.z = a.rotation.z * (1 - ak) - s * 0.4 * ak; f.rotation.x = f.rotation.x * (1 - ak) - 1.65 * ak; f.rotation.z = -s * 0.7 * ak; });
-    camG.position.set(0, tl * 0.62 + (P.neck + P.head * 0.9 + P.chest * 0.38) * ak, cz + P.head * 0.7 * ak); camG.rotation.x = sin(t * 2.2) * 0.1 * (1 - ak) - 0.1 * ak;
+    camG.position.set(0, tl * 0.62 + (P.neck + P.head * 0.9 + P.chest * 0.38) * ak, cz + P.head * 0.7 * ak);
+    const lift = Math.round(ak * 6) / 6; if (lift !== strapLift) { strapLift = lift; strap.geometry.dispose(); const pts = strapPts((P.neck + P.head * 0.9 + P.chest * 0.38) * lift); pts[0].z += P.head * 0.7 * lift; pts[6].z += P.head * 0.7 * lift; strap.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.007 * cs, 6); } camG.rotation.x = sin(t * 2.2) * 0.1 * (1 - ak) - 0.1 * ak;
     cb.position.y = st.snapT > 0 ? -0.015 : 0;
     hips.position.y = hip + abs(sin(p)) * P.bounce * w + sin(t * 1.5) * 0.003 * (1 - w);
     body.rotation.y = sin(p) * 0.05 * w;

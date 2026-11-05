@@ -321,3 +321,34 @@ export const ROSTER = [
   ['sea', 'seaotter', '해달', 2, 2, 1, 'swim', 0.4], ['sea', 'seagull', '갈매기', 2, 3, 1, 'shore', 1.0], ['sea', 'pelican', '펠리컨', 2, 2, 1, 'shore', 0.7],
   ['sea', 'crab', '꽃게', 2, 3, 1, 'shore', 0.8], ['sea', 'starfish', '불가사리', 2, 3, 1, 'shore', 0], ['sea', 'fish', '열대어 떼', 3, 1, 1, 'swim', 0.9], ['sea', 'octopus', '문어', 2, 1, 1, 'swim', 0.3],
 ].filter((r) => r[3] > 0);
+
+// ───────── 🌙 밤 친구: 해가 지면 나와요 (박쥐 · 반딧불이는 하늘을 날아요) ─────────
+function bat() {
+  const root = new THREE.Group(), C = plain('#3a2e34'), body = J(root);
+  M(body, ell(0.07, 0.07, 0.11), C); M(body, ell(0.055, 0.05, 0.05), C, undefined, 0, 0.03, 0.09);
+  for (const k of [-1, 1]) M(body, new THREE.ConeGeometry(0.018, 0.05, 4), C, undefined, k * 0.025, 0.08, 0.09);
+  const eyes = [-1, 1].map((k) => eye(body, 0.012, k * 0.022, 0.04, 0.13, k * 0.4));
+  const wings = [-1, 1].map((k) => { const w = J(body, k * 0.05, 0.01, 0); const sh = new THREE.Shape(); sh.moveTo(0, 0.05); sh.quadraticCurveTo(0.12, 0.09, 0.26, 0.03); sh.lineTo(0.2, -0.02); sh.lineTo(0.15, 0.0); sh.lineTo(0.1, -0.04); sh.lineTo(0.05, -0.01); sh.lineTo(0, -0.06); const m = M(w, new THREE.ShapeGeometry(sh), plain('#4a3a42', { side: THREE.DoubleSide })); m.rotation.x = -PI / 2; m.scale.x = k; return w; });
+  const st = { root, walk: 0 }; st.update = (t) => { const f = sin(t * 18) * 0.9; wings.forEach((w, i) => (w.rotation.z = (i ? -1 : 1) * f)); body.position.y = sin(t * 18) * 0.015; };
+  return st;
+}
+function fireflies() {
+  const root = new THREE.Group(), N = 16, pos = new Float32Array(N * 3), ph = [], c = document.createElement('canvas'); c.width = c.height = 64;
+  { const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 30); g.addColorStop(0, 'rgba(255,255,200,1)'); g.addColorStop(0.3, 'rgba(220,255,120,.75)'); g.addColorStop(1, 'rgba(180,255,80,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); }
+  const dots = []; for (let i = 0; i < N; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), color: '#e8ff9a', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); sp.scale.setScalar(0.22); root.add(sp); dots.push({ sp, a: Math.random() * 6, r: 0.6 + Math.random() * 1.8, h: 0.4 + Math.random() * 1.4, s: 0.3 + Math.random() * 0.5 }); }
+  const st = { root, walk: 0 };
+  st.update = (t) => { dots.forEach((d) => { const a = d.a + t * d.s; d.sp.position.set(sin(a) * d.r, d.h + sin(t * 0.9 + d.a) * 0.25, cos(a * 1.3) * d.r); d.sp.material.opacity = 0.25 + 0.75 * max(0, sin(t * 2.3 + d.a * 3)); }); };
+  return st;
+}
+Object.assign(SPECIES, {
+  owl: () => bird({ size: 0.34, legL: 0.03, c: '#8a6a4a', belly: '#d8c4a4', wing: '#6a4e34', neckL: 0.02, headR: 0.3, beak: 'hook', beakC: '#3a3232', tufts: true, face: '#e8d8bc', legC: '#c8a87a', legR: 0.06 }),
+  raccoon: Q('raccoon', ['#8a8a88', '#d8d4cc', '#2a2626'], 0.6, 0.32, { neckA: 1.0, neckL: 0.08, headA: 0.25, headL: 0.16, headR: 0.08, earW: 0.035, earL: 0.04, earOut: 0.5, earIn: '#f2ece4', tailL: 0.36, tailR: 0.06, tailA: 1.9, legR: 0.024, hoofC: '#2a2626', graze: 0.3 },
+    `vec3 c=C0; if((reg<0.5||(reg>1.5&&reg<2.5))&&T.z<-0.35) c=C1; if(reg>2.5&&reg<3.5&&abs(T.y)>0.45&&T.z>-0.1&&T.x>0.05&&T.x<0.13) c=C2; if(reg>2.5&&reg<3.5&&T.x>0.15) c=C1; if(reg>3.5&&reg<4.5&&fract(T.x*7.0)<0.45) c=C2; if(reg>0.5&&reg<1.5&&R.y<0.08) c=C2; return c;`),
+  bat, firefly: fireflies,
+});
+// 밤에만 나오는 친구 (구역 · id · 이름 · 무리 · 마리 · 크기 · 움직임 · 빠르기 · 밤): fly = 하늘을 빙빙
+ROSTER.push(
+  ['village', 'owl', '부엉이', 2, 1, 1, 'still', 0, true], ['village', 'raccoon', '너구리', 2, 2, 1, 'walk', 1.0, true],
+  ['jungle', 'bat', '박쥐', 2, 3, 1, 'fly', 2.5, true], ['savanna', 'firefly', '반딧불이', 4, 1, 1, 'fly', 0.4, true],
+);
+
