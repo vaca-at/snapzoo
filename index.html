@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>동물 왕국</title>
+<meta name="theme-color" content="#3f8f5a">
+<!-- 첫 주소(snapzoo.site)로 들어오면 아이용 '동물 왕국'(/kids/)으로 넘겨 줘요.
+     어른용 스냅주 게임이 완성되면 이 파일을 그 게임으로 바꾸면 돼요.
+     주소 뒤의 ?… · #… 는 그대로 따라가요 -->
+<meta http-equiv="refresh" content="0; url=/kids/">
+<script>location.replace("/kids/" + location.search + location.hash);</script>
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #3f8f5a; color: #fff; font-family: "Malgun Gothic", sans-serif; text-align: center; }
+  a { color: #fff; font-weight: 700; }
+</style>
+</head>
+<body>
+  <p>🦁 동물 왕국으로 가는 중이에요…<br><a href="/kids/">여기를 누르세요</a></p>
+</body>
+</html>
