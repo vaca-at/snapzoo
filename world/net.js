@@ -72,3 +72,12 @@ export class IslandNet {
     clearInterval(this.pinger); this.online = false; if (!keep) this.room = 0; this.h.onReset?.(); this.h.onStatus?.();
   }
 }
+
+// 방문 · 머문 시간 세기 (moontr.site 관리자 허브용 숫자만, 누구인지는 보내지 않아요): 기기마다 하루 한 번 방문 +1, 나갈 때 머문 초
+{ const day = new Date().toDateString(); let seen = ''; try { seen = localStorage.getItem('snapzoo-island-visit') || ''; } catch {}
+  if (RELAY && seen !== day) fetch(`${RELAY}/visit?kind=island`, { method: 'POST' }).then((r) => { if (r.ok) try { localStorage.setItem('snapzoo-island-visit', day); } catch {} }).catch(() => {});
+  let shown = document.hidden ? 0 : performance.now(), acc = 0, sent = false;
+  const flush = () => { if (shown) { acc += (performance.now() - shown) / 1000; shown = 0; } };
+  addEventListener('visibilitychange', () => { if (document.hidden) flush(); else shown = performance.now(); });
+  addEventListener('pagehide', () => { flush(); if (sent || !RELAY || acc < 3) return; sent = true; try { navigator.sendBeacon(`${RELAY}/tally`, JSON.stringify({ stay: Math.round(acc) })); } catch {} });
+}

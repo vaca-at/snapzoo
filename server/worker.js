@@ -8,7 +8,7 @@ import { NAME_A, NAME_B, LOOKS, BODIES, ANIMALS, CAMERAS, ACTIONS, FACES, SERVER
 const GRACE = 30e3;   // 끊긴 분 자리를 남겨 두는 시간 (다른 앱에 잠깐 다녀오기, 화면 끄기)
 const ROOM_RE = new RegExp(`^(station-([1-9]|1[0-9]|20)|island-([1-9]|1[0-2]))$`);   // island = 어른용 스냅주 섬 (world/)
 const ISLANDS = 12;
-const ORIGINS = ['https://snapzoo.site', 'https://www.snapzoo.site', 'https://vaca-at.github.io', 'https://jsun.site', 'http://localhost:8765', 'http://127.0.0.1:8765'];
+const ORIGINS = ['https://moontr.site', 'https://www.moontr.site', 'https://snapzoo.site', 'https://www.snapzoo.site', 'https://vaca-at.github.io', 'https://jsun.site', 'http://localhost:8765', 'http://127.0.0.1:8765'];
 
 function cors(req) {
   const o = req.headers.get('Origin');
@@ -32,8 +32,22 @@ export default {
     if (url.pathname === '/visit' && req.method === 'POST') {
       const origin = req.headers.get('Origin');
       if (origin && !ORIGINS.includes(origin)) return json(req, { error: 'forbidden' }, 403);
-      await stats().fetch('https://stats/visit', { method: 'POST' });
+      await stats().fetch(url.searchParams.get('kind') === 'island' ? 'https://stats/ivisit' : 'https://stats/visit', { method: 'POST' });
       return json(req, { ok: true });
+    }
+    // 섬(어른용): 머문 시간 (나갈 때 숫자 하나만)
+    if (url.pathname === '/tally' && req.method === 'POST') {
+      const origin = req.headers.get('Origin');
+      if (origin && !ORIGINS.includes(origin)) return json(req, { error: 'forbidden' }, 403);
+      let b = {}; try { b = JSON.parse(await req.text()); } catch {}
+      const stay = Math.round(+b.stay || 0); if (stay > 0 && stay < 86400) await stats().fetch('https://stats/itally', { method: 'POST', body: JSON.stringify({ stay }) });
+      return json(req, { ok: true });
+    }
+    // 공개 숫자 (moontr.site 관리자 허브용, 로그인 없이 · 누가 왔는지는 없음): 어른용 섬의 날짜별 방문 · 시간대 · 입장 · 머문 시간 · 동시접속 최고 · 지금 인원
+    if (url.pathname === '/public/visits') {
+      const s = await stats().fetch('https://stats/iread').then((r) => r.json());
+      const rooms = await Promise.all(Array.from({ length: ISLANDS }, (_, i) => env.ROOMS.get(env.ROOMS.idFromName(`island-${i + 1}`)).fetch('https://room/count').then((r) => r.json()).then((j) => j.n).catch(() => 0)));
+      return json(req, { ...s, online: rooms.reduce((a, b) => a + b, 0), rooms });
     }
     // 관리자: 비밀번호(ADMIN_PASSWORD)가 맞을 때만 숫자를 보여 줘요
     if (url.pathname === '/admin/stats') {
@@ -84,6 +98,21 @@ export class Stats extends DurableObject {
       const best = (await this.ctx.storage.get('best')) || { n: 0 };
       if (n > best.n) await this.ctx.storage.put('best', { n, at: Date.now() });
       return Response.json({ ok: true });
+    }
+    // ── 어른용 섬: 키 하나에 날짜별 묶음 (최근 90일만) ──
+    const bump = async (key, by = 1, sub) => { const m = (await this.ctx.storage.get(key)) || {}; if (sub !== undefined) { m[day] = m[day] || Array(24).fill(0); m[day][sub] += by; } else m[day] = (m[day] || 0) + by; const ks = Object.keys(m).sort(); if (ks.length > 90) for (const k of ks.slice(0, ks.length - 90)) delete m[k]; await this.ctx.storage.put(key, m); };
+    if (url.pathname === '/ivisit') { await bump('i:days'); await bump('i:hours', 1, hour); await this.ctx.storage.put('i:total', ((await this.ctx.storage.get('i:total')) || 0) + 1); return Response.json({ ok: true }); }
+    if (url.pathname === '/ijoin') { await bump('i:joins'); return Response.json({ ok: true }); }
+    if (url.pathname === '/itally') { const { stay } = await req.json(); await bump('i:staySec', stay); await bump('i:stayN'); return Response.json({ ok: true }); }
+    if (url.pathname === '/ipeak') {
+      const { n } = await req.json(), pk = (await this.ctx.storage.get('i:peaks')) || {};
+      if (n > (pk[day] || 0)) { pk[day] = n; await this.ctx.storage.put('i:peaks', pk); }
+      const best = (await this.ctx.storage.get('i:best')) || { n: 0 }; if (n > best.n) await this.ctx.storage.put('i:best', { n, at: Date.now() });
+      return Response.json({ ok: true });
+    }
+    if (url.pathname === '/iread') {
+      const g = async (k, d) => (await this.ctx.storage.get(k)) ?? d, days = await g('i:days', {});
+      return Response.json({ total: await g('i:total', 0), today: days[day] || 0, days, hours: await g('i:hours', {}), joins: await g('i:joins', {}), staySec: await g('i:staySec', {}), stayN: await g('i:stayN', {}), peaks: await g('i:peaks', {}), best: await g('i:best', { n: 0 }) });
     }
     if (url.pathname === '/read') {
       const all = await this.ctx.storage.list({ prefix: 'd:', reverse: true, limit: 60 });
@@ -191,7 +220,7 @@ export class Room extends DurableObject {
     ws.serializeAttachment(a);
     this.broadcast({ t: 'st', id: a.id, d: st }, ws);
     // 처음 들어온 분이면 동시접속 최고 기록을 알려요 (숫자만)
-    if (first) { const n = this.members().length; this.ctx.waitUntil?.(this.env.STATS.get(this.env.STATS.idFromName('stats')).fetch('https://stats/peak', { method: 'POST', body: JSON.stringify({ n }) }).catch(() => {})); }
+    if (first) { const n = this.members().filter((x) => x.a.isl === a.isl).length, S = this.env.STATS.get(this.env.STATS.idFromName('stats')); this.ctx.waitUntil?.(Promise.all([S.fetch(a.isl ? 'https://stats/ipeak' : 'https://stats/peak', { method: 'POST', body: JSON.stringify({ n }) }), a.isl ? S.fetch('https://stats/ijoin', { method: 'POST' }) : null]).catch(() => {})); }
   }
 
   async webSocketClose(ws, code) {
