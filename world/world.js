@@ -9,7 +9,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js';
 import { IslandNet, myName, myLook } from './net.js';
 import { IslandSound } from './sound.js';
-import { plain, SPECIES as ZOO, walker as makeWalker, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js';
+import { HATS, plain, SPECIES as ZOO, walker as makeWalker, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -292,7 +292,11 @@ const gondola = new THREE.Group(); scene.add(gondola);
   const arm = new THREE.Mesh(cyl(0.08, 0.08, 1.4, 5), toon('#3a3a40')); arm.position.y = -0.7; gondola.add(arm); }
 
 // ───────── 산책자 (나): zoo3d.js 의 산책자 (키 1.65 m, 무릎 굽혀 걷기 · 모자 리본 · 치마 흔들림) ─────────
-const ME3 = makeWalker(myLook);
+// 👤 내 모습 · 🪙 지갑 (이 기기에 기억): 성별 · 옷 · 모자, 사진으로 모은 코인, 산 물건
+const LOOK_KEY = 'snapzoo-island-me';
+const MY = (() => { const d = { g: 'f', look: myLook, hat: 0, coins: 30, own: { looks: [myLook, (myLook + 1) % 8], hats: [0, 5] } }; try { return { ...d, ...JSON.parse(localStorage.getItem(LOOK_KEY) || '{}') }; } catch { return d; } })();
+const saveMy = () => { try { localStorage.setItem(LOOK_KEY, JSON.stringify(MY)); } catch {} };
+const ME3 = makeWalker(MY.look, { g: MY.g, hat: MY.hat });
 const me = { g: ME3.root, st: ME3, pos: VIL.clone().add(V.set(0, 0, 8)), target: null, face: 0, riding: null, t: 0 };
 me.pos.y = height(me.pos.x, me.pos.z);
 scene.add(me.g);
@@ -571,8 +575,10 @@ function shoot() {
   $('#flash').classList.add('on'); requestAnimationFrame(() => setTimeout(() => $('#flash').classList.remove('on'), 60)); snd.shutter();
   shots = (shots + 1) % 1000;   // 친구들 화면에 '📷' 이 잠깐 떠요
   let badge = '', isNew = false;
+  let earn = 0;
   if (sp) {
     const old = dex[sp.id];
+    earn = Math.max(1, Math.round(score / 10)) + (old ? 0 : 20) + (old && score > old.score ? 5 : 0); MY.coins += earn; saveMy(); updCoins();
     if (!old) { badge = '📖 새 도감 등록!'; isNew = true; dex[sp.id] = { score, stars, shots: 1, at: Date.now() }; }
     else if (score > old.score) { badge = '최고 사진 바꿈!'; Object.assign(old, { score, stars, shots: old.shots + 1, at: Date.now() }); }
     else { badge = `최고 사진은 ${old.score}점이에요`; old.shots++; }
@@ -592,7 +598,7 @@ function shoot() {
       await addPhoto({ blob, zone, seen: sp ? [sp.name] : [], animal: sp?.id || '', score });
       if (sp && (isNew || badge === '최고 사진 바꿈!')) await addPhoto({ id: `best-${sp.id}`, blob, zone, seen: [sp.name], animal: sp.id, score });
       const t = $('#toast'), u = URL.createObjectURL(blob); t.querySelector('img').src = u;
-      t.querySelector('span').innerHTML = sp ? `<b>${sp.name} ${starHTML(stars)} ${score}점</b><small>${badge}</small>` : '<b>찰칵!</b><small>동물은 안 찍혔어요</small>';
+      t.querySelector('span').innerHTML = sp ? `<b>${sp.name} ${starHTML(stars)} ${score}점</b><small>${badge} · 🪙 +${earn}</small>` : '<b>찰칵!</b><small>동물은 안 찍혔어요</small>';
       t.classList.add('on'); clearTimeout(shoot.tt); shoot.tt = setTimeout(() => { t.classList.remove('on'); URL.revokeObjectURL(u); }, 3200);
       if (isNew) snd.chime();
     }, 'image/jpeg', 0.9);
@@ -639,6 +645,56 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape') { if ($('#viewer').
 
 
 
+
+// ───────── 👤 꾸미기 · 🛍 상점: 성별 · 옷 여덟 벌 · 모자 여섯. 안 가진 건 사진으로 모은 코인으로 사요 ─────────
+const PRICE = { look: 40, hat: [0, 60, 50, 90, 120, 0] };
+const SW = ['#6f7d4c', '#4f6a8a', '#a8604a', '#d8b062', '#7a5a8a', '#3f6a5a', '#c8907a', '#5a5a62'];
+const HAT_ICON = ['👒', '🧢', '🧶', '🤠', '🌸', '🙂'];
+function updCoins() { $('#coins').textContent = `🪙 ${MY.coins}`; $('#ccoins').textContent = `🪙 ${MY.coins}`; }
+function remakeMe() {
+  const ns = makeWalker(MY.look, { g: MY.g, hat: MY.hat }); ns.root.position.copy(me.g.position); ns.root.rotation.y = me.g.rotation.y; ns.root.visible = me.g.visible;
+  scene.remove(me.g); scene.add(ns.root); me.g = ns.root; me.st = ns;
+}
+let pendingBuy = null;
+function drawCloset() {
+  updCoins();
+  const g = (v, t) => `<button type="button" data-g="${v}" class="${MY.g === v ? 'on' : ''}">${t}</button>`;
+  $('#cGender').innerHTML = g('f', '👩 여자') + g('m', '👨 남자');
+  $('#cLooks').innerHTML = SW.map((c, i) => { const own = MY.own.looks.includes(i); return `<button type="button" data-look="${i}" class="sw ${MY.look === i ? 'on' : ''} ${own ? '' : 'lock'} ${pendingBuy === 'look' + i ? 'ask' : ''}" style="--c:${c}" aria-label="옷 ${i + 1}${own ? '' : ` · ${PRICE.look}코인`}">${own ? '' : `<small>${pendingBuy === 'look' + i ? '사기?' : '🪙' + PRICE.look}</small>`}</button>`; }).join('');
+  $('#cHats').innerHTML = HATS.map((n, i) => { const own = MY.own.hats.includes(i); return `<button type="button" data-hat="${i}" class="${MY.hat === i ? 'on' : ''} ${own ? '' : 'lock'} ${pendingBuy === 'hat' + i ? 'ask' : ''}"><span>${HAT_ICON[i]}</span>${n}${own ? '' : `<small>${pendingBuy === 'hat' + i ? '한 번 더 누르면 사요' : '🪙 ' + PRICE.hat[i]}</small>`}</button>`; }).join('');
+}
+function closetTap(kind, i) {
+  const own = MY.own[kind === 'look' ? 'looks' : 'hats'], price = kind === 'look' ? PRICE.look : PRICE.hat[i], key = kind + i;
+  if (!own.includes(i)) {
+    if (MY.coins < price) { $('#cMsg').textContent = `코인이 ${price - MY.coins}개 모자라요. 동물 사진을 찍으면 모여요 📷`; return; }
+    if (pendingBuy !== key) { pendingBuy = key; $('#cMsg').textContent = `🪙 ${price}코인으로 살까요? 한 번 더 누르면 사요`; drawCloset(); return; }
+    MY.coins -= price; own.push(i); pendingBuy = null; $('#cMsg').textContent = '🛍 샀어요! 바로 입어 볼게요'; snd.chime();
+  } else { pendingBuy = null; $('#cMsg').textContent = ''; }
+  if (kind === 'look') MY.look = i; else MY.hat = i;
+  saveMy(); remakeMe(); drawCloset();
+}
+$('#closet').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.g) { MY.g = b.dataset.g; saveMy(); remakeMe(); drawCloset(); }
+  else if (b.dataset.look) closetTap('look', +b.dataset.look);
+  else if (b.dataset.hat) closetTap('hat', +b.dataset.hat);
+});
+function openCloset() { closeAlbum(); closeDex(); pendingBuy = null; $('#cMsg').textContent = ''; drawCloset(); $('#closet').classList.add('on'); $('#closet').setAttribute('aria-hidden', 'false'); }
+function closeCloset() { $('#closet').classList.remove('on'); $('#closet').setAttribute('aria-hidden', 'true'); }
+$('#closetBtn').onclick = () => ($('#closet').classList.contains('on') ? closeCloset() : openCloset());
+$('#closetX').onclick = closeCloset;
+addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCloset(); });
+updCoins();
+
+// ───────── 🕹 조이스틱 (휴대폰 · 태블릿): 왼쪽 아래, 카메라가 보는 쪽 기준으로 걸어요 ─────────
+const joy = { x: 0, y: 0, id: null };
+{ const el = $('#joystick'), knob = el.querySelector('i');
+  const move = (e) => { const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, R = r.width / 2 - 14; let dx = e.clientX - cx, dy = e.clientY - cy; const d = Math.hypot(dx, dy); if (d > R) { dx *= R / d; dy *= R / d; } joy.x = dx / R; joy.y = dy / R; knob.style.transform = `translate(${dx}px, ${dy}px)`; };
+  el.addEventListener('pointerdown', (e) => { joy.id = e.pointerId; el.setPointerCapture(e.pointerId); me.target = null; hideHint(); move(e); });
+  el.addEventListener('pointermove', (e) => { if (e.pointerId === joy.id) move(e); });
+  const end = () => { joy.id = null; joy.x = joy.y = 0; knob.style.transform = ''; };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); }
+
 // ───────── 👋 인사: 손을 흔들면 가까운(18 m 안) 동물이 다가와 반겨요 (♥). 친구 화면에서도 손을 흔들어요 ─────────
 let waves = 0;
 function wave() {
@@ -659,7 +715,7 @@ const friends = new Map();
 function friendOf(id, d) {
   let f = friends.get(id);
   if (!f) {
-    const st = makeWalker(d.l || 0); scene.add(st.root);
+    const st = makeWalker(d.l || 0, { g: d.g ? 'm' : 'f', hat: d.h || 0 }); scene.add(st.root);
     const tag = document.createElement('div'); tag.className = 'tag friend'; document.body.append(tag);
     f = { st, tag, to: new THREE.Vector3(d.x, d.y, d.z), r: d.r, d, p: d.p, snapT: 0, name: d.n };
     st.root.position.copy(f.to); friends.set(id, f);
@@ -668,7 +724,9 @@ function friendOf(id, d) {
 }
 function dropFriend(id) { const f = friends.get(id); if (!f) return; scene.remove(f.st.root); f.tag.remove(); friends.delete(id); }
 const net = new IslandNet({
-  onState(id, d) { const f = friendOf(id, d); if (d.p !== f.p) { f.p = d.p; f.snapT = 2.2; f.st.aim = 1; f.st.snapT = 0.2; clearTimeout(f.aimT); f.aimT = setTimeout(() => (f.st.aim = 0), 1600); } if (d.w !== f.w) { if (f.w !== undefined) { f.st.waveT = 2.4; f.waveT = 2.4; } f.w = d.w; } f.d = d; f.name = d.n; f.to.set(d.x, d.y, d.z); f.r = d.r; },
+  onState(id, d) { let f = friendOf(id, d);
+    if (f.st.look !== (d.l || 0) || f.st.g !== (d.g ? 'm' : 'f') || f.st.hat !== (d.h || 0)) {   // 친구가 옷을 갈아입었어요
+      const ns = makeWalker(d.l || 0, { g: d.g ? 'm' : 'f', hat: d.h || 0 }); ns.root.position.copy(f.st.root.position); ns.root.rotation.y = f.st.root.rotation.y; scene.remove(f.st.root); scene.add(ns.root); f.st = ns; } if (d.p !== f.p) { f.p = d.p; f.snapT = 2.2; f.st.aim = 1; f.st.snapT = 0.2; clearTimeout(f.aimT); f.aimT = setTimeout(() => (f.st.aim = 0), 1600); } if (d.w !== f.w) { if (f.w !== undefined) { f.st.waveT = 2.4; f.waveT = 2.4; } f.w = d.w; } f.d = d; f.name = d.n; f.to.set(d.x, d.y, d.z); f.r = d.r; },
   onLeave: dropFriend,
   onReset() { [...friends.keys()].forEach(dropFriend); },
   onStatus() { showPeople(); },
@@ -742,6 +800,7 @@ function frame() {
     if (keys.has('arrowdown') || keys.has('s')) mv.sub(fwd);
     if (keys.has('arrowleft') || keys.has('a')) mv.sub(right);
     if (keys.has('arrowright') || keys.has('d')) mv.add(right);
+    if (Math.hypot(joy.x, joy.y) > 0.15) { mv.addScaledVector(fwd, -joy.y).addScaledVector(right, joy.x); }
     if (me.target) { mv.set(me.target.x - me.pos.x, 0, me.target.z - me.pos.z); if (mv.length() < 0.6) { me.target = null; mv.set(0, 0, 0); } }
   }
   const moving = mv.lengthSq() > 0;
@@ -847,7 +906,7 @@ function frame() {
   }
   if ((miniT += dt) > 0.2) { miniT = 0; drawMini(); }
   updateFriends(dt);
-  net.send({ n: myName, x: +me.pos.x.toFixed(2), z: +me.pos.z.toFixed(2), y: +me.pos.y.toFixed(2), r: +me.g.rotation.y.toFixed(2), m: moving ? 1 : 0, k: me.riding ? 1 : 0, l: myLook, p: shots, w: waves }, performance.now());
+  net.send({ n: myName, x: +me.pos.x.toFixed(2), z: +me.pos.z.toFixed(2), y: +me.pos.y.toFixed(2), r: +me.g.rotation.y.toFixed(2), m: moving ? 1 : 0, k: me.riding ? 1 : 0, l: MY.look, g: MY.g === 'm' ? 1 : 0, h: MY.hat, p: shots, w: waves }, performance.now());
   // 소리: 구역 · 물가(강 · 바다) 가까움
   if ((frame.st = (frame.st || 0) + dt) > 0.5) { frame.st = 0; const rv = riverNear(me.pos.x, me.pos.z), w = Math.max(rv.i >= 0 ? 1 - rv.d / 30 : 0, me.pos.y < 6 ? 1 - me.pos.y / 6 : 0); snd.setPlace(z0 === 'village' ? 'village' : z0, Math.max(0, w)); }
   if (mode === 'photo') updatePhoto(dt);

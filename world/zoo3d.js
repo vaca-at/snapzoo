@@ -278,13 +278,17 @@ const LOOKS = [
   { skirt: '#c8907a', shirt: '#faf6ee', hair: '#2e2420', band: '#3f6a5a', bag: '#9a6a42' },
   { skirt: '#5a5a62', shirt: '#efe8dc', hair: '#4a3024', band: '#c84a3e', bag: '#6a4a32' },
 ];
-function walker(look = 0) {
-  const L = LOOKS[look % LOOKS.length], root = new THREE.Group(), SK = '#f6dcc4', HAIR = L.hair, SH = L.shirt, SKIRT = L.skirt;
+// 모자 (꾸미기 · 상점): 0 밀짚모자 · 1 챙 모자 · 2 털모자 · 3 사파리 모자 · 4 꽃 화관 · 5 없음
+const HATS = ['밀짚모자', '챙 모자', '털모자', '사파리 모자', '꽃 화관', '모자 없이'];
+// opts: { g: 'f' | 'm' (여 · 남), hat: 모자 번호 }
+function walker(look = 0, opts = {}) {
+  const L = LOOKS[look % LOOKS.length], root = new THREE.Group(), SK = '#f6dcc4', HAIR = L.hair, SH = L.shirt, SKIRT = L.skirt, MALE = opts.g === 'm', HAT = opts.hat ?? 0;
   const hips = J(root, 0, 0.86, 0);
-  const legs = [-1, 1].map((s) => { const l = J(hips, s * 0.07, 0, 0); M(l, tube([[0, 0.04, 0], [0, -0.42, 0.0]], (t) => 0.062 - 0.012 * t, 8, 12), plain(SK)); const k = J(l, 0, -0.42, 0); M(k, tube([[0, 0.02, 0], [0, -0.38, -0.01]], (t) => 0.048 - 0.014 * t, 8, 12), plain(SK)); M(k, ell(0.05, 0.035, 0.1, 14), plain('#6a4430'), undefined, 0, -0.4, 0.035); return { l, k }; });
+  const LEG = MALE ? SKIRT : SK; const legs = [-1, 1].map((s) => { const l = J(hips, s * 0.075, 0, 0); M(l, tube([[0, 0.04, 0], [0, -0.42, 0.0]], (t) => (MALE ? 0.07 : 0.062) - 0.012 * t, 8, 12), plain(LEG)); const k = J(l, 0, -0.42, 0); M(k, tube([[0, 0.02, 0], [0, -0.38, -0.01]], (t) => (MALE ? 0.058 : 0.048) - 0.014 * t, 8, 12), plain(LEG)); M(k, ell(0.05, 0.035, 0.1, 14), plain('#6a4430'), undefined, 0, -0.4, 0.035); return { l, k }; });
   const body = J(hips);
-  const skirtG = new THREE.LatheGeometry(Array.from({ length: 14 }, (_, i) => { const t = i / 13; return new THREE.Vector2(0.13 + 0.2 * pow(t, 1.15) + (i === 13 ? -0.01 : 0), 0.1 - t * 0.6); }), S === 'low' ? 9 : 36);
-  { const sp = skirtG.attributes.position, v = V(); for (let i = 0; i < sp.count; i++) { v.fromBufferAttribute(sp, i); const t = (0.1 - v.y) / 0.6, a = Math.atan2(v.x, v.z), k = 1 + sin(a * 9) * 0.045 * t; sp.setXYZ(i, v.x * k, v.y + sin(a * 9 + 1) * 0.012 * t, v.z * k); } skirtG.computeVertexNormals(); }
+  const skirtG = MALE ? new THREE.LatheGeometry(Array.from({ length: 6 }, (_, i) => { const t = i / 5; return new THREE.Vector2(0.135 + 0.025 * t, 0.1 - t * 0.16); }), 28)   // 남: 바지 허리
+    : new THREE.LatheGeometry(Array.from({ length: 14 }, (_, i) => { const t = i / 13; return new THREE.Vector2(0.13 + 0.2 * pow(t, 1.15) + (i === 13 ? -0.01 : 0), 0.1 - t * 0.6); }), S === 'low' ? 9 : 36);
+  if (!MALE) { const sp = skirtG.attributes.position, v = V(); for (let i = 0; i < sp.count; i++) { v.fromBufferAttribute(sp, i); const t = (0.1 - v.y) / 0.6, a = Math.atan2(v.x, v.z), k = 1 + sin(a * 9) * 0.045 * t; sp.setXYZ(i, v.x * k, v.y + sin(a * 9 + 1) * 0.012 * t, v.z * k); } skirtG.computeVertexNormals(); }
   const skirt = M(body, skirtG, plain(SKIRT, { side: THREE.DoubleSide }));
   M(body, tube([[0, 0.06, 0], [0, 0.2, 0.005], [0, 0.4, 0]], (t) => [0.135 + 0.025 * sin(PI * t * 0.9), 0.095 + 0.015 * t], 12, 18), plain(SH));
   M(body, ell(0.16, 0.06, 0.1, 18), plain(SH), undefined, 0, 0.4, 0);
@@ -310,17 +314,29 @@ function walker(look = 0) {
   // 머리카락: 뒤로 길게 + 위를 덮는 모자 + 앞머리 몇 갈래
   const hairM = plain(HAIR, { side: THREE.DoubleSide });
   const back = J(head, 0, 0.02, -0.01);
-  M(back, new THREE.LatheGeometry(Array.from({ length: 12 }, (_, i) => { const t = i / 11; return new THREE.Vector2(0.112 + 0.02 * t, 0.06 - t * 0.36); }), S === 'low' ? 8 : 28, PI * 0.62, PI * 0.76), hairM);
+  if (!MALE) M(back, new THREE.LatheGeometry(Array.from({ length: 12 }, (_, i) => { const t = i / 11; return new THREE.Vector2(0.112 + 0.02 * t, 0.06 - t * 0.36); }), S === 'low' ? 8 : 28, PI * 0.62, PI * 0.76), hairM);
   M(head, new THREE.SphereGeometry(0.114, S === 'low' ? 10 : 32, S === 'low' ? 6 : 16, 0, PI * 2, 0, PI * 0.5), hairM, undefined, 0, 0.012, -0.01).rotation.x = -0.32;
   const bangs = []; for (let i = 0; i < 7; i++) { const a = -0.62 + i * 0.205; const b = J(head, sin(a) * 0.098, 0.1, cos(a) * 0.085); b.rotation.set(0.5, a, -a * 0.25); M(b, ell(0.026, 0.036, 0.016, 10), hairM, undefined, 0, -0.018, 0); bangs.push(b); }
-  // 밀짚모자
-  const hat = J(head, 0, 0.1, -0.005); hat.rotation.x = -0.12;
-  M(hat, new THREE.CylinderGeometry(0.255, 0.262, 0.012, S === 'low' ? 10 : 44), plain('#e6c98a'));
-  M(hat, new THREE.SphereGeometry(0.118, S === 'low' ? 10 : 30, S === 'low' ? 5 : 12, 0, PI * 2, 0, PI * 0.5), plain('#ecd296'), undefined, 0, 0.0, 0).scale.set(1, 0.72, 1);
-  M(hat, new THREE.CylinderGeometry(0.119, 0.12, 0.028, S === 'low' ? 10 : 36, 1, true), plain(L.band, { side: THREE.DoubleSide }), undefined, 0, 0.018, 0);
-  const rib = J(hat, 0.05, 0.015, -0.11); const rb = M(rib, new THREE.BoxGeometry(0.03, 0.17, 0.006), plain(L.band, { side: THREE.DoubleSide }), undefined, 0, -0.08, 0);
+  // 모자
+  const hat = J(head, 0, 0.1, -0.005); hat.rotation.x = -0.12; let rib = J(hat);
+  const seg = S === 'low' ? 10 : 36, half = (r, sy, c) => { const m = M(hat, new THREE.SphereGeometry(r, seg, 12, 0, PI * 2, 0, PI * 0.5), plain(c)); m.scale.y = sy; return m; };
+  if (HAT === 0) {   // 밀짚모자 + 띠 + 리본
+    M(hat, new THREE.CylinderGeometry(0.255, 0.262, 0.012, seg + 8), plain('#e6c98a')); half(0.118, 0.72, '#ecd296');
+    M(hat, new THREE.CylinderGeometry(0.119, 0.12, 0.028, seg, 1, true), plain(L.band, { side: THREE.DoubleSide }), undefined, 0, 0.018, 0);
+    rib = J(hat, 0.05, 0.015, -0.11); M(rib, new THREE.BoxGeometry(0.03, 0.17, 0.006), plain(L.band, { side: THREE.DoubleSide }), undefined, 0, -0.08, 0);
+  } else if (HAT === 1) {   // 챙 모자(야구 모자)
+    hat.position.y = 0.06; half(0.122, 0.78, L.band); const bill = M(hat, new THREE.CylinderGeometry(0.11, 0.11, 0.01, 24, 1, false, -PI / 2, PI), plain(L.band)); bill.position.set(0, 0.0, 0.07); bill.scale.set(1, 1, 1.2);
+  } else if (HAT === 2) {   // 털모자
+    hat.position.y = 0.05; half(0.125, 1.05, L.skirt); M(hat, new THREE.TorusGeometry(0.118, 0.022, 10, 32), plain(L.shirt), undefined, 0, 0.01, 0).rotation.x = PI / 2; M(hat, ell(0.035, 0.035, 0.035, 12), plain(L.shirt), undefined, 0, 0.135, 0);
+  } else if (HAT === 3) {   // 사파리 모자
+    hat.position.y = 0.06; M(hat, new THREE.CylinderGeometry(0.2, 0.205, 0.01, seg), plain('#c8b48a')); M(hat, new THREE.CylinderGeometry(0.1, 0.12, 0.1, seg), plain('#d4c098'), undefined, 0, 0.05, 0); M(hat, new THREE.CylinderGeometry(0.121, 0.121, 0.022, seg, 1, true), plain('#6a5038', { side: THREE.DoubleSide }), undefined, 0, 0.02, 0);
+  } else if (HAT === 4) {   // 꽃 화관
+    hat.position.y = 0.02; const fc = ['#f2a0b8', '#fff2a8', '#ffffff', '#c8a8f0', '#f6b07a'];
+    for (let i = 0; i < 12; i++) { const a = i / 12 * PI * 2; M(hat, ell(0.026, 0.02, 0.026, 10), plain(fc[i % 5]), undefined, sin(a) * 0.112, 0.02, cos(a) * 0.105); }
+    M(hat, new THREE.TorusGeometry(0.11, 0.008, 6, 32), plain('#6a8a3a'), undefined, 0, 0.015, 0).rotation.x = PI / 2;
+  }
   outlines(root);
-  const st = { root, walk: 0, step: 0, waveT: 0, aim: 0, aimK: 0, snapT: 0 };
+  const st = { root, walk: 0, step: 0, waveT: 0, aim: 0, aimK: 0, snapT: 0, look, g: MALE ? 'm' : 'f', hat: HAT };
   st.update = (t, dt) => {
     st.step += dt * st.walk * 8.4 * (st.rate || 1); const p = st.step, w = st.walk;   // rate = 걷는 속도 설정(빠르면 발걸음도 빠르게)
     legs.forEach(({ l, k }, i) => { const q = p + i * PI; l.rotation.x = sin(q) * 0.42 * w; k.rotation.x = max(0, -sin(q - 0.9)) * 0.65 * w; });
@@ -418,4 +434,4 @@ function acaciaGeos(seed = 1) {
   const strip = (gs) => mergeGeometries(gs.map((g) => { const n = g.index ? g.toNonIndexed() : g; for (const k of Object.keys(n.attributes)) if (k !== 'position' && k !== 'normal') n.deleteAttribute(k); return n; }));
   return { bark: strip(bark), leaf: strip(leaf) };
 }
-export { LOOKS, THREE, S, plain, tube, ell, M, J, V, rng, smooth, NOISE, coatMat, bakeCoat, SPECIES, walker, skyDome, cloudTex, LOOK, acaciaGeos };
+export { LOOKS, HATS, THREE, S, plain, tube, ell, M, J, V, rng, smooth, NOISE, coatMat, bakeCoat, SPECIES, walker, skyDome, cloudTex, LOOK, acaciaGeos };

@@ -85,6 +85,33 @@ canvas#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block
 #moves button:disabled { opacity: .55; }
 body.photo #moves { display: none; }
 @media (max-width: 560px) { #moves { top: auto; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 64px); transform: none; gap: 6px; } #moves button { width: 58px; height: 54px; font-size: 13px; } #moves button span { font-size: 21px; } }
+/* 🪙 코인 */
+#coins { position: fixed; left: max(14px, env(safe-area-inset-left)); top: calc(max(12px, env(safe-area-inset-top)) + 104px); z-index: 3; font-size: 20px; color: #fff; text-shadow: 0 1px 4px rgba(20,40,30,.6); pointer-events: none; }
+/* 👤 꾸미기 · 상점 */
+#closet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 7; max-height: 84vh; background: #fbf8f0; border-radius: 22px 22px 0 0; box-shadow: 0 -8px 30px rgba(0,0,0,.25); transform: translateY(105%); transition: transform .35s ease; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
+#closet.on { transform: none; }
+#closet header { display: flex; align-items: center; gap: 10px; padding: 14px 18px 4px; }
+#closet header b { font-weight: 400; font-size: 26px; flex: 1; } #closet header small { font-size: 20px; color: #7a5a2a; }
+.cbody { overflow-y: auto; padding: 0 18px 18px; }
+.cbody h3 { margin: 10px 0 6px; font-weight: 400; font-size: 20px; color: #7a6a5a; }
+.cbody .row { display: flex; flex-wrap: wrap; gap: 8px; }
+.cbody button { font: 19px var(--hand); background: #fff; color: var(--ink); border: 2px solid #d8cdb8; border-radius: 14px; padding: 6px 14px; cursor: pointer; position: relative; }
+.cbody button.on { border-color: #c8553d; box-shadow: 0 0 0 2px #c8553d inset; }
+.cbody button.lock { opacity: .78; } .cbody button.ask { border-color: #e0a030; box-shadow: 0 0 0 2px #e0a030 inset; opacity: 1; }
+.cbody .sw { width: 54px; height: 54px; border-radius: 50%; padding: 0; background: var(--c); }
+.cbody .sw small { position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%); background: #fff8e6; border-radius: 99px; padding: 0 6px; font-size: 13px; white-space: nowrap; border: 1px solid #e0cfa8; }
+.cbody .hats button { display: grid; justify-items: center; min-width: 92px; } .cbody .hats span { font-size: 26px; } .cbody .hats small { font-size: 14px; color: #8a6a3a; }
+#cMsg { min-height: 1.4em; margin: 12px 0 0; font-size: 18px; color: #a0522d; } .cbody .note { margin: 4px 0 0; font-size: 15px; color: #8a7a6a; }
+/* 🕹 조이스틱: 터치 기기에서만 */
+#joystick { display: none; position: fixed; left: max(16px, env(safe-area-inset-left)); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 70px); z-index: 3; width: 124px; height: 124px; border-radius: 50%; background: rgba(30,22,16,.28); border: 2px solid rgba(255,246,230,.45); touch-action: none; place-items: center; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+#joystick i { width: 52px; height: 52px; border-radius: 50%; background: rgba(255,246,230,.88); box-shadow: 0 3px 8px rgba(0,0,0,.25); pointer-events: none; }
+@media (pointer: coarse) {
+  #joystick { display: grid; } body.photo #joystick { display: none; }
+  #hint { display: none; }
+  #acts { gap: 5px; width: calc(100% - 16px); justify-content: center; flex-wrap: nowrap; bottom: max(10px, env(safe-area-inset-bottom)); }
+  #acts button { font-size: 15px; padding: 6px 9px; }
+  #moves { top: auto; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 70px); transform: none; gap: 6px; }
+}
 /* ⚙ 설정 */
 #setBtn { position: fixed; right: max(12px, env(safe-area-inset-right)); top: calc(max(12px, env(safe-area-inset-top)) + 142px); z-index: 3; width: 44px; height: 44px; border-radius: 50%; border: 2px solid #5a463a; background: var(--paper); font-size: 22px; cursor: pointer; box-shadow: 0 3px 0 #5a463a; }
 #settings { position: fixed; right: max(12px, env(safe-area-inset-right)); top: calc(max(12px, env(safe-area-inset-top)) + 194px); z-index: 7; width: min(300px, calc(100vw - 24px)); background: #fbf8f0; border: 1.5px solid var(--line); border-radius: 18px; padding: 14px 16px 10px; box-shadow: 0 8px 24px rgba(0,0,0,.22); display: none; }
@@ -152,6 +179,13 @@ body.photo #acts, body.photo #hint, body.photo .tag, body.photo #setBtn { displa
 #loading.out .bar i { width: 100%; animation: none; transition: width .25s; }
 @media (prefers-reduced-motion: reduce) { #loading .bar i { animation-duration: .01s; } }
 @media (max-width: 560px) { #zone b { font-size: 24px; } #zone small { font-size: 15px; } #mini { width: 96px; height: 96px; } #acts { gap: 6px; width: calc(100% - 20px); justify-content: center; flex-wrap: wrap; } #acts button { font-size: 17px; padding: 6px 11px; } #hint { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 104px); font-size: 16px; } }
+/* 휴대폰: 아래 단추 한 줄 · 조이스틱은 왼쪽 아래, 이동 단추는 오른쪽 아래 */
+@media (pointer: coarse) {
+  html body #acts { flex-wrap: nowrap; gap: 4px; width: calc(100% - 12px); }
+  html body #acts button { font-size: 13.5px; padding: 6px 7px; box-shadow: 0 2px 0 #5a463a; }
+  html body #moves { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 52px); }
+  html body #joystick { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 56px); }
+}
 </style>
 </head>
 <body>
@@ -160,7 +194,9 @@ body.photo #acts, body.photo #hint, body.photo .tag, body.photo #setBtn { displa
 <div id="zone" aria-live="polite"><b id="zoneName">🏘 강가 마을</b><small id="zoneSub">강을 따라 올라가면 산꼭대기 눈밭이에요</small><small id="people"></small></div>
 <canvas id="mini" width="264" height="264" aria-label="작은 지도"></canvas>
 <div id="hint">누른 곳으로 걸어가요 · 방향키 · WASD · 끌어서 둘러보기 · 스페이스로 사진</div>
-<div id="acts"><button type="button" id="shot" class="shot" aria-label="사진 찍기 (스페이스)">📷 사진 찍기</button><button type="button" id="wave" aria-label="손 흔들어 인사하기 (H)">👋 인사</button><button type="button" id="dexBtn">📖 도감</button><button type="button" id="albumBtn">🖼 앨범</button></div>
+<div id="acts"><button type="button" id="shot" class="shot" aria-label="사진 찍기 (스페이스)">📷 사진 찍기</button><button type="button" id="wave" aria-label="손 흔들어 인사하기 (H)">👋 인사</button><button type="button" id="dexBtn">📖 도감</button><button type="button" id="albumBtn">🖼 앨범</button><button type="button" id="closetBtn">👤 꾸미기</button></div>
+<div id="coins" aria-label="코인"></div>
+<div id="joystick" aria-label="조이스틱 (끌어서 걷기)"><i></i></div>
 <nav id="moves" aria-label="이동"><button type="button" id="home"><span>🏘</span>마을로</button><button type="button" id="cable"><span>🚡</span>산꼭대기로</button><button type="button" id="goSav"><span>🦁</span>초원으로</button><button type="button" id="goDes"><span>🏜️</span>사막으로</button></nav>
 <button type="button" id="setBtn" aria-label="설정">⚙</button>
 <section id="settings" aria-label="설정"><b>⚙ 설정</b>
@@ -171,6 +207,8 @@ body.photo #acts, body.photo #hint, body.photo .tag, body.photo #setBtn { displa
 <div id="finder" aria-hidden="true"><div id="frame"><i></i><i></i><i></i><i></i></div><div id="fhint"></div>
   <div id="fbar"><button type="button" id="fExit">✕ 나가기</button><button type="button" id="zOut" aria-label="줌 아웃">➖</button><button type="button" id="fShot" aria-label="찰칵 (스페이스)">찰칵</button><button type="button" id="zIn" aria-label="줌 인">➕</button><span id="zLab">1.0×</span></div></div>
 <section id="dex" aria-label="섬 도감" aria-hidden="true"><header><b>📖 섬 도감</b><small id="dexN"></small><button type="button" class="x" id="dexX" aria-label="도감 닫기">✕</button></header><div id="dexGrid"></div></section>
+<section id="closet" aria-label="꾸미기 · 상점" aria-hidden="true"><header><b>👤 꾸미기 · 🛍 상점</b><small id="ccoins"></small><button type="button" class="x" id="closetX" aria-label="닫기">✕</button></header>
+  <div class="cbody"><h3>성별</h3><div id="cGender" class="row"></div><h3>옷</h3><div id="cLooks" class="row"></div><h3>모자</h3><div id="cHats" class="row hats"></div><p id="cMsg" role="status"></p><p class="note">🪙 코인은 동물 사진을 찍으면 모여요 (새 도감 +20, 별이 많을수록 더)</p></div></section>
 <div id="travel" role="status" aria-live="polite"><b id="travelT"></b><div class="bar"><i id="travelBar"></i></div></div>
 <div id="ride" role="status" aria-live="polite"><b id="rideT"></b><div class="bar"><i id="rideBar"></i></div><small id="rideS"></small></div>
 <div id="flash"></div>
