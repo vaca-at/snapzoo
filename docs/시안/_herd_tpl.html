@@ -1,0 +1,232 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스냅주 초원 식구들</title>
+<style>
+@font-face { font-family: 'OngleipUnz'; src: url(data:font/woff2;base64,__FONT__) format('woff2'); font-display: swap; }
+:root {
+  --bg: #f3efe4; --paper: #fffcf3; --ink: #2e3a2c; --soft: #6b7563; --line: #ddd6c2; --moss: #5f8a4a;
+  --hand: "OngleipUnz", "Apple SD Gothic Neo", sans-serif; --body: "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #1b201a; --paper: #252c23; --ink: #ece8da; --soft: #aab3a0; --line: #3a4436; --moss: #9fcf86; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg: #1b201a; --paper: #252c23; --ink: #ece8da; --soft: #aab3a0; --line: #3a4436; --moss: #9fcf86; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.6; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 26px max(16px, env(safe-area-inset-right, 0px)) 56px max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 22px; }
+.eyebrow { margin: 0; font-family: var(--hand); color: var(--moss); font-size: 18px; }
+h1 { margin: 2px 0 8px; font-family: var(--hand); font-weight: 400; font-size: clamp(34px, 6.4vw, 54px); line-height: 1.05; }
+h2 { margin: 8px 0 0; font-family: var(--hand); font-weight: 400; font-size: 32px; }
+.lead { margin: 0; color: var(--soft); max-width: 72ch; }
+.scene { border-radius: 20px; overflow: hidden; border: 1.5px solid var(--line); }
+.scene svg { display: block; width: 100%; height: auto; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 640px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.card { background: var(--paper); border: 1.5px solid var(--line); border-radius: 20px; padding: 10px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.card svg { width: 100%; height: auto; display: block; border-radius: 14px; aspect-ratio: 300 / 360; }
+.card b { font-family: var(--hand); font-weight: 400; font-size: 24px; padding: 0 4px; line-height: 1.1; }
+.card p { margin: 0; padding: 0 4px 4px; color: var(--soft); font-size: 13.5px; line-height: 1.5; }
+
+svg g { transform-box: view-box; }
+.breath { animation: breath 3.2s ease-in-out infinite; }
+.flap, .ear { animation: flap 1.9s ease-in-out infinite; }
+.flick { animation: flick 3.6s ease-in-out infinite; }
+.wag { animation: wag 1.2s ease-in-out infinite; }
+.swish { animation: swish 2.2s ease-in-out infinite; }
+.blink { animation: blink 4.4s infinite; }
+.hair { animation: swayS 3.4s ease-in-out infinite; }
+.ribbon { animation: sway 1.3s ease-in-out infinite; }
+.skirt { animation: skirt 2.8s ease-in-out infinite; }
+.arm { animation: swayS 4s ease-in-out infinite; }
+.head, .tilt { animation: tilt 5.5s ease-in-out infinite; }
+.graze { animation: graze 7s ease-in-out infinite; }
+.chew { animation: chew 0.5s ease-in-out infinite; }
+.tree { animation: swayS 6s ease-in-out infinite; }
+.cloud { animation: drift 40s linear infinite alternate; }
+.grassw { animation: swayS 2.6s ease-in-out infinite; }
+@keyframes breath { 50% { transform: translateY(-1.6px); } }
+@keyframes tilt { 0%, 100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.8deg); } }
+@keyframes flap { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.84); } }
+@keyframes flick { 0%, 80%, 100% { transform: rotate(0); } 84% { transform: rotate(-14deg); } 88% { transform: rotate(4deg); } }
+@keyframes sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@keyframes swayS { 0%, 100% { transform: rotate(-1.4deg); } 50% { transform: rotate(1.4deg); } }
+@keyframes wag { 0%, 100% { transform: rotate(-16deg); } 50% { transform: rotate(16deg); } }
+@keyframes swish { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(10deg); } }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
+@keyframes skirt { 0%, 100% { transform: skewX(-2.4deg); } 50% { transform: skewX(2.4deg); } }
+@keyframes graze { 0%, 30%, 100% { transform: rotate(0); } 42%, 82% { transform: rotate(38deg); } }
+@keyframes drift { from { transform: translateX(-30px); } to { transform: translateX(40px); } }
+@media (prefers-reduced-motion: reduce) { svg g { animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">그림체 나 · 연필 셀 · 색 78%</p>
+    <h1>초원 식구들</h1>
+    <p class="lead">고르신 ‘나’ 그림체로 초원의 초식동물 다섯과 산책자를 그렸어요. 맨 위는 게임 첫 장면처럼 다 같이 초원에 세워 본 그림이에요. 풀 뜯는 가젤, 꼬리 흔드는 얼룩말, 귀 펄럭이는 아기 코끼리가 모두 조금씩 움직여요.</p>
+  </header>
+  <div class="scene" id="scene"></div>
+  <h2>한 마리씩</h2>
+  <div class="grid" id="cards"></div>
+</div>
+
+<script>
+__ENGINE__
+
+const NA = { k: 0.22, shadeK: 0.24 };   // 그림체 '나'
+const groundShadow = (cx, rx) => () => shadowEl(cx, 332, rx, '#4a6a3a', 0.2);
+
+// =====================================================================
+// 톰슨가젤: 가는 다리, 옆구리 검은 줄, 흰 배, 고리 무늬 뿔. 가끔 고개 숙여 풀 뜯기
+// =====================================================================
+const GAZELLE = {
+  label: '톰슨가젤',
+  o: { breath: [150, 330], graze: [204, 178], ear: [222, 100], wag: [84, 182], blink: [240, 108] },
+  ground: groundShadow(140, 80),
+  parts: [
+    { c: '#a8794a', d: ['M106 212 C110 238 106 262 109 288 L111 326 L117 326 L117 288 C119 262 123 238 121 212 Z', 'M180 212 L183 270 L183 326 L189 326 L189 270 L192 212 Z'], x: 'breath' },
+    { c: '#3a2a22', d: ['M110 324 h8 v5 h-8 Z', 'M182 324 h8 v5 h-8 Z'], shade: false, line: 0 },
+    { c: '#3a2a22', d: ['M86 180 C77 186 75 196 77 205 L82 204 C82 196 84 190 90 185 Z'], x: 'breath wag', shade: false },
+    { c: '#d0a068', d: ['M84 194 C80 170 100 158 130 160 C160 162 186 156 204 166 C216 174 214 200 206 214 C196 228 160 230 128 228 C104 228 88 216 84 194 Z'], x: 'breath',
+      over: [{ fill: true, c: '#f6f0e4', d: ['M80 214 C120 222 170 222 214 208 L214 240 L80 240 Z', 'M80 200 C80 180 86 168 96 164 C94 180 96 196 102 210 Z'] }, { fill: true, c: '#3a2a22', d: ['M96 205 C130 213 170 213 210 199 L210 206 C170 220 130 220 96 212 Z'] }] },
+    { c: '#d0a068', d: ['M92 200 C90 230 100 246 102 268 L100 326 L108 326 L110 268 C112 244 114 226 116 208 Z', 'M166 212 L170 270 L168 326 L176 326 L178 270 L180 212 Z'], x: 'breath' },
+    { c: '#3a2a22', d: ['M100 324 h8 v5 h-8 Z', 'M168 324 h8 v5 h-8 Z'], shade: false, line: 0 },
+    { c: '#d0a068', d: ['M194 178 C202 152 212 128 220 110 L240 118 C232 140 222 164 210 188 Z'], x: 'breath graze', over: [{ fill: true, c: '#f6f0e4', d: ['M204 186 C214 164 226 140 236 118 L244 122 C234 146 222 170 212 192 Z'] }] },
+    { c: '#c49660', d: ['M219 104 C212 88 210 76 214 66 C223 74 228 88 228 102 Z'], x: 'breath graze ear' },
+    { s: '#3a3028', w: 3, d: ['M228 98 C225 82 227 66 234 56', 'M233 99 C233 84 237 72 244 64'], x: 'breath graze' },
+    { s: '#f0e6d0', w: 1, d: ['M226 88 h4', 'M226 80 h4', 'M228 72 h4', 'M234 88 h4', 'M235 80 h4', 'M238 72 h4'], x: 'breath graze' },
+    { c: '#d6a66c', d: ['M218 104 C228 94 244 96 250 104 C258 114 266 124 266 132 C266 138 258 141 252 139 C244 137 234 131 226 125 C218 119 214 110 218 104 Z'], x: 'breath graze',
+      over: [{ c: '#4a3426', w: 2.6, d: ['M232 112 C242 118 252 126 262 134'] }, { fill: true, c: '#f6f0e4', d: [E(240, 108, 6, 5)] }] },
+    { c: '#c49660', d: ['M226 104 C220 90 220 78 226 70 C232 80 234 92 232 104 Z'], x: 'breath graze ear' },
+    { c: '#2a201c', d: [E(240, 108, 3, 3.6), E(265, 132, 2.4, 2)], x: 'breath graze blink', shade: false, line: 0 },
+    { c: '#ffffff', d: [E(239.2, 106.8, 1, 1.1)], x: 'breath graze blink', shade: false, line: 0 },
+  ],
+};
+// =====================================================================
+// 얼룩말: 다부진 몸, 굽은 줄무늬, 짧게 선 갈기. 꼬리를 휙휙
+// =====================================================================
+const Z_STRIPE = '#2e2a2c';
+const ZEBRA = {
+  label: '얼룩말',
+  o: { breath: [150, 330], head: [206, 176], ear: [226, 92], swish: [80, 166], blink: [238, 112] },
+  ground: groundShadow(146, 84),
+  parts: [
+    { c: '#d8d4cc', d: ['M108 206 C112 236 108 262 110 286 L110 326 L120 326 L121 286 C123 262 126 236 126 206 Z', 'M186 208 L189 268 L188 326 L198 326 L200 268 L202 206 Z'], x: 'breath', over: [{ c: Z_STRIPE, w: 4, d: ['M106 244 h20', 'M106 262 h20', 'M106 280 h20', 'M106 298 h20', 'M184 244 h20', 'M184 262 h20', 'M184 280 h20', 'M184 298 h20'] }] },
+    { c: '#2a2426', d: ['M109 322 h12 v7 h-12 Z', 'M187 322 h12 v7 h-12 Z'], shade: false, line: 0 },
+    { s: '#e8e4dc', w: 4, d: ['M80 168 C70 180 68 198 70 212'], x: 'breath swish' },
+    { c: '#2a2426', d: ['M64 208 C64 222 76 224 76 208 Z'], x: 'breath swish', shade: false },
+    { c: '#f2efe8', d: ['M78 180 C76 150 104 138 140 140 C176 142 200 140 214 152 C226 164 222 196 212 210 C200 224 160 226 128 224 C98 222 80 206 78 180 Z'], x: 'breath',
+      over: [{ c: Z_STRIPE, w: 6, d: ['M112 140 C106 170 108 200 116 226', 'M130 138 C124 170 126 200 132 228', 'M148 138 C142 170 144 200 150 228', 'M166 140 C160 170 162 200 168 228', 'M184 142 C178 170 180 196 186 224', 'M200 146 C196 168 196 192 202 216', 'M78 166 C92 168 100 160 104 148', 'M78 184 C94 186 104 176 108 162', 'M84 202 C98 204 108 194 112 180'] }] },
+    { c: '#f2efe8', d: ['M90 196 C88 228 100 246 102 266 L100 326 L112 326 L114 266 C116 240 118 222 120 206 Z', 'M172 208 L174 268 L172 326 L184 326 L186 268 L188 206 Z'], x: 'breath', over: [{ c: Z_STRIPE, w: 4.5, d: ['M90 222 h30', 'M94 240 h26', 'M98 258 h20', 'M98 276 h20', 'M98 294 h20', 'M170 228 h20', 'M170 246 h20', 'M170 264 h20', 'M170 282 h20', 'M170 300 h20'] }] },
+    { c: '#2a2426', d: ['M99 322 h14 v7 h-14 Z', 'M171 322 h14 v7 h-14 Z'], shade: false, line: 0 },
+    { c: '#f2efe8', d: ['M196 158 C204 132 214 112 224 98 L250 110 C240 134 228 160 214 180 Z'], x: 'breath head', over: [{ c: Z_STRIPE, w: 5.5, d: ['M196 162 L224 174', 'M202 146 L232 158', 'M208 130 L238 142', 'M214 116 L244 128'] }] },
+    { c: '#3a3234', d: ['M193 150 C199 126 209 106 219 92 L229 96 C219 110 209 130 203 154 Z'], x: 'breath head', shade: false },
+    { s: '#f2efe8', w: 1.6, d: ['M199 138 l6 2', 'M203 124 l6 2', 'M208 112 l6 2', 'M213 101 l6 2'], x: 'breath head' },
+    { c: '#f2efe8', d: ['M220 92 C232 84 246 88 252 98 C262 116 272 134 274 148 C276 158 266 164 256 160 C246 156 236 146 228 132 C220 118 214 102 220 92 Z'], x: 'breath head',
+      over: [{ c: Z_STRIPE, w: 3.4, d: ['M226 108 L242 100', 'M230 120 L250 110', 'M236 132 L256 122'] }, { fill: true, c: '#3a3234', d: ['M258 136 C268 138 276 148 276 156 C272 166 258 164 252 156 Z'] }] },
+    { c: '#e8e4dc', d: ['M222 92 C218 78 220 68 226 62 C231 72 231 84 229 94 Z'], x: 'breath head ear' },
+    { c: '#2a201c', d: [E(238, 112, 3.2, 3.8)], x: 'breath head blink', shade: false, line: 0 },
+    { c: '#ffffff', d: [E(237.2, 110.6, 1, 1.1)], x: 'breath head blink', shade: false, line: 0 },
+  ],
+};
+// =====================================================================
+// 아기 기린: 긴 목과 다리, 그물 얼룩, 뿔 두 개 끝은 털뭉치
+// =====================================================================
+const G_SPOT = '#b0703c';
+const GIRAFFE = {
+  label: '아기 기린',
+  o: { breath: [150, 330], head: [196, 186], ear: [210, 50], wag: [102, 176], blink: [230, 56], chew: [252, 76] },
+  ground: groundShadow(150, 70),
+  parts: [
+    { c: '#d8a858', d: ['M124 200 C126 226 124 246 125 264 L124 326 L131 326 L132 264 C133 246 136 226 136 204 Z', 'M196 204 L198 262 L197 326 L204 326 L205 262 L208 204 Z'], x: 'breath', over: [{ fill: true, c: G_SPOT, d: [E(130, 230, 4, 6), E(202, 228, 4, 6)] }] },
+    { c: '#3a2a22', d: ['M123 323 h9 v6 h-9 Z', 'M196 323 h9 v6 h-9 Z'], shade: false, line: 0 },
+    { s: '#d8a858', w: 2.4, d: ['M102 176 C96 190 94 206 96 220'], x: 'breath wag' },
+    { c: '#3a2a22', d: ['M92 218 C92 230 100 232 100 218 Z'], x: 'breath wag', shade: false },
+    { c: '#eec070', d: ['M100 176 C100 156 120 148 150 150 C180 152 200 156 206 172 C212 190 204 210 186 216 C160 222 128 220 112 212 C102 204 100 190 100 176 Z'], x: 'breath',
+      over: [{ fill: true, c: G_SPOT, d: ['M110 164 L124 156 L134 166 L126 180 L112 178 Z', 'M138 160 L154 154 L162 166 L152 178 L140 174 Z', 'M166 160 L182 158 L188 172 L176 182 L166 174 Z', 'M118 188 L134 184 L140 198 L128 208 L116 202 Z', 'M146 184 L162 182 L168 196 L156 208 L144 200 Z', 'M174 188 L190 184 L198 198 L186 208 L174 202 Z', 'M104 170 L108 184 L102 192 Z'] }] },
+    { c: '#eec070', d: ['M108 196 C106 222 112 240 112 260 L110 326 L118 326 L120 260 C122 240 124 220 124 206 Z', 'M182 206 L184 262 L182 326 L190 326 L192 262 L194 204 Z'], x: 'breath', over: [{ fill: true, c: G_SPOT, d: [E(116, 222, 4.5, 6), E(188, 222, 4.5, 6), E(115, 246, 3.5, 5), E(188, 246, 3.5, 5)] }] },
+    { c: '#3a2a22', d: ['M109 323 h10 v6 h-10 Z', 'M181 323 h10 v6 h-10 Z'], shade: false, line: 0 },
+    { c: '#eec070', d: ['M184 172 C192 132 202 94 210 62 L228 68 C220 100 210 138 202 180 Z'], x: 'breath head',
+      over: [{ fill: true, c: G_SPOT, d: ['M194 160 L204 152 L208 166 L200 174 Z', 'M198 134 L208 126 L212 140 L204 148 Z', 'M204 108 L212 100 L216 114 L208 122 Z', 'M208 84 L216 78 L220 90 L212 96 Z', 'M186 172 L194 168 L196 180 Z'] }] },
+    { s: '#a0602e', w: 3, d: ['M186 160 C192 126 200 96 208 64'], x: 'breath head' },
+    { c: '#e4b468', d: ['M212 50 C202 46 196 40 195 35 C204 35 211 41 215 46 Z'], x: 'breath head ear' },
+    { s: '#c08a48', w: 3.2, d: ['M217 45 L215 30', 'M226 43 L226 29'], x: 'breath head' },
+    { c: '#3a2a22', d: [E(215, 28, 3.6, 3.6), E(226, 27, 3.6, 3.6)], x: 'breath head', shade: false },
+    { c: '#f2c878', d: ['M206 52 C214 40 232 40 240 48 C248 56 258 64 260 72 C262 80 254 85 246 83 C236 81 226 75 218 69 C210 63 202 58 206 52 Z'], x: 'breath head',
+      over: [{ fill: true, c: '#f8e4b8', d: ['M244 66 C254 66 262 74 260 80 C254 86 244 82 240 76 Z'] }, { fill: true, c: G_SPOT, d: [E(220, 52, 4, 3)] }] },
+    { c: '#2a201c', d: [E(230, 56, 3.4, 4)], x: 'breath head blink', shade: false, line: 0 },
+    { c: '#ffffff', d: [E(229.1, 54.5, 1.1, 1.2)], x: 'breath head blink', shade: false, line: 0 },
+    { s: '#5a4030', w: 1.2, d: ['M254 78 q3 2 6 0'], x: 'breath head chew' },
+  ],
+};
+// =====================================================================
+// 누: 앞이 높은 어깨, 긴 얼굴, 수염과 갈기, 소처럼 휜 뿔
+// =====================================================================
+const GNU = {
+  label: '누',
+  o: { breath: [150, 330], head: [200, 160], ear: [222, 132], swish: [84, 176], blink: [240, 148] },
+  ground: groundShadow(150, 86),
+  parts: [
+    { c: '#5a5450', d: ['M106 210 C110 236 106 260 108 284 L108 326 L116 326 L117 284 C119 260 122 236 122 210 Z', 'M188 210 L190 268 L190 326 L198 326 L199 268 L202 210 Z'], x: 'breath' },
+    { c: '#2a2624', d: ['M107 322 h10 v7 h-10 Z', 'M189 322 h10 v7 h-10 Z'], shade: false, line: 0 },
+    { s: '#6a6460', w: 3.2, d: ['M84 176 C74 188 72 208 76 224'], x: 'breath swish' },
+    { c: '#2e2a28', d: ['M70 220 C68 238 82 240 82 222 Z'], x: 'breath swish', shade: false },
+    { c: '#8a827c', d: ['M84 186 C82 166 96 156 122 158 C150 160 172 144 196 146 C214 148 222 170 218 196 C214 214 198 222 170 224 C140 226 108 224 94 214 C86 206 84 196 84 186 Z'], x: 'breath',
+      over: [{ c: '#6a625c', w: 3, d: ['M160 154 C158 180 160 204 164 224', 'M172 150 C170 176 172 202 176 224', 'M184 148 C182 174 184 200 188 222', 'M196 148 C194 172 196 196 200 220'] }] },
+    { c: '#7a726c', d: ['M90 196 C88 226 98 244 100 264 L98 326 L106 326 L108 264 C110 240 112 222 114 206 Z', 'M172 210 L174 268 L172 326 L180 326 L182 268 L186 208 Z'], x: 'breath' },
+    { c: '#2a2624', d: ['M97 322 h10 v7 h-10 Z', 'M171 322 h10 v7 h-10 Z'], shade: false, line: 0 },
+    { c: '#3a3432', d: ['M222 168 C226 186 230 198 236 208 C226 208 218 198 214 182 Z'], x: 'breath head' },
+    { c: '#8a827c', d: ['M196 156 C206 140 220 130 232 128 C244 126 250 134 252 146 C256 166 262 186 262 200 C262 209 254 213 246 208 C236 202 226 186 218 174 C210 166 200 166 196 156 Z'], x: 'breath head',
+      over: [{ fill: true, c: '#3e3836', d: ['M250 184 C256 190 262 198 263 206 L263 216 L242 216 C243 204 246 192 250 184 Z'] }, { c: '#5a524e', w: 4, d: ['M246 140 C250 156 254 170 256 184'] }] },
+    { s: '#2e2a28', w: 5, d: ['M192 150 C202 136 214 126 228 122'], x: 'breath head' },
+    { c: '#7a726c', d: ['M224 134 C216 134 210 130 207 125 C215 123 221 127 226 131 Z'], x: 'breath head ear' },
+    { s: '#3a3532', w: 3.6, d: ['M232 128 C224 122 222 112 228 106 C234 102 240 106 238 112', 'M242 128 C248 118 256 114 264 116'], x: 'breath head' },
+    { c: '#2a201c', d: [E(240, 148, 3, 3.6)], x: 'breath head blink', shade: false, line: 0 },
+    { c: '#ffffff', d: [E(239.2, 146.6, 1, 1.1)], x: 'breath head blink', shade: false, line: 0 },
+  ],
+};
+
+// =====================================================================
+// 첫 장면: 넓은 초원 그림 위에 다 같이 (가까울수록 크게)
+// =====================================================================
+function sceneSVG() {
+  const s = 'sc';
+  const defs = MODE_DEFS.blend(s) + `<linearGradient id="${s}sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9cc8ea"/><stop offset="0.55" stop-color="#d6ebf2"/><stop offset="1" stop-color="#f2efda"/></linearGradient>
+    <linearGradient id="${s}far" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a8bccc"/><stop offset="1" stop-color="#c8d6d6"/></linearGradient>
+    <linearGradient id="${s}field" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c2d898"/><stop offset="1" stop-color="#9cc472"/></linearGradient>`;
+  const cloud = (x, y, k) => `<g transform="translate(${x} ${y}) scale(${k})"><g class="cloud" filter="url(#${s}wash)"><path d="M0 40 C10 14 40 10 54 26 C64 4 104 2 116 26 C134 14 164 22 164 42 C164 54 150 58 140 56 L20 56 C6 56 -2 50 0 40 Z" fill="#ffffff" opacity="0.95"/><path d="M8 52 C40 58 120 58 158 50 C150 58 120 62 80 62 C40 62 14 60 8 52 Z" fill="#c4d4e6"/></g></g>`;
+  const tuft = (x, y, k) => `<g class="grassw" style="transform-origin:${x}px ${y}px"><path d="M${x} ${y} q${-4 * k} ${-10 * k} ${-9 * k} ${-14 * k} M${x} ${y} q0 ${-12 * k} ${2 * k} ${-18 * k} M${x} ${y} q${4 * k} ${-9 * k} ${10 * k} ${-12 * k}" fill="none" stroke="#6f9a4a" stroke-width="${1.4 * k}" stroke-linecap="round" filter="url(#${s}penL)"/></g>`;
+  const tufts = [], r = ((seed) => () => (seed = (seed * 16807) % 2147483647) / 2147483647)(7);
+  for (let i = 0; i < 80; i++) { const y = 420 + r() * 250, x = r() * 1200; if (Math.abs(x - 610) < 70 && y > 560) continue; tufts.push([x, y]); }
+  const grass = (a, b) => tufts.filter(([, y]) => y >= a && y < b).map(([x, y]) => tuft(x, y, 0.6 + (y - 420) / 120)).join('');
+  const tree = `<g class="tree" style="transform-origin:930px 430px"><path d="M926 432 C928 400 924 372 918 352 M928 380 C944 366 960 360 978 356 M922 368 C908 356 892 352 874 352" fill="none" stroke="#6a5038" stroke-width="7" stroke-linecap="round"/>
+    <path d="M840 352 C850 330 900 318 940 322 C990 318 1030 330 1040 350 C1020 362 980 362 940 360 C900 362 858 364 840 352 Z" fill="#7aa45a"/><path d="M846 352 C880 362 1000 364 1036 352 C1020 364 980 368 940 366 C900 368 860 364 846 352 Z" fill="#5f8a46"/>
+    <path d="M840 352 C850 330 900 318 940 322 C990 318 1030 330 1040 350" fill="none" stroke="#4a5a38" stroke-width="1.3" filter="url(#${s}penL)"/></g>`;
+  // 동물 배치: [모델, x, 발 y, 크기]
+  const put = (m, x, foot, k, flip) => { const w = 300 * k, h = 360 * k, y = foot - 332 * k; return `<g transform="${flip ? `translate(${x * 2 + w} 0) scale(-1 1)` : ''}">${draw(m, 'blend', NA, 'none', `x="${x}" y="${y}" width="${w}" height="${h}"`)}</g>`; };
+  return `<svg viewBox="0 0 1200 675" role="img" aria-label="초원 첫 장면: 기린, 얼룩말, 누, 가젤, 아기 코끼리와 산책자"><defs>${defs}</defs>
+    <rect width="1200" height="675" fill="url(#${s}sky)"/>
+    ${cloud(80, 60, 1.3)}${cloud(520, 30, 0.9)}${cloud(860, 90, 1.1)}
+    <path d="M0 380 C120 330 220 352 320 336 C430 318 520 350 640 330 C760 310 880 344 1000 326 C1080 316 1150 330 1200 324 L1200 440 L0 440 Z" fill="url(#${s}far)"/>
+    <path d="M0 408 C160 386 320 400 480 392 C660 382 820 400 1000 390 C1100 384 1160 392 1200 388 L1200 675 L0 675 Z" fill="url(#${s}field)"/>
+    <path d="M0 408 C160 386 320 400 480 392 C660 382 820 400 1000 390 C1100 384 1160 392 1200 388" fill="none" stroke="#7a9a58" stroke-width="1.2" opacity="0.7" filter="url(#${s}penL)"/>
+    <path transform="translate(44 0)" d="M520 675 C560 600 620 520 640 470 C652 440 650 420 646 404 L660 404 C668 424 672 444 664 474 C648 530 640 600 660 675 Z" fill="#e6d4a4" opacity="0.85" filter="url(#${s}wash)"/>
+    ${tree}
+    ${put(GNU, 100, 466, 0.46, true)}${put(GNU, 190, 474, 0.42)}${put(GIRAFFE, 770, 456, 0.6)}
+    ${grass(0, 500)}${put(ZEBRA, 330, 506, 0.5)}
+    ${grass(500, 585)}${put(GAZELLE, 250, 590, 0.6)}${put(ELE_NATURE, 880, 612, 0.76)}
+    ${grass(585, 645)}${put(WALK_NATURE, 520, 662, 0.78)}
+    ${grass(645, 700)}
+    <rect width="1200" height="675" filter="url(#${s}grain)" style="mix-blend-mode:multiply" transform="scale(4)" opacity="0.6"/>
+  </svg>`;
+}
+document.getElementById('scene').innerHTML = sceneSVG();
+const CARDS = [
+  [GAZELLE, '톰슨가젤', '가는 다리와 옆구리 검은 줄, 고리 무늬 뿔. 가끔 고개를 숙여 풀을 뜯어요.'],
+  [ZEBRA, '얼룩말', '다부진 몸에 굽은 줄무늬, 짧게 선 갈기. 꼬리를 휙휙 흔들어요.'],
+  [GIRAFFE, '아기 기린', '긴 목과 그물 얼룩, 끝에 털뭉치가 달린 뿔 두 개. 오물오물 씹어요.'],
+  [ELE_NATURE, '아기 코끼리', '실제 아기 코끼리 비율. 귀를 펄럭이며 숨 쉬어요.'],
+  [GNU, '누', '앞이 높은 어깨, 긴 얼굴, 턱수염과 소처럼 휜 뿔.'],
+  [WALK_NATURE, '산책자 (주인공)', '6.5등신 밀짚모자 산책자. 사진기 대신 가방을 멨어요.'],
+];
+document.getElementById('cards').innerHTML = CARDS.map(([m, n, d]) => `<article class="card">${draw(m, 'blend', NA, 'soft')}<b>${n}</b><p>${d}</p></article>`).join('');
+window.__ok = true;
+</script>
