@@ -425,9 +425,15 @@ $('#cable').onclick = () => {
   me.riding = { t: 0, dur: 14, dir: atTop ? -1 : 1 };
   $('#rideT').textContent = atTop ? '🚡 마을로 내려가는 중' : '🚡 산꼭대기로 올라가는 중'; $('#rideBar').style.width = '0'; $('#ride').classList.add('on');
   me.target = null; $('#cable').disabled = true;
-  $('#cable').innerHTML = atTop ? '<span>🚡</span>내려가는 중' : '<span>🚡</span>올라가는 중';
+  $('#cable small').textContent = atTop ? '내려가는 중' : '올라가는 중'; closeDrawer();
 };
 // 🏘 마을로 · 🦁 초원으로 · 🏜️ 사막으로: 로딩 화면처럼 노을 사진 위에 '○○로 가는 중' + 진행선이 차오른 뒤 도착
+// ☰ 메뉴 서랍: 도감 · 앨범 · 꾸미기 · 설정 · 이동. 하나를 누르면 닫혀요
+function closeDrawer() { $('#drawer').classList.remove('on'); $('#drawer').setAttribute('aria-hidden', 'true'); $('#drawerBtn').setAttribute('aria-expanded', 'false'); }
+$('#drawerBtn').onclick = (e) => { e.stopPropagation(); const on = !$('#drawer').classList.contains('on'); if (!on) return closeDrawer(); $('#drawer').classList.add('on'); $('#drawer').setAttribute('aria-hidden', 'false'); $('#drawerBtn').setAttribute('aria-expanded', 'true'); };
+$('#drawer').addEventListener('click', (e) => { if (e.target.closest('button') && e.target.closest('button').id !== 'setBtn') closeDrawer(); });
+addEventListener('pointerdown', (e) => { if (!e.target.closest('#drawer, #drawerBtn, #settings')) closeDrawer(); });
+addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 let travelling = false;
 function travelTo(label, where) {
   if (me.riding || travelling) return; travelling = true; exitPhoto(); me.target = null;
@@ -462,7 +468,7 @@ function showSet() {
   $('#sMusic').value = SET.music; $('#sMusicV').textContent = SET.music ? `${Math.round(SET.music * 100)}` : '끔';
   $('#sAmb').value = SET.amb; $('#sAmbV').textContent = SET.amb ? `${Math.round(SET.amb * 100)}` : '끔';
 }
-$('#setBtn').onclick = (e) => { e.stopPropagation(); $('#settings').classList.toggle('on'); showSet(); };
+$('#setBtn').onclick = (e) => { e.stopPropagation(); closeDrawer(); $('#settings').classList.toggle('on'); showSet(); };
 addEventListener('pointerdown', (e) => { if (!e.target.closest('#settings, #setBtn')) $('#settings').classList.remove('on'); });
 $('#sSpeed').oninput = (e) => { SET.speed = +e.target.value; saveSet(); showSet(); };
 $('#sMusic').oninput = (e) => { SET.music = +e.target.value; snd.setVolume('music', SET.music); saveSet(); showSet(); };
@@ -820,7 +826,7 @@ function frame() {
   } else {
     me.pos.y = lerp(me.pos.y, Math.max(height(me.pos.x, me.pos.z), -0.6), 0.5);
     const atTop = me.pos.distanceTo(TOPS) < me.pos.distanceTo(STA);
-    const cl = atTop ? '<span>🚡</span>내려가기' : '<span>🚡</span>산꼭대기로'; if ($('#cable').innerHTML !== cl) $('#cable').innerHTML = cl;
+    const cl = atTop ? '마을로 내려가기' : '산꼭대기로'; if ($('#cable small').textContent !== cl) $('#cable small').textContent = cl;
     gondola.position.copy(CABLE.getPointAt(0.5 + 0.5 * Math.sin(T * 0.08)));   // 빈 케이블카는 천천히 오가요
   }
   me.g.position.copy(me.pos);
