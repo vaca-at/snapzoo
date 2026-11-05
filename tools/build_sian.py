@@ -18,6 +18,7 @@ PAGES = {
     'char': ('_char_tpl.html', '캐릭터그림체시안.html'),
     'herd': ('_herd_tpl.html', '초원식구들.html'),
     'meta': ('_meta_tpl.html', '메타버스3D시안.html'),
+    'ui': ('_ui_tpl.html', '화면단추시안.html'),
     'brand3d': ('_brand3d_tpl.html', '아이콘미리보기로딩시안.html'),   # __ZOO__ = world/zoo3d.js (게임과 같은 그림 도구)
 }
 

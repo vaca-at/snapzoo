@@ -1,0 +1,188 @@
+<meta charset="utf-8">
+<title>스냅주 화면 단추</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+@font-face { font-family: 'OngleipUnz'; src: url(data:font/woff2;base64,__FONT__) format('woff2'); font-display: block; }
+/* 레이아웃: 소개 → 단추 그림체 A~E (가로 화면 + 휴대폰 나란히) → 메뉴 구성 1~5 (휴대폰 그림 + 들어가는 것) */
+:root {
+  --bg: #f4eee4; --paper: #fffaf2; --ink: #33281f; --soft: #7a6a5a; --line: #e4d8c6; --accent: #c8553d;
+  --hand: "OngleipUnz", "Apple SD Gothic Neo", sans-serif; --body: "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #1d1915; --paper: #29231d; --ink: #f1e7d9; --soft: #b9a995; --line: #3d342b; --accent: #e8836a; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg: #1d1915; --paper: #29231d; --ink: #f1e7d9; --soft: #b9a995; --line: #3d342b; --accent: #e8836a; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.6; }
+.wrap { max-width: 1200px; margin: 0 auto; padding-block: 26px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 22px; }
+.eyebrow { margin: 0; font-family: var(--hand); color: var(--accent); font-size: 18px; }
+h1 { margin: 2px 0 6px; font-family: var(--hand); font-weight: 400; font-size: clamp(34px, 6vw, 52px); line-height: 1.05; text-wrap: balance; }
+h2 { margin: 22px 0 0; font-family: var(--hand); font-weight: 400; font-size: 34px; }
+.lead { margin: 0; color: var(--soft); max-width: 70ch; }
+.opt { background: var(--paper); border: 1.5px solid var(--line); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.ohead { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.ohead i { font-style: normal; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--ink); color: var(--paper); font-family: var(--hand); font-size: 21px; align-self: center; flex: none; }
+.ohead b { font-family: var(--hand); font-weight: 400; font-size: 28px; }
+.ohead span { color: var(--soft); font-size: 14.5px; flex: 1 1 300px; min-width: 0; }
+.pair { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 14px; align-items: start; }
+@media (max-width: 720px) { .pair { grid-template-columns: 1fr; } .pair .phone { max-width: 230px; margin: 0 auto; } }
+.tags { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.tags li { font-size: 12.5px; padding: 2px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--soft); }
+
+/* ───── 게임 화면 그림 (모든 크기는 화면 폭 cqw 기준이라 줄여도 비율 그대로) ───── */
+.scr { position: relative; container-type: inline-size; overflow: hidden; border-radius: 12px; background: #6a5a3a center / cover no-repeat; font-family: var(--hand); color: #fff6e6; max-width: 100%; }
+.desk { aspect-ratio: 16 / 10; background-image: url(img/ui-desk.jpg); }
+.phone { aspect-ratio: 390 / 844; background-image: url(img/ui-phone.jpg); border-radius: 22px; border: 6px solid #1c1814; }
+.scr * { box-sizing: border-box; }
+.scr .z { position: absolute; left: 2.2cqw; top: 2cqw; text-shadow: 0 .3cqw 1cqw rgba(30,20,10,.6); }
+.scr .z b { display: block; font-weight: 400; font-size: 2.6cqw; line-height: 1.1; } .scr .z small { font-size: 1.4cqw; opacity: .9; }
+.scr .map { position: absolute; right: 1.8cqw; top: 1.8cqw; width: 10cqw; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 40%, #f6f6f2 18%, #3f7a3a 19% 36%, #c8aa5a 37% 62%, #4a96c8 63%); border: .3cqw solid rgba(255,246,230,.9); }
+.phone .z b { font-size: 5.6cqw; } .phone .z small { font-size: 3.2cqw; } .phone .z { left: 4cqw; top: 4cqw; }
+.phone .map { width: 24cqw; right: 4cqw; top: 3.5cqw; }
+.joy { position: absolute; left: 5cqw; bottom: 17cqw; width: 30cqw; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; }
+.joy::after { content: ""; width: 42%; aspect-ratio: 1; border-radius: 50%; }
+
+/* ───── A 지금 그대로: 말랑한 알약 ───── */
+.sA .bar { position: absolute; left: 50%; bottom: 2.4cqw; transform: translateX(-50%); display: flex; gap: .8cqw; }
+.sA .bar span, .sA .side span { font-size: 1.7cqw; background: rgba(255,250,240,.93); color: #2a2018; border: .18cqw solid #5a463a; border-radius: 99px; padding: .6cqw 1.4cqw; box-shadow: 0 .25cqw 0 #5a463a; white-space: nowrap; }
+.sA .bar span.hot { background: #c8553d; color: #fff; border-color: #6a2a1e; box-shadow: 0 .25cqw 0 #6a2a1e; }
+.sA .side { position: absolute; right: 1.8cqw; top: 26cqw; display: grid; gap: .7cqw; }
+.sA .side span { border-radius: 1.2cqw; padding: .5cqw .9cqw; font-size: 1.3cqw; background: rgba(24,18,14,.55); color: #fff6e6; border: .1cqw solid rgba(255,246,230,.25); box-shadow: none; text-align: center; }
+.phone.sA .bar { gap: 1cqw; bottom: 3cqw; } .phone.sA .bar span { font-size: 3.4cqw; padding: 1.4cqw 1.9cqw; }
+.phone.sA .side { top: auto; bottom: 16cqw; } .phone.sA .side span { font-size: 3cqw; padding: 1.4cqw 2cqw; }
+.sA .joy { background: rgba(30,22,16,.28); border: .5cqw solid rgba(255,246,230,.45); } .sA .joy::after { background: rgba(255,246,230,.9); }
+
+/* ───── B 유리 아이콘 (큰법당 결): 어두운 반투명 네모 + 선 아이콘, 글은 작게 ───── */
+.sB .bar { position: absolute; left: 50%; bottom: 2.2cqw; transform: translateX(-50%); display: flex; gap: .9cqw; align-items: end; }
+.sB .bar span, .sB .side span { width: 6.2cqw; height: 6.2cqw; border-radius: 1.5cqw; background: rgba(18,14,12,.5); border: .1cqw solid rgba(255,255,255,.18); backdrop-filter: blur(6px); display: grid; place-items: center; align-content: center; gap: .2cqw; font-size: 1.05cqw; color: #fff; }
+.sB svg { width: 2.4cqw; height: 2.4cqw; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.sB .bar span.hot { width: 8cqw; height: 8cqw; border-radius: 50%; background: rgba(200,85,61,.85); } .sB .bar span.hot svg { width: 3.4cqw; height: 3.4cqw; }
+.sB .side { position: absolute; left: 1.8cqw; top: 30%; display: grid; gap: .8cqw; }
+.phone.sB .bar span, .phone.sB .side span { width: 13cqw; height: 13cqw; font-size: 2.3cqw; border-radius: 3.2cqw; } .phone.sB svg { width: 5.2cqw; height: 5.2cqw; }
+.phone.sB .bar span.hot { width: 17cqw; height: 17cqw; } .phone.sB .bar span.hot svg { width: 7cqw; height: 7cqw; }
+.phone.sB .bar { bottom: 4cqw; gap: 2cqw; } .phone.sB .side { left: auto; right: 4cqw; top: 36cqw; gap: 2cqw; }
+.sB .joy { background: rgba(18,14,12,.38); border: .3cqw solid rgba(255,255,255,.2); } .sB .joy::after { background: rgba(255,255,255,.75); }
+
+/* ───── C 종이 태그 · 폴라로이드: 비스듬히 붙인 종이 쪽지, 테이프 ───── */
+.sC .bar { position: absolute; left: 50%; bottom: 2cqw; transform: translateX(-50%); display: flex; gap: 1.4cqw; align-items: end; }
+.sC .bar span, .sC .side span { position: relative; background: #fbf6ea; color: #3a2a1e; font-size: 1.65cqw; padding: 1cqw 1.4cqw .8cqw; box-shadow: 0 .4cqw 1.2cqw rgba(30,20,10,.35); white-space: nowrap; }
+.sC .bar span:nth-child(odd) { transform: rotate(-2.5deg); } .sC .bar span:nth-child(even) { transform: rotate(2deg); }
+.sC .bar span::before, .sC .side span::before { content: ""; position: absolute; left: 50%; top: -.8cqw; width: 3.6cqw; height: 1.4cqw; transform: translateX(-50%) rotate(-3deg); background: rgba(232,200,140,.75); }
+.sC .bar span.hot { padding: .8cqw .8cqw 3cqw; background: #fffdf6; } .sC .bar span.hot em { display: block; width: 8cqw; height: 5.6cqw; background: linear-gradient(135deg, #e8a070, #6a8a3a); margin-bottom: .4cqw; } .sC .bar span.hot { font-style: normal; }
+.sC .side { position: absolute; right: 2.4cqw; top: 26cqw; display: grid; gap: 1.6cqw; justify-items: end; }
+.sC .side span { font-size: 1.35cqw; } .sC .side span:nth-child(odd) { transform: rotate(1.5deg); } .sC .side span:nth-child(even) { transform: rotate(-2deg); }
+.phone.sC .bar span, .phone.sC .side span { font-size: 3.4cqw; padding: 2cqw 2.4cqw 1.6cqw; } .phone.sC .bar { gap: 2.2cqw; bottom: 4cqw; }
+.phone.sC .bar span.hot em { width: 15cqw; height: 11cqw; } .phone.sC .side { top: auto; bottom: 30cqw; gap: 3.4cqw; right: 4cqw; } .phone.sC .side span { font-size: 3cqw; }
+.phone.sC span::before { width: 7cqw; height: 2.6cqw; top: -1.6cqw; }
+.sC .joy { background: rgba(251,246,234,.35); border: .5cqw dashed rgba(251,246,234,.85); } .sC .joy::after { background: #fbf6ea; box-shadow: 0 .6cqw 1.6cqw rgba(30,20,10,.35); }
+
+/* ───── D 사진기 다이얼: 가운데 큰 셔터, 둘레에 둥근 단추가 반원으로 ───── */
+.sD .dial { position: absolute; left: 50%; bottom: -9cqw; transform: translateX(-50%); width: 32cqw; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgba(30,24,20,.62) 55%, rgba(30,24,20,.35) 56%); border: .25cqw solid rgba(255,246,230,.35); }
+.sD .dial span { position: absolute; left: 50%; top: 50%; width: 5.2cqw; height: 5.2cqw; margin: -2.6cqw; border-radius: 50%; background: #3a2e26; border: .2cqw solid #d8b878; color: #fff6e6; display: grid; place-items: center; font-size: 2.2cqw; transform: rotate(var(--a)) translateY(-12.2cqw) rotate(calc(-1 * var(--a))); }
+.sD .dial span small { position: absolute; top: 105%; font-size: 1cqw; white-space: nowrap; }
+.sD .dial .hot { width: 10cqw; height: 10cqw; margin: -5cqw; transform: translateY(-4cqw); background: radial-gradient(circle at 40% 35%, #e0705a, #a8402c); border: .7cqw solid #f2e6d2; box-shadow: 0 0 0 .3cqw #3a2e26; font-size: 0; }
+.sD .side { position: absolute; right: 1.8cqw; top: 26cqw; display: grid; gap: .7cqw; }
+.sD .side span { font-size: 1.3cqw; color: #fff6e6; background: rgba(30,24,20,.55); border-left: .4cqw solid #d8b878; padding: .5cqw 1cqw; }
+.phone.sD .dial { width: 92cqw; bottom: -30cqw; } .phone.sD .dial span { width: 12cqw; height: 12cqw; margin: -6cqw; font-size: 5cqw; transform: rotate(var(--a)) translateY(-34cqw) rotate(calc(-1 * var(--a))); } .phone.sD .dial span small { font-size: 2.6cqw; }
+.phone.sD .dial .hot { width: 24cqw; height: 24cqw; margin: -12cqw; transform: translateY(-12cqw); }
+.phone.sD .side { top: 34cqw; right: 4cqw; } .phone.sD .side span { font-size: 3cqw; padding: 1.2cqw 2.4cqw; }
+.sD .joy { bottom: 64cqw; background: rgba(30,24,20,.35); border: .4cqw solid #d8b878; } .sD .joy::after { background: #f2e6d2; }
+
+/* ───── E 가는 선 아이콘: 바탕 없이 하얀 선 아이콘 + 그림자, 화면을 가장 덜 가려요 ───── */
+.sE .bar { position: absolute; left: 50%; bottom: 2cqw; transform: translateX(-50%); display: flex; gap: 3.2cqw; align-items: center; }
+.sE .bar span, .sE .side span { display: grid; justify-items: center; gap: .2cqw; font-size: 1.1cqw; color: #fff; filter: drop-shadow(0 .2cqw .5cqw rgba(0,0,0,.6)); }
+.sE svg { width: 2.8cqw; height: 2.8cqw; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.sE .bar span.hot svg { width: 5cqw; height: 5cqw; stroke-width: 1.3; }
+.sE .side { position: absolute; right: 2.4cqw; top: 28cqw; display: grid; gap: 1.6cqw; }
+.phone.sE .bar { gap: 6cqw; bottom: 5cqw; } .phone.sE .bar span, .phone.sE .side span { font-size: 2.6cqw; } .phone.sE svg { width: 6.6cqw; height: 6.6cqw; } .phone.sE .bar span.hot svg { width: 12cqw; height: 12cqw; }
+.phone.sE .side { top: 34cqw; right: 4cqw; gap: 4cqw; }
+.sE .joy { border: .4cqw solid rgba(255,255,255,.7); } .sE .joy::after { border: .4cqw solid #fff; }
+
+/* ───── 메뉴 구성 1~5 ───── */
+.menus { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 350px), 1fr)); gap: 14px; }
+.menu { background: var(--paper); border: 1.5px solid var(--line); border-radius: 20px; padding: 14px; display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 400px) { .menu { grid-template-columns: 1fr; } .menu .phone { max-width: 190px; margin: 0 auto; } }
+.menu h3 { margin: 0; font-family: var(--hand); font-weight: 400; font-size: 25px; line-height: 1.15; display: flex; gap: 8px; align-items: center; }
+.menu h3 i { font-style: normal; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 17px; flex: none; }
+.menu p { margin: 4px 0 8px; color: var(--soft); font-size: 14px; }
+.menu dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; font-size: 13.5px; }
+.menu dt { color: var(--soft); white-space: nowrap; } .menu dd { margin: 0; }
+.menu .good { margin-top: 8px; font-size: 13px; color: var(--soft); border-top: 1px dashed var(--line); padding-top: 6px; }
+/* 메뉴 그림: 단추는 A 그림체를 단순하게 */
+.m .b { position: absolute; display: grid; place-items: center; font-size: 3.4cqw; background: rgba(255,250,240,.93); color: #2a2018; border: .3cqw solid #5a463a; border-radius: 99px; padding: 1.4cqw 2.2cqw; white-space: nowrap; box-shadow: 0 .4cqw 0 #5a463a; }
+.m .b.hot { background: #c8553d; color: #fff; border-color: #6a2a1e; }
+.m .b.dk { background: rgba(24,18,14,.6); color: #fff6e6; border: .2cqw solid rgba(255,246,230,.3); box-shadow: none; border-radius: 3cqw; }
+.m .tabs { position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, 1fr); background: rgba(251,246,234,.95); padding: 2cqw 1cqw 4cqw; color: #3a2a1e; font-size: 3cqw; text-align: center; }
+.m .tabs span { display: grid; gap: .5cqw; } .m .tabs span em { font-style: normal; font-size: 6.4cqw; line-height: 1; } .m .tabs .hot em { display: grid; place-items: center; width: 15cqw; height: 15cqw; margin: -8cqw auto 0; border-radius: 50%; background: #c8553d; border: 1cqw solid #fbf6ea; }
+.m .fan { position: absolute; left: 6cqw; bottom: 6cqw; }
+.m .fan .b { position: absolute; left: 0; bottom: 0; transform: rotate(var(--a)) translateY(-32cqw) rotate(calc(-1 * var(--a))); }
+.m .bub { position: absolute; left: 34%; top: 34%; font-size: 3cqw; background: #fff; color: #2a2018; padding: 1cqw 2cqw; border-radius: 3cqw; }
+.m .mapbig { position: absolute; inset: 22cqw 8cqw 34cqw; border-radius: 4cqw; background: radial-gradient(circle at 50% 38%, #f6f6f2 12%, #3f7a3a 13% 28%, #c8aa5a 29% 52%, #4a96c8 53%); border: 1cqw solid #fbf6ea; box-shadow: 0 2cqw 6cqw rgba(0,0,0,.35); }
+.m .mapbig span { position: absolute; font-size: 3cqw; background: #fbf6ea; color: #3a2a1e; padding: .6cqw 1.6cqw; border-radius: 99px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">노을 진 섬 · 화면 위 단추</p>
+    <h1>화면 단추, 다섯 가지 그림체와 메뉴 다섯 가지</h1>
+    <p class="lead">위쪽은 같은 단추들을 다섯 가지 모양으로 그려 본 거예요. 실제 게임 화면 위에 올렸고, 가로 화면과 휴대폰을 나란히 보여 드려요. 아래쪽은 어떤 단추를 어디에 두고 무엇을 하나로 묶을지, 메뉴 구성 다섯 가지예요. 그림체 하나와 메뉴 하나를 골라 주세요. 섞어도 돼요.</p>
+  </header>
+
+  <h2>단추 그림체</h2>
+  <div id="styles" style="display:flex;flex-direction:column;gap:16px"></div>
+
+  <h2>메뉴 구성 추천</h2>
+  <div class="menus" id="menus"></div>
+</div>
+
+<script>
+const IC = {   // 선 아이콘 (B · E 에서 써요)
+  cam: '<svg viewBox="0 0 24 24"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.6"/></svg>',
+  wave: '<svg viewBox="0 0 24 24"><path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V12m0-6.5a1.5 1.5 0 0 1 3 0V12m0-4.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3.5 15a1.5 1.5 0 0 1 2.4-1.8L8 15"/></svg>',
+  book: '<svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6"/></svg>',
+  album: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.5"/></svg>',
+  me: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+  home: '<svg viewBox="0 0 24 24"><path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10M10 20v-6h4v6"/></svg>',
+  peak: '<svg viewBox="0 0 24 24"><path d="m2 20 7-12 4 6 3-4 6 10z"/><path d="m7.5 11 1.5-2 1.5 2"/></svg>',
+  sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  dune: '<svg viewBox="0 0 24 24"><path d="M2 18c4-6 8-6 12 0M10 18c3-4 7-5 12-1"/><path d="M7 9v6M5 11h4"/></svg>',
+};
+const BTN = [['cam', '사진 찍기', '📷'], ['wave', '인사', '👋'], ['book', '도감', '📖'], ['album', '앨범', '🖼'], ['me', '꾸미기', '👤']];
+const MOVE = [['home', '마을로', '🏘'], ['peak', '산꼭대기로', '🚡'], ['sun', '초원으로', '🦁'], ['dune', '사막으로', '🏜️']];
+const head = '<div class="z"><b>🦁 초원 · 넓은 들</b><small>코끼리 · 기린 · 얼룩말이 풀을 뜯어요</small></div><div class="map"></div>';
+const SCREENS = {
+  A: () => `${head}<div class="side">${MOVE.map(([, t, e]) => `<span>${e}<br>${t}</span>`).join('')}</div><div class="bar">${BTN.map(([, t, e], i) => `<span class="${i ? '' : 'hot'}">${e} ${t}</span>`).join('')}</div>`,
+  B: () => `${head}<div class="side">${MOVE.map(([k, t]) => `<span>${IC[k]}${t}</span>`).join('')}</div><div class="bar">${[1, 2, 0, 3, 4].map((i) => { const [k, t] = BTN[i]; return `<span class="${i ? '' : 'hot'}">${IC[k]}${i ? t : ''}</span>`; }).join('')}</div>`,
+  C: () => `${head}<div class="side">${MOVE.map(([, t, e]) => `<span>${e} ${t}</span>`).join('')}</div><div class="bar">${[1, 2, 0, 3, 4].map((i) => { const [, t, e] = BTN[i]; return i ? `<span>${e} ${t}</span>` : `<span class="hot"><em></em>📷 찰칵</span>`; }).join('')}</div>`,
+  D: () => `${head}<div class="side">${MOVE.map(([, t, e]) => `<span>${e} ${t}</span>`).join('')}</div><div class="dial">${[[-62, 1], [-26, 2], [26, 3], [62, 4]].map(([a, i]) => `<span style="--a:${a}deg">${BTN[i][2]}<small>${BTN[i][1]}</small></span>`).join('')}<span class="hot">찰칵</span></div>`,
+  E: () => `${head}<div class="side">${MOVE.map(([k, t]) => `<span>${IC[k]}${t}</span>`).join('')}</div><div class="bar">${[1, 2, 0, 3, 4].map((i) => { const [k, t] = BTN[i]; return `<span class="${i ? '' : 'hot'}">${IC[k]}${i ? t : ''}</span>`; }).join('')}</div>`,
+};
+const STYLES = [
+  ['A', '지금 그대로 · 말랑한 알약', '지금 게임에 들어간 모양이에요. 크림색 알약 단추에 굵은 테두리, 사진만 빨갛게. 손가락으로 누르기 쉽고 글이 잘 읽혀요. 대신 화면 아래를 가장 많이 가려요.', ['읽기 쉬움', '손가락에 넉넉', '화면을 많이 가림']],
+  ['B', '유리 아이콘 · 큰법당 결', '어두운 반투명 네모에 가는 선 아이콘, 글은 아주 작게. 큰법당 · 캠핑장과 같은 집안이라 메타버스 넷이 한 식구처럼 보여요. 노을빛을 가장 덜 해쳐요.', ['큰법당 · 캠핑장과 같은 결', '단정함', '아이콘을 익혀야 함']],
+  ['C', '종이 태그 · 폴라로이드', '비스듬히 붙인 종이 쪽지에 테이프. 사진 단추는 작은 폴라로이드 모양이에요. 사진 찍는 힐링 게임이라는 느낌이 가장 강하고 손으로 만든 따뜻함이 있어요.', ['사진 게임다움', '따뜻함 · 손맛', '많으면 어수선']],
+  ['D', '사진기 다이얼', '아래 가운데 큰 셔터를 두고, 둘레에 둥근 단추를 반원으로 돌려요. 사진기를 손에 든 느낌. 엄지 하나로 다 닿아서 휴대폰에 가장 편해요.', ['휴대폰 엄지에 최고', '사진기 느낌', '가로 화면은 가운데가 무거움']],
+  ['E', '가는 선 아이콘', '바탕 없이 하얀 선 아이콘과 그림자만. 영화 화면을 거의 가리지 않아 풍경과 동물이 가장 잘 보여요. 밝은 눈밭 위에서는 덜 보일 수 있어요.', ['풍경이 가장 잘 보임', '세련됨', '밝은 곳에서 덜 보임']],
+];
+document.getElementById('styles').innerHTML = STYLES.map(([k, n, d, tags]) => `<section class="opt"><div class="ohead"><i>${k}</i><b>${n}</b><span>${d}</span></div><ul class="tags">${tags.map((t) => `<li>${t}</li>`).join('')}</ul>
+  <div class="pair"><div class="scr desk s${k}" role="img" aria-label="${n} 가로 화면">${SCREENS[k]()}</div><div class="scr phone s${k}" role="img" aria-label="${n} 휴대폰 화면">${SCREENS[k]()}<div class="joy"></div></div></div></section>`).join('');
+
+// 메뉴 구성: 휴대폰 그림 + 무엇이 어디에
+const PH = (inner) => `<div class="scr phone m" role="img">${head}${inner}</div>`;
+const MENUS = [
+  ['카메라가 주인공', '셔터 하나만 크게, 나머지는 서랍(☰) 안에. 화면이 가장 깨끗하고, 들어오자마자 “사진 찍는 게임”이라는 게 보여요.',
+    PH(`<span class="b hot" style="left:50%;bottom:6cqw;transform:translateX(-50%);padding:3cqw 6cqw;font-size:4.4cqw">📷 찰칵</span><span class="b" style="left:5cqw;bottom:8cqw">👋</span><span class="b" style="right:5cqw;bottom:8cqw">☰</span>`),
+    [['아래 가운데', '📷 사진 찍기 (크게)'], ['아래 왼쪽', '👋 인사'], ['☰ 서랍', '도감 · 앨범 · 꾸미기 · 상점 · 이동 · 설정']], '처음 오는 어른에게 가장 쉬워요'],
+  ['아래 탭 다섯', '휴대폰 앱처럼 아래에 탭 다섯, 가운데 사진만 볼록. 늘 같은 자리라 익히기 쉬워요. 도감과 앨범은 ‘수첩’ 하나로 묶어요.',
+    PH(`<div class="tabs"><span><em>🗺</em>지도</span><span><em>📒</em>수첩</span><span class="hot"><em>📷</em>찰칵</span><span><em>👋</em>인사</span><span><em>👤</em>나</span></div>`),
+    [['🗺 지도', '구역 보고 눌러서 이동 (마을 · 산꼭대기 · 초원 · 사막 · 정글 · 북극)'], ['📒 수첩', '도감 + 앨범 (탭으로 나눔)'], ['👤 나', '꾸미기 · 상점 · 설정']], '휴대폰 앱에 익숙한 분께 좋아요'],
+  ['상황 따라 바뀌는 단추', '평소엔 지도 · 수첩만. 동물 곁에 가면 📷 · 👋 가 떠오르고, 마을에 들어가면 꾸미기 · 상점이 떠요. 지금 할 수 있는 것만 보여요.',
+    PH(`<span class="bub">🐘 아기 코끼리가 가까이 있어요</span><span class="b hot" style="left:22cqw;bottom:10cqw">📷 찰칵</span><span class="b" style="left:56cqw;bottom:10cqw">👋 인사</span><span class="b dk" style="right:4cqw;top:34cqw">🗺</span><span class="b dk" style="right:4cqw;top:47cqw">📒</span>`),
+    [['늘', '🗺 지도 · 📒 수첩 (오른쪽 위)'], ['동물 곁', '📷 찰칵 · 👋 인사'], ['마을', '👤 꾸미기 · 🛍 상점'], ['케이블카 앞', '🚡 타기']], '가장 영화 같고 덜 복잡해요'],
+  ['사진가 가방', '왼쪽 아래 가방 하나. 누르면 부채꼴로 펼쳐져요. 오른쪽 아래엔 큰 셔터. 두 엄지로 나눠 쓰는 구성이에요.',
+    PH(`<div class="fan">${[['📖', -70], ['🖼', -40], ['👤', -10], ['🛍', 20], ['⚙', 50]].map(([e, a]) => `<span class="b" style="--a:${a}deg">${e}</span>`).join('')}<span class="b" style="font-size:6cqw;padding:2.4cqw 3cqw">🎒</span></div><span class="b hot" style="right:6cqw;bottom:8cqw;padding:4cqw;font-size:6cqw;border-radius:50%">📷</span>`),
+    [['🎒 가방', '도감 · 앨범 · 꾸미기 · 상점 · 설정 (부채꼴)'], ['오른쪽 아래', '📷 셔터'], ['위쪽', '구역 이름 · 작은 지도(누르면 이동)']], '조이스틱 대신 누른 곳 걷기와 잘 어울려요'],
+  ['큰 지도로 이동', '오른쪽 이동 단추 넷을 없애고, 작은 지도를 누르면 섬 지도가 크게 펼쳐져요. 가고 싶은 구역을 누르면 진행선과 함께 이동. 구역이 늘어나도 단추가 늘지 않아요.',
+    PH(`<div class="mapbig"><span style="left:38%;top:20%">🐧 북극</span><span style="left:10%;top:44%">🌴 정글</span><span style="left:52%;top:56%">🦁 초원</span><span style="right:4%;top:36%">🏜️ 사막</span><span style="left:16%;top:74%">🏘 마을</span></div><span class="b hot" style="left:50%;bottom:6cqw;transform:translateX(-50%)">📷 사진 찍기</span>`),
+    [['작은 지도', '누르면 큰 지도 → 구역 눌러 이동'], ['아래', '📷 · 👋 · 📒 · 👤'], ['없어짐', '오른쪽 이동 단추 넷']], '지금 단추 구성에서 가장 적게 바뀌어요'],
+];
+document.getElementById('menus').innerHTML = MENUS.map(([n, d, ph, dl, good], i) => `<article class="menu">${ph}<div><h3><i>${i + 1}</i>${n}</h3><p>${d}</p><dl>${dl.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('')}</dl><p class="good">${good}</p></div></article>`).join('');
+</script>
