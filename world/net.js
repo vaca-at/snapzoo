@@ -13,7 +13,17 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 // 내 이름 · 모습: 이 기기에 기억 (처음 한 번 무작위)
 export const myName = store('snapzoo-island-name', () => `${pick(NAME_A)} ${pick(NAME_B)}`);
 export const myLook = +store('snapzoo-island-look', () => String(Math.floor(Math.random() * 8))) % 8;
-const TAB_KEY = (() => { try { let k = sessionStorage.getItem('snapzoo:island-tab'); if (!k) { k = crypto.randomUUID().slice(0, 12); sessionStorage.setItem('snapzoo:island-tab', k); } return k; } catch { return Math.random().toString(36).slice(2, 14); } })();
+// 이 탭의 열쇠: 새로 고침했을 때만 이어 받아요. 탭을 복제하거나 새 탭으로 열면 sessionStorage 가 복사돼 같은 열쇠가 되는데,
+// 그러면 서버가 두 탭을 한 사람으로 보고 먼저 탭을 밀어내요(먼저 들어온 쪽이 나중 사람을 못 봄). 그래서 그 밖엔 늘 새 열쇠.
+const TAB_KEY = (() => {
+  const fresh = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random())).replace(/-/g, '').slice(0, 12);
+  try {
+    const reload = performance.getEntriesByType('navigation')[0]?.type === 'reload';
+    let k = reload ? sessionStorage.getItem('snapzoo:island-tab') : null;
+    if (!k) k = fresh();
+    sessionStorage.setItem('snapzoo:island-tab', k); return k;
+  } catch { return fresh(); }
+})();
 
 export class IslandNet {
   constructor(h) { this.h = h; this.ws = null; this.room = 0; this.online = false; this.last = null; this.lastSent = 0; this.lastJson = ''; }
@@ -39,7 +49,8 @@ export class IslandNet {
       else if (m.t === 'full') { ws.onclose = null; ws.close(); this.open(n % ISLANDS + 1); }
     };
     ws.onopen = () => { if (this.last) ws.send(JSON.stringify({ t: 'st', d: this.last })); };
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
+      if (ev && ev.code === 4000) { if (this.ws === ws) { this.ws = null; this.online = false; this.h.onReset?.(); this.h.onStatus?.(); } return; }   // 다른 탭이 같은 열쇠로 들어와 나를 대신함: 다시 붙지 않아요
       if (this.ws !== ws) return;
       this.online = false; this.h.onStatus?.();
       const again = () => { if (this.ws === ws) this.open(n, attempt + 1); };

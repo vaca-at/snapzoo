@@ -6,8 +6,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { addPhoto, listPhotos, removePhoto } from './album.js';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js';
 import { IslandNet, myName, myLook } from './net.js';
+import { IslandSound } from './sound.js';
 import { plain, SPECIES as ZOO, walker as makeWalker, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
@@ -300,36 +301,40 @@ scene.add(me.g);
 // 새로 빚은 동물(zoo3d.js)을 이 세계의 동물 모양 { g, legs, neck } 으로 감싸요. 다리 · 고개 · 꼬리는 st.update 가 움직여요
 const z3 = (kind, s = 1) => () => { const st = ZOO[kind](); st.root.scale.setScalar(s); return { g: st.root, st, legs: [], neck: null }; };
 const SPEED = { '아기 코끼리': 1.0, '아기 기린': 1.3, '얼룩말': 1.5, '톰슨가젤': 1.7, '누': 1.4, '펭귄': 0.5, '사막여우': 1.6, '고릴라': 0.9, '맥': 1.1, '낙타': 1.3, '북극곰': 1.0 };
+// [구역, 도감 id, 이름, 무리 수, 무리당 마리, 만들기] — 무리마다 집(home)을 구역 곳곳에 떨어뜨려 놓아요
 const SPECIES = [
-  ['savanna', '아기 코끼리', 4, z3('elephant', 1.15)],
-  ['savanna', '아기 기린', 4, z3('giraffe', 1.25)],
-  ['savanna', '얼룩말', 5, z3('zebra')],
-  ['savanna', '톰슨가젤', 6, z3('gazelle')],
-  ['savanna', '누', 5, z3('gnu')],
-  ['jungle', '고릴라', 3, z3('gorilla')],
-  ['jungle', '맥', 3, z3('tapir')],
-  ['desert', '낙타', 4, z3('camel')],
-  ['desert', '사막여우', 4, z3('fennec', 1.3)],
-  ['arctic', '펭귄', 8, z3('penguin', 1.2)],
-  ['arctic', '북극곰', 2, z3('polarbear')],
+  ['savanna', 'elephant', '아기 코끼리', 3, 3, z3('elephant', 1.15)],
+  ['savanna', 'giraffe', '아기 기린', 3, 2, z3('giraffe', 1.25)],
+  ['savanna', 'zebra', '얼룩말', 3, 4, z3('zebra')],
+  ['savanna', 'gazelle', '톰슨가젤', 3, 4, z3('gazelle')],
+  ['savanna', 'gnu', '누', 3, 3, z3('gnu')],
+  ['jungle', 'gorilla', '고릴라', 3, 3, z3('gorilla')],
+  ['jungle', 'tapir', '맥', 3, 2, z3('tapir')],
+  ['desert', 'camel', '낙타', 3, 3, z3('camel')],
+  ['desert', 'fennec', '사막여우', 3, 2, z3('fennec', 1.3)],
+  ['arctic', 'penguin', '펭귄', 3, 5, z3('penguin', 1.2)],
+  ['arctic', 'polarbear', '북극곰', 3, 1, z3('polarbear')],
 ];
 const animals = [];
-for (const [zone, name, n, mk] of SPECIES) {
-  const home = findSpot(zone, (x, z, y) => (zone === 'arctic' ? y > 108 : true), 2000);
-  if (!home) continue;
-  for (let k = 0; k < n; k++) {
-    const a = mk(), p = home.clone().add(V.set((rnd() - 0.5) * 30, 0, (rnd() - 0.5) * 30));
-    p.y = height(p.x, p.z); a.g.position.copy(p); scene.add(a.g);
-    const tag = document.createElement('div'); tag.className = 'tag'; tag.textContent = name; document.body.append(tag);
-    const tagH = new THREE.Box3().setFromObject(a.g).getSize(V).y + 0.35;
-    animals.push({ ...a, name, zone, home, pos: p, target: null, wait: rnd() * 4, face: rnd() * 6, t: rnd() * 9, tag, tagH, speed: SPEED[name] || 1.4 });
+for (const [zone, id, name, herds, per, mk] of SPECIES) {
+  const homes = [], ok = (x, z, y) => (zone === 'arctic' ? y > 104 : true);
+  for (let h = 0; h < herds; h++) {
+    const home = findSpot(zone, (x, z, y) => ok(x, z, y) && homes.every((o) => Math.hypot(o.x - x, o.z - z) > 55), 3000) || findSpot(zone, ok, 2000);
+    if (!home) continue; homes.push(home);
+    for (let k = 0; k < per; k++) {
+      const a = mk(), p = home.clone().add(V.set((rnd() - 0.5) * 24, 0, (rnd() - 0.5) * 24));
+      p.y = height(p.x, p.z); a.g.position.copy(p); scene.add(a.g);
+      const tag = document.createElement('div'); tag.className = 'tag'; tag.textContent = name; document.body.append(tag);
+      const tagH = new THREE.Box3().setFromObject(a.g).getSize(V).y + 0.35;
+      animals.push({ ...a, id, name, zone, home, pos: p, target: null, wait: rnd() * 4, face: rnd() * 6, t: rnd() * 9, tag, tagH, speed: SPEED[name] || 1.4 });
+    }
   }
 }
 // 돌고래: 강 하구 앞바다에서 뛰어올라요
 const dolphins = [];
-for (let k = 0; k < 4; k++) {
-  const st = ZOO.dolphin(), g = st.root; g.scale.setScalar(1.15);
-  scene.add(g); dolphins.push({ g, st, phase: k * 1.6, cx: -205 + k * 9, cz: 300 + (k % 2) * 12 });
+for (let k = 0; k < 7; k++) {   // 두 무리
+  const st = ZOO.dolphin(), g = st.root; g.scale.setScalar(1.15); const pod = k < 4 ? 0 : 1;
+  scene.add(g); dolphins.push({ g, st, phase: k * 1.6, cx: (pod ? -255 : -205) + (k % 4) * 9, cz: (pod ? 262 : 300) + (k % 2) * 12 });
 }
 
 
@@ -367,7 +372,7 @@ function layGrass(cx, cz) {
 
 // 확인 · 공유용: 주소에 ?at=savanna (또는 jungle · desert · arctic) 를 붙이면 그 구역 동물 곁에서 바로 시작
 { const at = new URLSearchParams(location.search).get('at'); const a = at && at !== 'village' && animals.find((x) => x.zone === at);
-  if (a) { me.pos.copy(a.home).add(V.set(6, 0, 9)); me.pos.y = height(me.pos.x, me.pos.z); me.face = Math.PI + 0.4; } }
+  if (a) { me.pos.copy(herdOf(at)); me.pos.y = height(me.pos.x, me.pos.z); me.face = Math.atan2(a.home.x - me.pos.x, a.home.z - me.pos.z); } }
 
 // ───────── 카메라 · 조작 ─────────
 const controls = new OrbitControls(camera, canvas);
@@ -377,98 +382,260 @@ controls.target.copy(me.pos).add(V.set(0, 1.1, 0));
 // 처음엔 섬 전체를 보다가 마을로 내려와요 (덮개 화면 없이)
 camera.position.set(260, 260, 380);
 let intro = { t: 0, from: camera.position.clone(), to: VIL.clone().add(new THREE.Vector3(5, 3.8, 1.5)) };   // 마을 광장 안쪽에서 나를 바라보게 (집에 가리지 않게)
-if (new URLSearchParams(location.search).get('at')) { if (new URLSearchParams(location.search).get('at') !== 'village') intro.to = me.pos.clone().add(V.set(5, 4, 10)); camera.position.copy(intro.to); controls.target.copy(me.pos).add(V.set(0, 1.1, 0)); intro = null; }
+if (new URLSearchParams(location.search).get('at')) { if (new URLSearchParams(location.search).get('at') !== 'village') intro.to = me.pos.clone().add(V.set(-Math.sin(me.face) * 7, 3.2, -Math.cos(me.face) * 7)); camera.position.copy(intro.to); controls.target.copy(me.pos).add(V.set(0, 1.1, 0)); intro = null; }   // 내 등 뒤에서 무리 쪽을 바라보게
 
 const keys = new Set();
-addEventListener('keydown', (e) => { const k = e.key.toLowerCase(); if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(k)) { keys.add(k); me.target = null; e.preventDefault(); hideHint(); } });
-addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+// 키는 글자(e.key)가 아니라 자리(e.code)로 읽어요: 한글 입력 상태에서도 W · A · S · D 가 그대로 돼요
+const KEYMAP = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', ArrowUp: 'arrowup', ArrowDown: 'arrowdown', ArrowLeft: 'arrowleft', ArrowRight: 'arrowright' };
+addEventListener('keydown', (e) => { const k = KEYMAP[e.code]; if (k && !e.metaKey && !e.ctrlKey && !(e.target instanceof HTMLInputElement)) { keys.add(k); me.target = null; e.preventDefault(); hideHint(); } });
+addEventListener('keyup', (e) => { const k = KEYMAP[e.code]; if (k) keys.delete(k); });
+addEventListener('blur', () => keys.clear());   // 다른 창으로 가면 눌린 키를 놓아요
 // 누르기와 끌기를 구분: 6px 안에서 떼면 '누르기' → 그곳으로 걸어가요
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
 canvas.addEventListener('pointerdown', (e) => { down = [e.clientX, e.clientY]; });
 canvas.addEventListener('pointerup', (e) => {
-  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6 || me.riding) return;
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6 || me.riding || mode === 'photo') return;
   ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
   const hit = ray.intersectObject(ground)[0];
-  if (hit) { me.target = hit.point.clone(); hideHint(); }
+  if (hit) { me.target = hit.point.clone(); showMark(hit.point); hideHint(); }
 });
+// 누른 곳 표시: 다른 게임처럼 바닥에 점 + 퍼지는 고리 두 개, 도착하면 사라져요
+const mark = new THREE.Group(); mark.visible = false; scene.add(mark);
+{ const mm = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, fog: false });
+  const dot = new THREE.Mesh(new THREE.CircleGeometry(0.13, 24), mm('#fff6e6', 0.95)); dot.rotation.x = -Math.PI / 2; mark.add(dot);
+  for (let i = 0; i < 2; i++) { const r = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.42, 40), mm('#fff6e6', 0.8)); r.rotation.x = -Math.PI / 2; r.userData.ph = i * 0.5; mark.add(r); }
+  mark.renderOrder = 5; }
+function showMark(p) { mark.position.set(p.x, height(p.x, p.z) + 0.05, p.z); mark.visible = true; mark.userData.t = 0; }
+function updMark(dt) {
+  if (!mark.visible) return; if (!me.target) { mark.visible = false; return; }
+  const t = (mark.userData.t += dt);
+  mark.children.forEach((c, i) => { if (!i) { c.scale.setScalar(1 + Math.sin(t * 6) * 0.12); return; } const k = (t * 0.9 + c.userData.ph) % 1; c.scale.setScalar(0.5 + k * 1.3); c.material.opacity = 0.85 * (1 - k); });
+}
 let hintT = setTimeout(hideHint, 10000);
 function hideHint() { clearTimeout(hintT); $('#hint').style.opacity = 0; }
 
 // 🚡 케이블카: 지금 있는 쪽에서 반대쪽으로 (약 14초)
 $('#cable').onclick = () => {
-  if (me.riding) return;
+  if (me.riding) return; exitPhoto();
   const atTop = me.pos.distanceTo(TOPS) < me.pos.distanceTo(STA);
   me.riding = { t: 0, dur: 14, dir: atTop ? -1 : 1 };
+  $('#rideT').textContent = atTop ? '🚡 마을로 내려가는 중' : '🚡 산꼭대기로 올라가는 중'; $('#rideBar').style.width = '0'; $('#ride').classList.add('on');
   me.target = null; $('#cable').disabled = true;
-  $('#cable').textContent = atTop ? '🚡 내려가는 중…' : '🚡 올라가는 중…';
+  $('#cable').innerHTML = atTop ? '<span>🚡</span>내려가는 중' : '<span>🚡</span>올라가는 중';
 };
-$('#home').onclick = () => { if (me.riding) return; me.pos.copy(VIL).add(V.set(0, 0, 8)); me.pos.y = height(me.pos.x, me.pos.z); me.target = null; controls.target.copy(me.pos).add(V.set(0, 1.1, 0)); };
-
-
-// ───────── 📷 사진: 보이는 장면 그대로 폴라로이드로 → 이 기기 앨범 ─────────
-let wantShot = false, shots = 0;
-$('#shot').onclick = () => { wantShot = true; };
-addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && e.target === document.body && !$('#album').classList.contains('on')) { wantShot = true; e.preventDefault(); } });
-let actx = null;
-function shutterSound() {   // 찰칵: 짧은 잡음 두 번
-  try {
-    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
-    const n = actx.sampleRate * 0.05, b = actx.createBuffer(1, n, actx.sampleRate), d = b.getChannelData(0);
-    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
-    [0, 0.07].forEach((t) => { const s = actx.createBufferSource(), g = actx.createGain(); s.buffer = b; g.gain.value = 0.35; s.connect(g).connect(actx.destination); s.start(actx.currentTime + t); });
-  } catch {}
+// 🏘 마을로 · 🦁 초원으로 · 🏜️ 사막으로: 로딩 화면처럼 노을 사진 위에 '○○로 가는 중' + 진행선이 차오른 뒤 도착
+let travelling = false;
+function travelTo(label, where) {
+  if (me.riding || travelling) return; travelling = true; exitPhoto(); me.target = null;
+  $('#travelT').textContent = label; $('#travelBar').style.width = '0'; $('#travel').classList.add('on');
+  const t0 = performance.now(), dur = 1800; let moved = false;
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / dur); $('#travelBar').style.width = `${Math.round((1 - Math.pow(1 - k, 2)) * 100)}%`;
+    if (k > 0.55 && !moved) { moved = true; const old = me.pos.clone(); me.pos.copy(where()); me.pos.y = height(me.pos.x, me.pos.z); V.copy(me.pos).sub(old); camera.position.add(V); controls.target.copy(me.pos).add(V.set(0, 1.1, 0)); layGrass(me.pos.x, me.pos.z); }
+    if (k < 1) requestAnimationFrame(step); else setTimeout(() => { $('#travel').classList.remove('on'); travelling = false; }, 250);
+  };
+  requestAnimationFrame(step);
 }
-const josa = (w) => { const c = w.charCodeAt(w.length - 1) - 0xac00; return c >= 0 && c < 11172 && c % 28 ? '과' : '와'; };   // 받침 있으면 '과'
-function seenAnimals() {   // 사진에 찍힌 동물: 화면 안 · 40 m 안, 가까운 순서로 세 종까지
+// 무리 곁 빈자리: 같은 구역 안에서 무리를 바라볼 수 있게 8~11 m 떨어진 곳
+function herdOf(zone) {
+  const a = animals.find((x) => x.zone === zone); if (!a) return VIL.clone();
+  for (let i = 0; i < 24; i++) { const ang = i * 0.9, r = 8 + (i % 3) * 1.5, x = a.home.x + Math.sin(ang) * r, z = a.home.z + Math.cos(ang) * r; if (zoneAt(x, z) === zone && riverNear(x, z).d > 8) return new THREE.Vector3(x, 0, z); }
+  return a.home.clone();
+}
+$('#home').onclick = () => travelTo('🏘 마을로 돌아가는 중', () => VIL.clone().add(V.set(0, 0, 8)));
+$('#goSav').onclick = () => travelTo('🦁 초원으로 가는 중', () => herdOf('savanna'));
+$('#goDes').onclick = () => travelTo('🏜️ 사막으로 가는 중', () => herdOf('desert'));
+
+
+// ───────── ⚙ 설정 (이 기기에 기억): 걷는 속도 · 배경음악 · 배경음 ─────────
+const SET = (() => { try { return { speed: 1, music: 0.5, amb: 0.7, ...JSON.parse(localStorage.getItem('snapzoo-island-settings') || '{}') }; } catch { return { speed: 1, music: 0.5, amb: 0.7 }; } })();
+const saveSet = () => { try { localStorage.setItem('snapzoo-island-settings', JSON.stringify(SET)); } catch {} };
+const snd = new IslandSound(); snd.vol.music = SET.music; snd.vol.amb = SET.amb;
+const startSound = () => snd.start();
+addEventListener('pointerdown', startSound); addEventListener('keydown', startSound);
+function showSet() {
+  $('#sSpeed').value = SET.speed; $('#sSpeedV').textContent = `${SET.speed.toFixed(1)}배`;
+  $('#sMusic').value = SET.music; $('#sMusicV').textContent = SET.music ? `${Math.round(SET.music * 100)}` : '끔';
+  $('#sAmb').value = SET.amb; $('#sAmbV').textContent = SET.amb ? `${Math.round(SET.amb * 100)}` : '끔';
+}
+$('#setBtn').onclick = (e) => { e.stopPropagation(); $('#settings').classList.toggle('on'); showSet(); };
+addEventListener('pointerdown', (e) => { if (!e.target.closest('#settings, #setBtn')) $('#settings').classList.remove('on'); });
+$('#sSpeed').oninput = (e) => { SET.speed = +e.target.value; saveSet(); showSet(); };
+$('#sMusic').oninput = (e) => { SET.music = +e.target.value; snd.setVolume('music', SET.music); saveSet(); showSet(); };
+$('#sAmb').oninput = (e) => { SET.amb = +e.target.value; snd.setVolume('amb', SET.amb); saveSet(); showSet(); };
+
+// ───────── 📷 사진 찍기 (아이용 동물 왕국처럼): 뷰파인더로 바꿔 움직이는 동물을 따라 조준 · 확대 · 찰칵 → 점수 · 별 · 도감 ─────────
+//  점수 = 가운데 40 + 크기 30 + 특별한 순간 30 (♥ 반가워할 때 · 나를 바라볼 때 · 돌고래가 뛰어오를 때)
+const DEX = [['elephant', '아기 코끼리', 'savanna'], ['giraffe', '아기 기린', 'savanna'], ['zebra', '얼룩말', 'savanna'], ['gazelle', '톰슨가젤', 'savanna'], ['gnu', '누', 'savanna'],
+  ['gorilla', '고릴라', 'jungle'], ['tapir', '맥', 'jungle'], ['camel', '낙타', 'desert'], ['fennec', '사막여우', 'desert'], ['penguin', '펭귄', 'arctic'], ['polarbear', '북극곰', 'arctic'], ['dolphin', '돌고래', 'sea']];
+const ZLAB = { savanna: '🦁 초원', jungle: '🌴 정글', desert: '🏜️ 사막', arctic: '🐧 북극', sea: '🌊 바다' };
+let dex = (() => { try { return JSON.parse(localStorage.getItem('snapzoo-island-dex') || '{}'); } catch { return {}; } })();
+const saveDex = () => { try { localStorage.setItem('snapzoo-island-dex', JSON.stringify(dex)); } catch {} };
+const starsOf = (sc) => (sc >= 85 ? 3 : sc >= 60 ? 2 : sc > 0 ? 1 : 0);
+const starHTML = (n) => `<span class="st" aria-label="별 ${n}개"><i>${'★'.repeat(n)}</i><u>${'★'.repeat(3 - n)}</u></span>`;   // 빈 별은 흐린 색으로 (글꼴이 ☆ 를 ★ 처럼 그려서)
+let wantShot = false, shots = 0, mode = 'walk', zoom = 1, target = null, manualAim = 0, hintT2 = 0, raiseT = 0;
+const aim = { yaw: 0, pitch: 0 }, fcam = new THREE.PerspectiveCamera(50, 1, 0.1, 2600), EYE = new THREE.Vector3();
+function enterPhoto() {
+  if (me.riding || mode === 'photo') return;
+  mode = 'photo'; me.target = null; zoom = 1; target = null; manualAim = 0; raiseT = 0.55; me.st.aim = 1;
+  camera.getWorldDirection(V); aim.yaw = Math.atan2(V.x, V.z); aim.pitch = 0;
+  const tg = (EYE.copy(me.pos).y += 1.55, pickTarget()); if (tg) aim.yaw = Math.atan2(tg.c.x - EYE.x, tg.c.z - EYE.z);
+  me.face = aim.yaw; controls.enabled = false; document.body.classList.add('photo', 'raising'); $('#finder').setAttribute('aria-hidden', 'false');
+  animals.forEach((a) => a.tag.classList.remove('on')); hideHint(); snd.start(); updZoom();
+}
+function exitPhoto() { if (mode !== 'photo') return; mode = 'walk'; me.g.visible = true; me.st.aim = 0; controls.enabled = true; document.body.classList.remove('photo', 'raising'); $('#finder').setAttribute('aria-hidden', 'true'); }
+$('#shot').onclick = enterPhoto;
+$('#fExit').onclick = exitPhoto;
+$('#fShot').onclick = () => { wantShot = true; };
+const updZoom = () => { $('#zLab').textContent = `${zoom.toFixed(1)}×`; };
+const setZoom = (z) => { zoom = clamp(Math.round(z * 10) / 10, 1, 4); updZoom(); };
+$('#zIn').onclick = () => setZoom(zoom + 0.5); $('#zOut').onclick = () => setZoom(zoom - 0.5);
+addEventListener('keydown', (e) => {
+  if (e.target !== document.body || $('#album').classList.contains('on') || $('#dex').classList.contains('on')) return;
+  if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); if (mode === 'photo') wantShot = true; else enterPhoto(); }
+  if (mode === 'photo' && e.code === 'Escape') exitPhoto();
+  if (mode === 'photo' && (e.key === '+' || e.key === '=')) setZoom(zoom + 0.5);
+  if (mode === 'photo' && e.key === '-') setZoom(zoom - 0.5);
+});
+canvas.addEventListener('wheel', (e) => { if (mode !== 'photo') return; e.preventDefault(); setZoom(zoom - Math.sign(e.deltaY) * 0.25); }, { passive: false });
+// 뷰파인더에서 끌면 직접 조준 (2.5초 동안은 자동 조준을 쉬어요)
+let fdrag = null;
+canvas.addEventListener('pointerdown', (e) => { if (mode === 'photo') fdrag = [e.clientX, e.clientY]; });
+addEventListener('pointermove', (e) => { if (mode !== 'photo' || !fdrag) return; const k = 0.0042 / zoom; aim.yaw -= (e.clientX - fdrag[0]) * k; aim.pitch = clamp(aim.pitch - (e.clientY - fdrag[1]) * k, -0.6, 0.7); fdrag = [e.clientX, e.clientY]; manualAim = 2.5; });
+addEventListener('pointerup', () => { fdrag = null; });
+// 찍을 수 있는 것들: 동물 + 돌고래
+function subjects() {
   const out = [];
   for (const a of animals) {
-    if (!a.g.visible) continue; const d = camera.position.distanceTo(a.pos); if (d > 40) continue;
-    V.copy(a.pos); V.y += a.tagH * 0.5; V.project(camera); if (Math.abs(V.x) < 0.95 && Math.abs(V.y) < 0.95 && V.z < 1) out.push([d, a.name]);
+    if (!a.g.visible) continue; const h = a.tagH - 0.35, c = a.pos.clone(); c.y += h * 0.55;
+    const toMe = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z), look = Math.abs(Math.atan2(Math.sin(toMe - a.g.rotation.y), Math.cos(toMe - a.g.rotation.y))) < 0.55 && a.pos.distanceTo(me.pos) < 20;
+    out.push({ id: a.id, name: a.name, c, h, moment: a.heart > 0 || a.call > 0 ? '♥ 반가워해요' : look ? '👀 나를 바라봐요' : '' });
   }
-  return [...new Set(out.sort((p, q) => p[0] - q[0]).map((x) => x[1]))].slice(0, 3);
+  for (const d of dolphins) out.push({ id: 'dolphin', name: '돌고래', c: d.g.position.clone(), h: 1.1, moment: d.g.position.y > 1 ? '🐬 뛰어올랐어요' : '' });
+  return out;
+}
+function pickTarget() {
+  let best = null, bs = Infinity;
+  for (const o of subjects()) {
+    const d = Math.hypot(o.c.x - EYE.x, o.c.z - EYE.z); if (d > 45 || d < 0.8) continue;
+    let dy = Math.atan2(o.c.x - EYE.x, o.c.z - EYE.z) - aim.yaw; dy = Math.abs(Math.atan2(Math.sin(dy), Math.cos(dy))); if (dy > 1.8) continue;
+    const sc = d * (1 + dy * 0.8); if (sc < bs) { bs = sc; best = o; }
+  }
+  return best;
+}
+function updatePhoto(dt) {
+  EYE.copy(me.pos); EYE.y += 1.55;
+  if (raiseT > 0) { raiseT -= Math.max(dt, 1 / 30); me.face = aim.yaw; if (raiseT <= 0) { me.g.visible = false; document.body.classList.remove('raising'); } }
+  if (manualAim > 0) manualAim -= dt;
+  const tg = manualAim <= 0 ? pickTarget() : null;
+  if (tg) {   // 조금 늦게 따라가서, 움직이는 동물은 살짝 벗어나요 (타이밍 놀이)
+    const yaw = Math.atan2(tg.c.x - EYE.x, tg.c.z - EYE.z), pitch = Math.atan2(tg.c.y - EYE.y, Math.hypot(tg.c.x - EYE.x, tg.c.z - EYE.z));
+    aim.yaw += Math.atan2(Math.sin(yaw - aim.yaw), Math.cos(yaw - aim.yaw)) * Math.min(1, dt * 3.2); aim.pitch += (pitch - aim.pitch) * Math.min(1, dt * 3.2);
+  }
+  fcam.position.copy(EYE); fcam.lookAt(EYE.x + Math.sin(aim.yaw) * Math.cos(aim.pitch), EYE.y + Math.sin(aim.pitch), EYE.z + Math.cos(aim.yaw) * Math.cos(aim.pitch));
+  const fov = 50 / zoom; if (Math.abs(fcam.fov - fov) > 0.01) { fcam.fov += (fov - fcam.fov) * Math.min(1, dt * 10); fcam.updateProjectionMatrix(); }
+  if ((hintT2 += dt) > 0.15) { hintT2 = 0; showHint(evaluate()); }
+}
+function evaluate() {
+  const fr = $('#frame').getBoundingClientRect(); if (!fr.width) return null;
+  const fcx = fr.left + fr.width / 2, fcy = fr.top + fr.height / 2, f = new THREE.Vector3(); fcam.getWorldDirection(f);
+  const tanH = Math.tan(THREE.MathUtils.degToRad(fcam.fov) / 2); let best = null;
+  for (const o of subjects()) {
+    const depth = V.copy(o.c).sub(fcam.position).dot(f); if (depth < 0.5) continue;
+    V.copy(o.c).project(fcam); const px = (V.x + 1) / 2 * innerWidth, py = (1 - V.y) / 2 * innerHeight, dx = px - fcx, dy = py - fcy;
+    if (Math.abs(dx) > fr.width / 2 || Math.abs(dy) > fr.height / 2) continue;
+    const nd = Math.hypot(dx / (fr.width / 2), dy / (fr.height / 2)) / Math.SQRT2;
+    const center = Math.round(SCORE.center * Math.max(0, 1 - nd / 0.7));
+    const ratio = (o.h / (2 * depth * tanH) * innerHeight) / fr.height;
+    const size = ratio > 1.05 ? 0 : Math.round(SCORE.size * Math.max(0, 1 - Math.abs(ratio - 0.45) / 0.33));
+    const moment = o.moment ? SCORE.moment : 0, total = center + size + moment;
+    if (!best || total > best.total) best = { o, center, size, moment, total, ratio };
+  }
+  return best;
+}
+const SCORE = { center: 40, size: 30, moment: 30 };
+function showHint(ev) {
+  if (!ev) { $('#fhint').textContent = '동물을 네모 안에 담아 보세요 · 끌어서 조준'; return; }
+  const tip = ev.ratio < 0.22 ? '➕ 조금 더 가까이' : ev.ratio > 0.85 ? '➖ 너무 가까워요' : ev.center < 26 ? '가운데로 맞춰요' : !ev.moment ? '👋 인사하면 반겨 줘요' : ev.o.moment;
+  $('#fhint').textContent = `${ev.o.name} · ${ev.total}점 · ${tip}`;
 }
 function shoot() {
-  // 1) 지금 그린 화면을 바로 옮겨 담기 (다음 그림이 그려지기 전에)
-  const src = renderer.domElement, sw = src.width, sh = src.height, cw = sw / sh > 4 / 3 ? sh * 4 / 3 : sw, ch = cw * 3 / 4;
+  if (mode !== 'photo' || raiseT > 0) return;
+  const ev0 = evaluate();
+  if (!ev0) { const t = $('#toast'); t.querySelector('img').removeAttribute('src'); t.querySelector('span').innerHTML = '<b>동물이 네모 안에 없어요</b><small>동물을 가운데에 담고 찰칵!</small>'; t.classList.add('on'); clearTimeout(shoot.tt); shoot.tt = setTimeout(() => t.classList.remove('on'), 1800); return; }
+  me.st.snapT = 0.18;
+  const ev = ev0, fr = $('#frame').getBoundingClientRect(), k = renderer.getPixelRatio();
   const shot = document.createElement('canvas'); shot.width = 1000; shot.height = 750;
-  shot.getContext('2d').drawImage(src, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, 1000, 750);
-  const zone = ZONES[curZone || 'village'][0], seen = seenAnimals(), at = new Date();
-  $('#flash').classList.add('on'); requestAnimationFrame(() => setTimeout(() => $('#flash').classList.remove('on'), 60)); shutterSound();
-  // 2) 폴라로이드로 꾸미기 (글꼴을 기다려도 괜찮아요)
+  shot.getContext('2d').drawImage(renderer.domElement, fr.left * k, fr.top * k, fr.width * k, fr.height * k, 0, 0, 1000, 750);
+  const zone = ZONES[curZone || 'village'][0], at = new Date(), sp = ev?.o, score = ev?.total || 0, stars = starsOf(score);
+  $('#flash').classList.add('on'); requestAnimationFrame(() => setTimeout(() => $('#flash').classList.remove('on'), 60)); snd.shutter();
+  shots = (shots + 1) % 1000;   // 친구들 화면에 '📷' 이 잠깐 떠요
+  let badge = '', isNew = false;
+  if (sp) {
+    const old = dex[sp.id];
+    if (!old) { badge = '📖 새 도감 등록!'; isNew = true; dex[sp.id] = { score, stars, shots: 1, at: Date.now() }; }
+    else if (score > old.score) { badge = '최고 사진 바꿈!'; Object.assign(old, { score, stars, shots: old.shots + 1, at: Date.now() }); }
+    else { badge = `최고 사진은 ${old.score}점이에요`; old.shots++; }
+    saveDex();
+  }
   document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => {
     const c = document.createElement('canvas'); c.width = 1080; c.height = 1010; const g = c.getContext('2d');
     g.fillStyle = '#fbf8f0'; g.fillRect(0, 0, 1080, 1010);
     for (let i = 0; i < 1400; i++) { g.fillStyle = `rgba(120,100,70,${Math.random() * 0.05})`; g.fillRect(Math.random() * 1080, Math.random() * 1010, 2, 2); }
     g.drawImage(shot, 40, 40); g.strokeStyle = 'rgba(60,40,20,.25)'; g.lineWidth = 2; g.strokeRect(40, 40, 1000, 750);
-    g.fillStyle = '#3a2e24'; g.font = '58px OngleipUnz, sans-serif'; g.textBaseline = 'alphabetic'; g.fillText(zone, 52, 870);
-    g.fillStyle = '#7a6a5a'; g.font = '40px OngleipUnz, sans-serif'; g.fillText(seen.length ? `${seen.join(' · ')}${josa(seen[seen.length - 1])} 함께` : '조용한 한때', 54, 930);
+    g.fillStyle = '#3a2e24'; g.font = '58px OngleipUnz, sans-serif'; g.fillText(sp ? sp.name : zone, 52, 870);
+    if (sp) { const x0 = 52 + g.measureText(sp.name).width + 26; g.font = '46px OngleipUnz, sans-serif'; for (let i = 0; i < 3; i++) { g.fillStyle = i < stars ? '#e0a030' : '#ddd3c2'; g.fillText('★', x0 + i * 50, 866); } }
+    g.fillStyle = '#7a6a5a'; g.font = '38px OngleipUnz, sans-serif'; g.fillText(sp ? `${zone} · ${score}점${sp.moment ? ' · ' + sp.moment : ''}` : '조용한 한때', 54, 930);
     g.textAlign = 'right'; g.font = '32px OngleipUnz, sans-serif'; g.fillText(`${at.getFullYear()}. ${at.getMonth() + 1}. ${at.getDate()}`, 1032, 930);
-    c.toBlob((blob) => {
+    c.toBlob(async (blob) => {
       if (!blob) return;
-      shots = (shots + 1) % 1000;   // 친구들 화면에 '📷' 이 잠깐 떠요
-      addPhoto({ blob, zone, seen }).then(() => {
-        const t = $('#toast'), u = URL.createObjectURL(blob); t.querySelector('img').src = u; t.querySelector('span').textContent = seen.length ? `찰칵! ${seen[0]} 사진을 앨범에 담았어요` : '찰칵! 앨범에 담았어요';
-        t.classList.add('on'); clearTimeout(shoot.tt); shoot.tt = setTimeout(() => { t.classList.remove('on'); URL.revokeObjectURL(u); }, 2600);
-      });
+      await addPhoto({ blob, zone, seen: sp ? [sp.name] : [], animal: sp?.id || '', score });
+      if (sp && (isNew || badge === '최고 사진 바꿈!')) await addPhoto({ id: `best-${sp.id}`, blob, zone, seen: [sp.name], animal: sp.id, score });
+      const t = $('#toast'), u = URL.createObjectURL(blob); t.querySelector('img').src = u;
+      t.querySelector('span').innerHTML = sp ? `<b>${sp.name} ${starHTML(stars)} ${score}점</b><small>${badge}</small>` : '<b>찰칵!</b><small>동물은 안 찍혔어요</small>';
+      t.classList.add('on'); clearTimeout(shoot.tt); shoot.tt = setTimeout(() => { t.classList.remove('on'); URL.revokeObjectURL(u); }, 3200);
+      if (isNew) snd.chime();
     }, 'image/jpeg', 0.9);
   });
 }
+// 📖 도감: 열두 식구, 종마다 가장 잘 찍은 사진 한 장
+let dexUrls = [];
+async function openDex() {
+  dexUrls.forEach((u) => URL.revokeObjectURL(u)); dexUrls = [];
+  const got = DEX.filter(([id]) => dex[id]).length; $('#dexN').textContent = `${got} / ${DEX.length}`;
+  const cards = await Promise.all(DEX.map(async ([id, name, zone]) => {
+    const d = dex[id];
+    if (!d) return `<div class="dcard none"><div class="ph">?</div><b>${name}</b><small>${ZLAB[zone]} 어딘가</small></div>`;
+    const ph = await getPhoto(`best-${id}`), u = ph ? URL.createObjectURL(ph.blob) : ''; if (u) dexUrls.push(u);
+    return `<div class="dcard"><div class="ph">${u ? `<img src="${u}" alt="${name} 최고 사진">` : '📷'}</div><b>${name} ${starHTML(d.stars)}</b><small>${d.score}점 · ${d.shots}장 · ${ZLAB[zone]}</small></div>`;
+  }));
+  $('#dexGrid').innerHTML = cards.join('');
+  $('#dex').classList.add('on'); $('#dex').setAttribute('aria-hidden', 'false');
+}
+function closeDex() { $('#dex').classList.remove('on'); $('#dex').setAttribute('aria-hidden', 'true'); }
+$('#dexBtn').onclick = () => ($('#dex').classList.contains('on') ? closeDex() : (closeAlbum(), openDex()));
+$('#dexX').onclick = closeDex;
 // 🖼 앨범
-let urls = [], viewing = null;
+let urls = [], viewing = null, albumList = [], viewI = 0;
 async function openAlbum() {
-  const list = await listPhotos(); urls.forEach((u) => URL.revokeObjectURL(u)); urls = [];
+  const list = (await listPhotos()).filter((p) => !String(p.id).startsWith('best-')); urls.forEach((u) => URL.revokeObjectURL(u)); urls = [];
   $('#albumN').textContent = list.length ? `${list.length}장` : '';
-  $('#grid').innerHTML = list.length ? '' : '<p class="empty">아직 사진이 없어요. 📷 찰칵으로 찍어 보세요</p>';
-  list.forEach((ph, i) => { const u = URL.createObjectURL(ph.blob); urls.push(u); const b = document.createElement('button'); b.setAttribute('aria-label', `${ph.zone} 사진 크게 보기`); b.innerHTML = `<img src="${u}" alt="" style="--tilt:${((i * 37) % 7) - 3}deg">`; b.onclick = () => view(ph, u); $('#grid').append(b); });
+  $('#grid').innerHTML = list.length ? '' : '<p class="empty">아직 사진이 없어요. 📷 사진 찍기로 동물을 담아 보세요</p>';
+  albumList = list;
+  list.forEach((ph, i) => { const u = URL.createObjectURL(ph.blob); urls.push(u); const b = document.createElement('button'); b.setAttribute('aria-label', `${ph.zone} 사진 크게 보기`); b.innerHTML = `<img src="${u}" alt="" style="--tilt:${((i * 37) % 7) - 3}deg">`; b.onclick = () => { viewI = i; view(ph, u); }; $('#grid').append(b); });
   $('#album').classList.add('on'); $('#album').setAttribute('aria-hidden', 'false');
 }
 function closeAlbum() { $('#album').classList.remove('on'); $('#album').setAttribute('aria-hidden', 'true'); }
-function view(ph, u) { viewing = ph; $('#viewer img').src = u; const d = new Date(ph.at); $('#vSave').href = u; $('#vSave').download = `스냅주-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${d.getHours()}${d.getMinutes()}.jpg`; $('#viewer').classList.add('on'); }
-$('#albumBtn').onclick = () => ($('#album').classList.contains('on') ? closeAlbum() : openAlbum());
+function view(ph, u) { viewing = ph; $('#viewer img').src = u; $('#vN').textContent = `${viewI + 1} / ${albumList.length}`; const d = new Date(ph.at); $('#vSave').href = u; $('#vSave').download = `스냅주-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${d.getHours()}${d.getMinutes()}.jpg`; $('#viewer').classList.add('on'); }
+$('#albumBtn').onclick = () => ($('#album').classList.contains('on') ? closeAlbum() : (closeDex(), openAlbum()));
 $('#albumX').onclick = closeAlbum;
 $('#vX').onclick = () => $('#viewer').classList.remove('on');
+function flip(d) { if (!albumList.length) return; viewI = (viewI + d + albumList.length) % albumList.length; view(albumList[viewI], urls[viewI]); $('#vN').textContent = `${viewI + 1} / ${albumList.length}`; }
+$('#vPrev').onclick = () => flip(-1); $('#vNext').onclick = () => flip(1);
+addEventListener('keydown', (e) => { if (!$('#viewer').classList.contains('on')) return; if (e.code === 'ArrowLeft') { flip(-1); e.stopImmediatePropagation(); } if (e.code === 'ArrowRight') { flip(1); e.stopImmediatePropagation(); } }, true);
+let swipeX = null; $('#viewer').addEventListener('pointerdown', (e) => { swipeX = e.clientX; }); $('#viewer').addEventListener('pointerup', (e) => { if (swipeX !== null && Math.abs(e.clientX - swipeX) > 50) flip(e.clientX < swipeX ? 1 : -1); swipeX = null; });
 $('#vDel').onclick = async () => { if (!viewing) return; await removePhoto(viewing.id); $('#viewer').classList.remove('on'); openAlbum(); };
-addEventListener('keydown', (e) => { if (e.key === 'Escape') { if ($('#viewer').classList.contains('on')) $('#viewer').classList.remove('on'); else closeAlbum(); } });
+addEventListener('keydown', (e) => { if (e.key === 'Escape') { if ($('#viewer').classList.contains('on')) $('#viewer').classList.remove('on'); else { closeAlbum(); closeDex(); $('#settings').classList.remove('on'); } } });
 
 
 
@@ -480,12 +647,12 @@ function wave() {
   for (const a of animals) {
     const dx = a.pos.x - me.pos.x, dz = a.pos.z - me.pos.z, d = Math.hypot(dx, dz);
     if (d > 18 || d < 1) continue;
-    const stay = 2.2 + a.tagH * 0.9;   // 큰 동물은 조금 떨어져서
+    const stay = 2.4 + a.tagH * 1.1;   // 큰 동물은 조금 떨어져서
     a.target = me.pos.clone().add(V.set((dx / d) * stay, 0, (dz / d) * stay)); a.call = 12; a.wait = 0;
   }
 }
 $('#wave').onclick = wave;
-addEventListener('keydown', (e) => { if (e.key.toLowerCase() === 'h' && e.target === document.body) wave(); });
+addEventListener('keydown', (e) => { if (e.code === 'KeyH' && e.target === document.body) wave(); });
 
 // ───────── 섬 친구들 (메타버스): 같은 섬 방의 친구가 각자 옷으로 걸어 다녀요 ─────────
 const friends = new Map();
@@ -501,7 +668,7 @@ function friendOf(id, d) {
 }
 function dropFriend(id) { const f = friends.get(id); if (!f) return; scene.remove(f.st.root); f.tag.remove(); friends.delete(id); }
 const net = new IslandNet({
-  onState(id, d) { const f = friendOf(id, d); if (d.p !== f.p) { f.p = d.p; f.snapT = 2.2; } if (d.w !== f.w) { if (f.w !== undefined) { f.st.waveT = 2.4; f.waveT = 2.4; } f.w = d.w; } f.d = d; f.name = d.n; f.to.set(d.x, d.y, d.z); f.r = d.r; },
+  onState(id, d) { const f = friendOf(id, d); if (d.p !== f.p) { f.p = d.p; f.snapT = 2.2; f.st.aim = 1; f.st.snapT = 0.2; clearTimeout(f.aimT); f.aimT = setTimeout(() => (f.st.aim = 0), 1600); } if (d.w !== f.w) { if (f.w !== undefined) { f.st.waveT = 2.4; f.waveT = 2.4; } f.w = d.w; } f.d = d; f.name = d.n; f.to.set(d.x, d.y, d.z); f.r = d.r; },
   onLeave: dropFriend,
   onReset() { [...friends.keys()].forEach(dropFriend); },
   onStatus() { showPeople(); },
@@ -559,7 +726,7 @@ scene.add(snow);
 
 
 // ───────── 매 프레임 ─────────
-function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = fcam.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); fcam.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
 const fwd = new THREE.Vector3(), right = new THREE.Vector3(), mv = new THREE.Vector3();
@@ -569,7 +736,8 @@ function frame() {
   // 걷기
   mv.set(0, 0, 0);
   if (!me.riding) {
-    camera.getWorldDirection(fwd); fwd.y = 0; fwd.normalize(); right.crossVectors(fwd, UP);
+    if (mode === 'photo') fwd.set(Math.sin(aim.yaw), 0, Math.cos(aim.yaw)); else { camera.getWorldDirection(fwd); fwd.y = 0; fwd.normalize(); }
+    right.crossVectors(fwd, UP);
     if (keys.has('arrowup') || keys.has('w')) mv.add(fwd);
     if (keys.has('arrowdown') || keys.has('s')) mv.sub(fwd);
     if (keys.has('arrowleft') || keys.has('a')) mv.sub(right);
@@ -580,24 +748,25 @@ function frame() {
   if (moving) {
     mv.normalize();
     const y0 = height(me.pos.x, me.pos.z), inWater = y0 < 0.6 || riverNear(me.pos.x, me.pos.z).d < 3;
-    const sp = (inWater ? 1.6 : 3.6) * dt;
+    const sp = (mode === 'photo' ? 1.4 : inWater ? 1.6 : 3.6) * SET.speed * dt;   // ⚙ 걷는 속도
     const nx = me.pos.x + mv.x * sp, nz = me.pos.z + mv.z * sp, ny = height(nx, nz);
     if (ny > -2.2 && Math.abs(nx) < SIZE / 2 - 4 && Math.abs(nz) < SIZE / 2 - 4) { me.pos.x = nx; me.pos.z = nz; } else me.target = null;   // 깊은 바다는 못 들어가요
-    me.face = Math.atan2(mv.x, mv.z);
+    if (mode !== 'photo') me.face = Math.atan2(mv.x, mv.z);
   }
   if (me.riding) {
     const r = me.riding; r.t += dt; const k = clamp(r.t / r.dur, 0, 1), e = k * k * (3 - 2 * k), u = r.dir > 0 ? e : 1 - e;
     const p = CABLE.getPointAt(u); gondola.position.copy(p); me.pos.set(p.x, p.y - 3.3, p.z);
-    if (k >= 1) { const end = r.dir > 0 ? TOPS : STA; me.pos.copy(end).add(V.set(3, 0, 3)); me.pos.y = height(me.pos.x, me.pos.z); me.riding = null; $('#cable').disabled = false; }
+    $('#rideBar').style.width = `${Math.round(k * 100)}%`; $('#rideS').textContent = k < 1 ? `${Math.ceil(r.dur * (1 - k))}초 남았어요 · ${r.dir > 0 ? '🐧 눈 덮인 꼭대기' : '🏘 강가 마을'}` : '도착!';
+    if (k >= 1) { const end = r.dir > 0 ? TOPS : STA; me.pos.copy(end).add(V.set(3, 0, 3)); me.pos.y = height(me.pos.x, me.pos.z); me.riding = null; $('#cable').disabled = false; setTimeout(() => $('#ride').classList.remove('on'), 700); }
   } else {
     me.pos.y = lerp(me.pos.y, Math.max(height(me.pos.x, me.pos.z), -0.6), 0.5);
     const atTop = me.pos.distanceTo(TOPS) < me.pos.distanceTo(STA);
-    $('#cable').textContent = atTop ? '🚡 마을로 내려가기' : '🚡 산꼭대기로';
+    const cl = atTop ? '<span>🚡</span>내려가기' : '<span>🚡</span>산꼭대기로'; if ($('#cable').innerHTML !== cl) $('#cable').innerHTML = cl;
     gondola.position.copy(CABLE.getPointAt(0.5 + 0.5 * Math.sin(T * 0.08)));   // 빈 케이블카는 천천히 오가요
   }
   me.g.position.copy(me.pos);
   me.g.rotation.y = lerp(me.g.rotation.y, me.face, 0.2);
-  me.st.walk = lerp(me.st.walk, moving ? 1 : 0, 0.2); me.st.update(T, dt);
+  me.st.rate = SET.speed; me.st.walk = lerp(me.st.walk, moving ? 1 : 0, 0.2); me.st.update(T, dt);
 
   // 동물: 집 둘레를 천천히 거닐다 멈춰 쉬어요. 가까이 가면 나를 바라보고 이름표
   for (const a of animals) {
@@ -622,13 +791,16 @@ function frame() {
       if (ny > 1.5 && zoneAt(nx, nz, ny) === a.zone && !(rv.i >= 0 && rv.d < riverW(rv.i) * 0.9)) { a.pos.x = nx; a.pos.z = nz; }   // 강물에는 안 들어가요
       else { a.target = null; a.wait = 1; a.v = 0; a.call = 0; }
     }
+    // 내 둘레 거리 두기: 큰 동물일수록 넉넉히 (카메라가 몸 안에 들어가지 않게)
+    const room = mode === 'photo' ? 1.6 + a.tagH * 1.2 : Math.max(1.3, a.tagH * 0.75), dxm = a.pos.x - me.pos.x, dzm = a.pos.z - me.pos.z;
+    if (dMe < room && dMe > 0.01) { const push = (room - dMe) * Math.min(1, dt * 4); a.pos.x += (dxm / dMe) * push; a.pos.z += (dzm / dMe) * push; }
     const walking = a.v > 0.05;
     a.pos.y = height(a.pos.x, a.pos.z);
     a.g.position.copy(a.pos);
     if (a.st) { a.st.walk = Math.min(1, a.v / a.speed); if (a.g.visible) a.st.update(T, dt); }
     if (a.heart > 0) a.heart -= dt;
     // 이름표
-    const on = dMe < 14;
+    const on = dMe < 14 && mode !== 'photo';
     a.tag.classList.toggle('on', on);
     if (on) { const tx = (a.heart > 0 ? '♥ ' : '') + a.name; if (a.tag.textContent !== tx) a.tag.textContent = tx; V.copy(a.pos); V.y += a.tagH; V.project(camera); a.tag.style.transform = `translate(${(V.x * 0.5 + 0.5) * innerWidth}px, ${(-V.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`; if (V.z > 1) a.tag.classList.remove('on'); }
   }
@@ -676,12 +848,18 @@ function frame() {
   if ((miniT += dt) > 0.2) { miniT = 0; drawMini(); }
   updateFriends(dt);
   net.send({ n: myName, x: +me.pos.x.toFixed(2), z: +me.pos.z.toFixed(2), y: +me.pos.y.toFixed(2), r: +me.g.rotation.y.toFixed(2), m: moving ? 1 : 0, k: me.riding ? 1 : 0, l: myLook, p: shots, w: waves }, performance.now());
-  renderer.render(scene, camera);
-  if (wantShot) { wantShot = false; shoot(); }   // 그린 바로 다음에 찍어야 화면이 비지 않아요
+  // 소리: 구역 · 물가(강 · 바다) 가까움
+  if ((frame.st = (frame.st || 0) + dt) > 0.5) { frame.st = 0; const rv = riverNear(me.pos.x, me.pos.z), w = Math.max(rv.i >= 0 ? 1 - rv.d / 30 : 0, me.pos.y < 6 ? 1 - me.pos.y / 6 : 0); snd.setPlace(z0 === 'village' ? 'village' : z0, Math.max(0, w)); }
+  if (mode === 'photo') updatePhoto(dt);
+  updMark(dt);
+  const finder = mode === 'photo' && raiseT <= 0;
+  if (finder) for (const f of friends.values()) f.st.root.visible = false;   // 사진엔 동물만 (친구는 잠깐 숨겨요)
+  renderer.render(scene, finder ? fcam : camera);
+  if (wantShot && raiseT <= 0) { wantShot = false; shoot(); }   // 사진기를 드는 중에 누르면 다 든 뒤에 찍어요   // 그린 바로 다음에 찍어야 화면이 비지 않아요
   requestAnimationFrame(frame);
 }
 drawMini();
 requestAnimationFrame(frame);
 $('#loading').classList.add('out');
 setTimeout(() => $('#loading').remove(), 900);
-window.__world = { me, animals, height, zoneAt, camera, controls, VIL, TOPS, STA, net, friends };   // 화면 점검용
+window.__world = { me, animals, height, zoneAt, camera, controls, VIL, TOPS, STA, net, friends, dex, SET, snd, enterPhoto, evaluate };   // 화면 점검용

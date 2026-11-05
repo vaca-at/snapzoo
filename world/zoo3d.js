@@ -293,6 +293,14 @@ function walker(look = 0) {
   // 가방 · 끈
   const bag = J(body, 0.2, 0.0, 0.02); M(bag, new THREE.BoxGeometry(0.16, 0.13, 0.05, 2, 2, 1), plain(L.bag)); M(bag, new THREE.BoxGeometry(0.165, 0.05, 0.055), plain('#8a5632'), undefined, 0, 0.045, 0.002);
   M(body, tube([[-0.13, 0.4, 0.07], [0, 0.26, 0.11], [0.15, 0.1, 0.08], [0.2, 0.05, 0.03]], () => [0.008, 0.012], 16, 6), plain('#7a4a2e'));
+  // 📷 목에 건 사진기: 평소엔 가슴 앞에 매달려 흔들리고, 찍을 땐 두 손으로 눈 앞까지 들어 올려요 (st.aimK 0→1)
+  const camG = J(body, 0, 0.27, 0.13), camBody = J(camG);
+  M(camBody, new THREE.BoxGeometry(0.13, 0.085, 0.06, 2, 2, 2), plain('#2e2a28'));
+  M(camBody, new THREE.BoxGeometry(0.13, 0.03, 0.062), plain('#c8b490'), undefined, 0, 0.045, 0);
+  M(camBody, new THREE.CylinderGeometry(0.03, 0.034, 0.05, 20), plain('#1a1818'), undefined, 0, -0.004, 0.05).rotation.x = PI / 2;
+  M(camBody, new THREE.CylinderGeometry(0.02, 0.02, 0.01, 16), new THREE.MeshStandardMaterial({ color: '#5a7a98', roughness: 0.05, metalness: 0.6 }), undefined, 0, -0.004, 0.076).rotation.x = PI / 2;
+  M(camBody, new THREE.BoxGeometry(0.018, 0.01, 0.018), plain('#c84a3e'), undefined, 0.045, 0.064, 0);
+  const strap = M(body, tube([[-0.06, 0.29, 0.14], [-0.1, 0.42, 0.07], [0, 0.5, -0.04], [0.1, 0.42, 0.07], [0.06, 0.29, 0.14]], () => [0.007, 0.011], 18, 6), plain('#5a3a28'));
   // 머리
   const head = J(body, 0, 0.61, 0); head.scale.setScalar(1.12);
   const face = M(head, ell(0.104, 0.118, 0.1, 40), S === 'low' ? plain(SK) : (S === 'toon' ? new THREE.MeshToonMaterial({ map: faceTex(), gradientMap: GRAD3 }) : new THREE.MeshStandardMaterial({ map: faceTex(), roughness: 0.7 })), undefined, 0, 0.0, 0);
@@ -312,9 +320,9 @@ function walker(look = 0) {
   M(hat, new THREE.CylinderGeometry(0.119, 0.12, 0.028, S === 'low' ? 10 : 36, 1, true), plain(L.band, { side: THREE.DoubleSide }), undefined, 0, 0.018, 0);
   const rib = J(hat, 0.05, 0.015, -0.11); const rb = M(rib, new THREE.BoxGeometry(0.03, 0.17, 0.006), plain(L.band, { side: THREE.DoubleSide }), undefined, 0, -0.08, 0);
   outlines(root);
-  const st = { root, walk: 0, step: 0, waveT: 0 };
+  const st = { root, walk: 0, step: 0, waveT: 0, aim: 0, aimK: 0, snapT: 0 };
   st.update = (t, dt) => {
-    st.step += dt * st.walk * 8.4; const p = st.step, w = st.walk;
+    st.step += dt * st.walk * 8.4 * (st.rate || 1); const p = st.step, w = st.walk;   // rate = 걷는 속도 설정(빠르면 발걸음도 빠르게)
     legs.forEach(({ l, k }, i) => { const q = p + i * PI; l.rotation.x = sin(q) * 0.42 * w; k.rotation.x = max(0, -sin(q - 0.9)) * 0.65 * w; });
     arms.forEach(({ a, f }, i) => { a.rotation.x = -sin(p + i * PI) * 0.35 * w + sin(t * 0.8 + i) * 0.03; f.rotation.x = -0.15 - 0.12 * w; });
     // 👋 손 흔들기: 오른팔을 들어 아래팔을 좌우로 (st.waveT 초 동안)
@@ -322,10 +330,16 @@ function walker(look = 0) {
     const wv = st.waveT > 0 ? min(1, st.waveT * 4, (2.4 - st.waveT) * 5) : 0;
     if (wv > 0) { const R = arms[1]; R.a.rotation.z = 0.08 + wv * 2.55; R.a.rotation.x *= 1 - wv; R.f.rotation.x = -0.15 * (1 - wv); R.f.rotation.z = wv * sin(t * 13) * 0.55; }
     else { arms[1].a.rotation.z = 0.08; arms[1].f.rotation.z = 0; }
+    // 📷 사진기 들기: aim(0/1) 쪽으로 aimK 가 부드럽게. 셔터 누르면 snapT 동안 손가락이 톡
+    st.aimK += ((st.aim ? 1 : 0) - st.aimK) * min(1, dt * 7); const ak = st.aimK * st.aimK * (3 - 2 * st.aimK);
+    if (st.snapT > 0) st.snapT = max(0, st.snapT - dt);
+    if (ak > 0.01) arms.forEach(({ a, f }, i) => { const s = i ? 1 : -1; a.rotation.x = a.rotation.x * (1 - ak) - 1.05 * ak; a.rotation.z = (i ? 0.08 : -0.08) * (1 - ak) - s * 0.42 * ak; f.rotation.x = f.rotation.x * (1 - ak) - 1.6 * ak; f.rotation.z = -s * 0.75 * ak; });   // 두 손이 사진기 양옆으로
+    camG.position.set(0, 0.27 + 0.36 * ak, 0.13 + 0.12 * ak); camG.rotation.x = sin(t * 2.2) * 0.12 * (1 - ak) - 0.12 * ak;
+    camBody.position.y = -0.018 * (st.snapT > 0 ? 1 : 0);
     hips.position.y = 0.86 + abs(sin(p)) * 0.025 * w + sin(t * 1.5) * 0.003 * (1 - w);
     body.rotation.y = sin(p) * 0.06 * w;
     skirt.rotation.x = sin(p * 2) * 0.04 * w + sin(t * 1.9) * 0.02; skirt.rotation.z = sin(p) * 0.04 * w;
-    head.rotation.set(sin(t * 0.5) * 0.03, sin(t * 0.33) * 0.18 * (1 - w), sin(t * 0.7) * 0.02);
+    head.rotation.set(sin(t * 0.5) * 0.03 * (1 - ak) + 0.08 * ak, sin(t * 0.33) * 0.18 * (1 - w) * (1 - ak), sin(t * 0.7) * 0.02);
     rib.rotation.x = 0.3 + sin(t * 3.4) * 0.25 + w * 0.4; bangs.forEach((b, i) => { b.rotation.z = sin(t * 2.1 + i) * 0.05; });
     back.rotation.x = 0.06 + w * 0.08 + sin(t * 1.6) * 0.03;
   };

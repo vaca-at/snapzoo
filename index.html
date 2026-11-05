@@ -74,8 +74,69 @@ canvas#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block
 #viewer { position: fixed; inset: 0; z-index: 8; background: rgba(30,26,22,.82); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px; }
 #viewer.on { display: flex; }
 #viewer img { max-width: min(92vw, 720px); max-height: 74vh; box-shadow: 0 10px 40px rgba(0,0,0,.5); border-radius: 4px; }
-#viewer div { display: flex; gap: 10px; }
+#viewer div { display: flex; gap: 10px; } #viewer .vrow { align-items: center; gap: 12px; } #viewer .nav { font-size: 40px; width: 54px; height: 54px; padding: 0; border-radius: 50%; line-height: 1; } #viewer small { color: #fff6e6; font-size: 18px; } #viewer img { touch-action: pan-y; user-select: none; -webkit-user-drag: none; }
+@media (max-width: 560px) { #viewer .nav { position: absolute; top: 45%; width: 44px; height: 44px; font-size: 32px; } #vPrev { left: 6px; } #vNext { right: 6px; } }
 #viewer button, #viewer a { font: 21px var(--hand); background: var(--paper); color: var(--ink); border: 2px solid #5a463a; border-radius: 999px; padding: 7px 18px; cursor: pointer; text-decoration: none; }
+/* 오른쪽 이동 단추 (큰법당처럼 세로로 쌓은 반투명 네모) */
+#moves { position: fixed; right: max(12px, env(safe-area-inset-right)); top: calc(max(12px, env(safe-area-inset-top)) + 204px); z-index: 3; display: grid; gap: 8px; }
+#moves button { width: 66px; height: 62px; border-radius: 14px; background: rgba(24, 18, 14, .55); color: #fff6e6; border: 1px solid rgba(255, 246, 230, .2); font: 14px var(--hand); line-height: 1.1; cursor: pointer; display: grid; place-items: center; align-content: center; gap: 2px; padding: 4px 2px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+#moves button span { font-size: 24px; line-height: 1; }
+#moves button:hover { background: rgba(24, 18, 14, .72); }
+#moves button:disabled { opacity: .55; }
+body.photo #moves { display: none; }
+@media (max-width: 560px) { #moves { top: auto; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 64px); transform: none; gap: 6px; } #moves button { width: 58px; height: 54px; font-size: 13px; } #moves button span { font-size: 21px; } }
+/* ⚙ 설정 */
+#setBtn { position: fixed; right: max(12px, env(safe-area-inset-right)); top: calc(max(12px, env(safe-area-inset-top)) + 142px); z-index: 3; width: 44px; height: 44px; border-radius: 50%; border: 2px solid #5a463a; background: var(--paper); font-size: 22px; cursor: pointer; box-shadow: 0 3px 0 #5a463a; }
+#settings { position: fixed; right: max(12px, env(safe-area-inset-right)); top: calc(max(12px, env(safe-area-inset-top)) + 194px); z-index: 7; width: min(300px, calc(100vw - 24px)); background: #fbf8f0; border: 1.5px solid var(--line); border-radius: 18px; padding: 14px 16px 10px; box-shadow: 0 8px 24px rgba(0,0,0,.22); display: none; }
+#settings.on { display: block; }
+#settings b { display: block; font-weight: 400; font-size: 24px; margin-bottom: 4px; }
+#settings label { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font-size: 19px; margin: 8px 0; }
+#settings label span:last-of-type { color: #7a6a5a; }
+#settings input { grid-column: 1 / -1; width: 100%; accent-color: #c8553d; }
+/* 📷 뷰파인더 (사진 찍기) */
+#finder { position: fixed; inset: 0; z-index: 4; pointer-events: none; display: none; }
+body.photo #finder { display: block; }
+body.raising #finder { opacity: 0; } #finder { transition: opacity .25s; }
+body.photo #acts, body.photo #hint, body.photo .tag, body.photo #setBtn { display: none !important; }
+#frame { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: min(80vw, calc(68vh * 4 / 3)); aspect-ratio: 4 / 3; box-shadow: 0 0 0 4000px rgba(20,14,10,.32); }
+#frame i { position: absolute; width: 30px; height: 30px; border: 3px solid #fff6e6; }
+#frame i:nth-child(1) { left: -2px; top: -2px; border-right: 0; border-bottom: 0; } #frame i:nth-child(2) { right: -2px; top: -2px; border-left: 0; border-bottom: 0; }
+#frame i:nth-child(3) { left: -2px; bottom: -2px; border-right: 0; border-top: 0; } #frame i:nth-child(4) { right: -2px; bottom: -2px; border-left: 0; border-top: 0; }
+#frame::after { content: ""; position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; transform: translate(-50%, -50%); border: 2px solid rgba(255,246,230,.8); border-radius: 50%; }
+#fhint { position: absolute; left: 50%; top: calc(46% - min(30vw, 25.5vh) - 44px); transform: translateX(-50%); color: #fff6e6; font-size: 21px; text-shadow: 0 1px 6px rgba(0,0,0,.6); white-space: nowrap; }
+#fbar { position: absolute; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 12px; align-items: center; pointer-events: auto; }
+#fbar button { font: 21px var(--hand); background: var(--paper); color: var(--ink); border: 2px solid #5a463a; border-radius: 999px; padding: 7px 16px; box-shadow: 0 3px 0 #5a463a; cursor: pointer; }
+#fbar #fShot { width: 76px; height: 76px; border-radius: 50%; padding: 0; background: #c8553d; border: 5px solid #fff6e6; box-shadow: 0 0 0 3px #6a2a1e, 0 6px 14px rgba(0,0,0,.3); font-size: 0; }
+#fbar #fShot:active { transform: scale(.94); }
+#zLab { color: #fff6e6; font-size: 20px; min-width: 40px; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+#toast span b { display: block; font-weight: 400; } .st { font-style: normal; letter-spacing: 1px; } .st i { font-style: normal; color: #e0a030; } .st u { text-decoration: none; color: #d8cfc0; } #toast span small { display: block; font-size: 17px; color: #7a6a5a; }
+/* 📖 도감 */
+#dex { position: fixed; left: 0; right: 0; bottom: 0; z-index: 7; max-height: 82vh; background: #fbf8f0; border-radius: 22px 22px 0 0; box-shadow: 0 -8px 30px rgba(0,0,0,.25); transform: translateY(105%); transition: transform .35s ease; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
+#dex.on { transform: none; }
+#dex header { display: flex; align-items: center; gap: 10px; padding: 14px 18px 6px; }
+#dex header b { font-weight: 400; font-size: 28px; flex: 1; } #dex header small { font-size: 18px; color: #7a7064; }
+#dexGrid { overflow-y: auto; padding: 8px 16px 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.dcard { background: #fff; border-radius: 6px; padding: 8px 8px 10px; box-shadow: 0 3px 10px rgba(0,0,0,.14); display: flex; flex-direction: column; gap: 2px; }
+.dcard .ph { aspect-ratio: 4 / 3; background: #e8e0d0; border-radius: 3px; overflow: hidden; display: grid; place-items: center; font-size: 34px; color: #b0a490; }
+.dcard .ph img { width: 100%; height: 100%; object-fit: cover; }
+.dcard b { font-weight: 400; font-size: 20px; margin-top: 4px; } .dcard b .st { font-size: 16px; }
+.dcard small { font-size: 15px; color: #7a6a5a; }
+.dcard.none b { color: #9a8e7e; }
+/* 🏘 마을로 · 🚡 케이블카: 로딩 화면처럼 안내 + 진행선 */
+#travel { position: fixed; inset: 0; z-index: 8; color: #fff6e6; background: #e8a070 url(brand/loading-landscape.jpg) center / cover no-repeat; text-align: center; opacity: 0; pointer-events: none; transition: opacity .35s; }
+@media (orientation: portrait) { #travel { background-image: url(brand/loading-portrait.jpg); } }
+#travel.on { opacity: 1; pointer-events: auto; }
+#travel::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(40,20,8,0) 40%, rgba(40,20,8,.55)); }
+#travel > *, #ride > * { position: relative; }
+#travel b { position: absolute; left: 0; right: 0; top: 52%; font-weight: 400; font-size: clamp(40px, 7vw, 72px); text-shadow: 0 2px 12px rgba(40,20,5,.5); }
+#travel .bar, #ride .bar { height: 3px; width: min(64%, 420px); margin: 0 auto; background: rgba(255,246,230,.3); border-radius: 2px; overflow: hidden; }
+#travel .bar { position: absolute; left: 0; right: 0; bottom: calc(max(22px, env(safe-area-inset-bottom)) + 92px); }
+#travel .bar i, #ride .bar i { display: block; height: 100%; width: 0; background: #fff6e6; }
+#ride { position: fixed; left: 50%; top: max(12px, env(safe-area-inset-top)); transform: translate(-50%, -140%); z-index: 6; width: min(460px, calc(100vw - 180px)); padding: 12px 18px 14px; border-radius: 18px; overflow: hidden; color: #fff6e6; text-align: center; background: linear-gradient(120deg, #b8644a, #e0965e 55%, #f0b878); box-shadow: 0 8px 22px rgba(0,0,0,.25); transition: transform .4s; }
+#ride.on { transform: translate(-50%, 0); }
+#ride b { display: block; font-weight: 400; font-size: 24px; text-shadow: 0 1px 6px rgba(40,20,5,.6); margin-bottom: 8px; }
+#ride .bar { width: 100%; } #ride small { display: block; margin-top: 5px; font-size: 16px; text-shadow: 0 1px 4px rgba(40,20,5,.6); }
+@media (max-width: 560px) { #fbar { gap: 8px; } #fbar button { padding: 6px 11px; font-size: 18px; white-space: nowrap; } #fbar #fShot { width: 66px; height: 66px; flex: none; } #hint { white-space: normal; width: 88vw; text-align: center; } #setBtn { top: calc(max(12px, env(safe-area-inset-top)) + 104px); } #settings { top: calc(max(12px, env(safe-area-inset-top)) + 154px); } #ride { width: calc(100vw - 130px); left: calc(50% - 50px); } #fhint { font-size: 17px; } }
 /* 로딩 (시안 A '노을 지평선'): 미리 찍어 둔 노을 초원 위에 Snapzoo · 가는 진행선 · 한 줄 도움말 */
 #loading { position: fixed; inset: 0; z-index: 9; color: #fff6e6; background: #e8a070 url(brand/loading-landscape.jpg) center / cover no-repeat; transition: opacity .8s .25s; text-align: center; }
 @media (orientation: portrait) { #loading { background-image: url(brand/loading-portrait.jpg); } }
@@ -98,12 +159,24 @@ canvas#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block
 <div id="loading" role="status" aria-label="노을 진 섬으로 들어가는 중"><b>Snapzoo</b><span>노을 진 섬으로 들어가는 중</span><div class="bar"><i></i></div><p>👋 손을 흔들면 가까운 동물이 다가와요</p></div>
 <div id="zone" aria-live="polite"><b id="zoneName">🏘 강가 마을</b><small id="zoneSub">강을 따라 올라가면 산꼭대기 눈밭이에요</small><small id="people"></small></div>
 <canvas id="mini" width="264" height="264" aria-label="작은 지도"></canvas>
-<div id="hint">누른 곳으로 걸어가요 · 방향키 · WASD · 끌어서 둘러보기</div>
-<div id="acts"><button type="button" id="shot" class="shot" aria-label="사진 찍기 (스페이스)">📷 찰칵</button><button type="button" id="wave" aria-label="손 흔들어 인사하기 (H)">👋 인사</button><button type="button" id="albumBtn">🖼 앨범</button><button type="button" id="cable">🚡 산꼭대기로</button><button type="button" id="home">🏘 마을로</button></div>
+<div id="hint">누른 곳으로 걸어가요 · 방향키 · WASD · 끌어서 둘러보기 · 스페이스로 사진</div>
+<div id="acts"><button type="button" id="shot" class="shot" aria-label="사진 찍기 (스페이스)">📷 사진 찍기</button><button type="button" id="wave" aria-label="손 흔들어 인사하기 (H)">👋 인사</button><button type="button" id="dexBtn">📖 도감</button><button type="button" id="albumBtn">🖼 앨범</button></div>
+<nav id="moves" aria-label="이동"><button type="button" id="home"><span>🏘</span>마을로</button><button type="button" id="cable"><span>🚡</span>산꼭대기로</button><button type="button" id="goSav"><span>🦁</span>초원으로</button><button type="button" id="goDes"><span>🏜️</span>사막으로</button></nav>
+<button type="button" id="setBtn" aria-label="설정">⚙</button>
+<section id="settings" aria-label="설정"><b>⚙ 설정</b>
+  <label><span>🚶 걷는 속도</span><span id="sSpeedV"></span><input id="sSpeed" type="range" min="0.6" max="2" step="0.1"></label>
+  <label><span>🎵 배경음악</span><span id="sMusicV"></span><input id="sMusic" type="range" min="0" max="1" step="0.05"></label>
+  <label><span>🌿 배경음 (바람 · 새 · 물)</span><span id="sAmbV"></span><input id="sAmb" type="range" min="0" max="1" step="0.05"></label>
+</section>
+<div id="finder" aria-hidden="true"><div id="frame"><i></i><i></i><i></i><i></i></div><div id="fhint"></div>
+  <div id="fbar"><button type="button" id="fExit">✕ 나가기</button><button type="button" id="zOut" aria-label="줌 아웃">➖</button><button type="button" id="fShot" aria-label="찰칵 (스페이스)">찰칵</button><button type="button" id="zIn" aria-label="줌 인">➕</button><span id="zLab">1.0×</span></div></div>
+<section id="dex" aria-label="섬 도감" aria-hidden="true"><header><b>📖 섬 도감</b><small id="dexN"></small><button type="button" class="x" id="dexX" aria-label="도감 닫기">✕</button></header><div id="dexGrid"></div></section>
+<div id="travel" role="status" aria-live="polite"><b id="travelT"></b><div class="bar"><i id="travelBar"></i></div></div>
+<div id="ride" role="status" aria-live="polite"><b id="rideT"></b><div class="bar"><i id="rideBar"></i></div><small id="rideS"></small></div>
 <div id="flash"></div>
 <div id="toast" role="status" aria-live="polite"><img alt=""><span></span></div>
 <section id="album" aria-label="섬 앨범" aria-hidden="true"><header><b>🖼 섬 앨범</b><small id="albumN"></small><button type="button" class="x" id="albumX" aria-label="앨범 닫기">✕</button></header><div id="grid"></div></section>
-<div id="viewer" role="dialog" aria-label="사진 크게 보기"><img alt=""><div><a id="vSave" download>💾 저장</a><button type="button" id="vDel">🗑 지우기</button><button type="button" id="vX">닫기</button></div></div>
+<div id="viewer" role="dialog" aria-label="사진 크게 보기"><div class="vrow"><button type="button" id="vPrev" class="nav" aria-label="이전 사진">‹</button><img alt=""><button type="button" id="vNext" class="nav" aria-label="다음 사진">›</button></div><small id="vN"></small><div><a id="vSave" download>💾 저장</a><button type="button" id="vDel">🗑 지우기</button><button type="button" id="vX">닫기</button></div></div>
 <script type="module" src="world/world.js"></script>
 </body>
 </html>
