@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>스냅주 · 높은 산과 강</title>
+<meta name="theme-color" content="#8fc3ec">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<style>
+@font-face { font-family: 'OngleipUnz'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2406-1@1.0/Ownglyph_UNZ-Rg.woff2') format('woff2'); font-display: swap; }
+:root { --ink: #24302a; --paper: rgba(255,252,243,.92); --line: #d8d2bf; --hand: "OngleipUnz", "Apple SD Gothic Neo", sans-serif; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #8fc3ec; font-family: var(--hand); color: var(--ink); -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+canvas#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+/* 지금 있는 곳 */
+#zone { position: fixed; left: max(14px, env(safe-area-inset-left)); top: max(12px, env(safe-area-inset-top)); z-index: 3; pointer-events: none; display: flex; flex-direction: column; gap: 2px; }
+#zone b { font-weight: 400; font-size: 30px; color: #fff; text-shadow: 0 2px 6px rgba(20,40,30,.55); transition: opacity .4s; }
+#zone small { font-size: 18px; color: #fff; text-shadow: 0 1px 4px rgba(20,40,30,.6); opacity: .92; }
+/* 작은 지도 */
+#mini { position: fixed; right: max(12px, env(safe-area-inset-right)); top: max(12px, env(safe-area-inset-top)); z-index: 3; width: 132px; height: 132px; border-radius: 50%; border: 3px solid rgba(255,252,243,.9); box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+/* 단추 */
+#acts { position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 3; display: flex; gap: 10px; }
+#acts button { font: 22px var(--hand); background: var(--paper); color: var(--ink); border: 2px solid #5a463a; border-radius: 999px; padding: 8px 18px; box-shadow: 0 3px 0 #5a463a; cursor: pointer; white-space: nowrap; }
+#acts button:active { transform: translateY(2px); box-shadow: 0 1px 0 #5a463a; }
+#acts button:disabled { opacity: .5; }
+#hint { position: fixed; left: 50%; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 62px); transform: translateX(-50%); z-index: 3; color: #fff; font-size: 19px; text-shadow: 0 1px 4px rgba(20,40,30,.7); pointer-events: none; transition: opacity 1s; white-space: nowrap; }
+/* 동물 이름표 (가까이 가면) */
+.tag { position: fixed; left: 0; top: 0; z-index: 2; transform: translate(-50%, -100%); background: var(--paper); border: 1.5px solid var(--line); border-radius: 999px; padding: 2px 12px; font-size: 19px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .3s; }
+.tag.on { opacity: 1; }
+#loading { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; background: linear-gradient(180deg, #8fc3ec, #e9e2c6); color: #fff; font-size: 34px; text-shadow: 0 2px 8px rgba(20,40,30,.4); transition: opacity .8s; }
+#loading.out { opacity: 0; pointer-events: none; }
+@media (max-width: 560px) { #zone b { font-size: 24px; } #zone small { font-size: 15px; } #mini { width: 96px; height: 96px; } #acts button { font-size: 19px; padding: 7px 13px; } }
+</style>
+</head>
+<body>
+<canvas id="gl" aria-label="스냅주 높은 산과 강 3D 세계. 누른 곳으로 걸어가요, 끌어서 둘러봐요"></canvas>
+<div id="loading">높은 산과 강을 짓고 있어요…</div>
+<div id="zone" aria-live="polite"><b id="zoneName">🏘 강가 마을</b><small id="zoneSub">강을 따라 올라가면 산꼭대기 눈밭이에요</small></div>
+<canvas id="mini" width="264" height="264" aria-label="작은 지도"></canvas>
+<div id="hint">누른 곳으로 걸어가요 · 방향키 · WASD · 끌어서 둘러보기</div>
+<div id="acts"><button type="button" id="cable">🚡 산꼭대기로</button><button type="button" id="home">🏘 마을로</button></div>
+<script type="module" src="world.js"></script>
+</body>
+</html>
