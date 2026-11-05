@@ -26,6 +26,10 @@ h2 { margin: 10px 0 0; font-family: var(--hand); font-weight: 400; font-size: 36
 .card .t b { font-family: var(--hand); font-weight: 400; font-size: 24px; line-height: 1.1; }
 .card p { margin: 0; padding: 0 4px; color: var(--soft); font-size: 13.5px; line-height: 1.5; }
 .card ul { margin: 0; padding: 0 4px 4px; list-style: none; display: flex; flex-wrap: wrap; gap: 5px; }
+.grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; }
+@media (max-width: 640px) { .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } .grid.three .card { padding: 5px; } .grid.three .card p { display: none; } }
+.mixsec { display: flex; flex-direction: column; gap: 6px; }
+h2.past { color: var(--soft); font-size: 26px; border-top: 1.5px dashed var(--line); padding-top: 18px; margin-top: 14px; }
 .card li { font-size: 12px; padding: 1px 9px; border-radius: 99px; border: 1px solid var(--line); color: var(--soft); }
 
 /* 움직임: 부위마다 고리(g)에 이름을 달아 두고 살짝씩 */
@@ -57,10 +61,17 @@ svg g { transform-box: view-box; }
 
 <div class="wrap">
   <header>
-    <p class="eyebrow">A 셀 애니메이션으로 결정 · 캐릭터 그림체 고르기</p>
-    <h1>동물 다섯, 인물 다섯</h1>
-    <p class="lead">같은 셀 애니메이션 안에서도 그림체는 아주 다르게 갈 수 있어요. 아기 코끼리와 산책자를 그림체 다섯 가지로 그렸어요. 덩어리를 이어 붙인 3D가 아니라 곡선으로 직접 그린 그림이라, 고르시면 이대로 게임 속 캐릭터가 돼요. 동물 번호 하나, 인물 번호 하나를 골라 주세요.</p>
+    <p class="eyebrow">A 셀 애니메이션 · 그림체 1 + 5</p>
+    <h1>극장판 연필 셀, 진하기 고르기</h1>
+    <p class="lead">①의 실제 비율과 또렷한 그늘은 그대로 두고, ⑤의 흔들리는 연필선과 종이결을 얹었어요. 그늘 경계도 아주 살짝 부드럽게 풀었어요. 아래 지난 시안에서 ①은 너무 진하고 ⑤는 너무 연했으니, 그 사이 세 단계 중에 골라 주세요.</p>
   </header>
+  <section class="mixsec">
+    <h2>1 + 5 섞기 · 진하기 세 단계</h2>
+    <p class="lead">①의 또렷한 셀 그늘에 ⑤의 연필선과 종이결을 얹고, 색은 둘의 가운데로 맞췄어요. 진하기만 세 단계로 달리 했어요. 가운데(나)를 기본으로 생각하고 있어요.</p>
+    <div class="grid three" id="mixA"></div>
+    <div class="grid three" id="mixP"></div>
+  </section>
+  <h2 class="past">지난 시안 · 다섯 그림체</h2>
   <h2>동물 · 아기 코끼리</h2>
   <div class="grid" id="animals"></div>
   <h2>인물 · 밀짚모자 산책자</h2>
@@ -110,7 +121,21 @@ const MODES = {
     stroke: (p, sid) => p.d.map((d) => `<path d="${d}" fill="none" stroke="${p.s === 'ink' ? '#3a2c24' : p.s}" stroke-width="${p.w * 0.85}" stroke-linecap="round" filter="url(#${sid}pen)"/>`).join(''),
   }),
 };
+// 1 + 5 섞기: ①의 또렷한 두 단계 그늘 + ⑤의 연필선 · 종이결, 색은 둘의 가운데 (k 로 진하기 조절)
+MODES.blend = (o) => ({
+  part(p, id, defs, sid) {
+    const paths = (attr) => p.d.map((d) => `<path d="${d}" ${attr}/>`).join('');
+    const base = mix(p.c, '#fbf6ea', o.k), op = p.a ? ` opacity="${p.a}"` : '';
+    const line = p.line === 0 ? '' : paths(`fill="none" stroke="#5a463a" stroke-width="${1.35 * (p.line ?? 1)}" opacity="0.85" stroke-linejoin="round" filter="url(#${sid}penL)"`);
+    if (p.shade === false) return `<g${op}>${paths(`fill="${base}"`)}${line}</g>`;
+    defs.push(`<clipPath id="${id}">${paths('')}</clipPath>`);
+    const sh = mix(base, '#4a4468', o.shadeK);
+    return `<g${op}>${paths(`fill="${sh}"`)}<g clip-path="url(#${id})"><g filter="url(#${sid}edge)">${p.d.map((d) => `<path d="${d}" transform="translate(-7 -8)" fill="${base}"/>`).join('')}</g></g>${line}</g>`;
+  },
+  stroke: (p, sid) => p.d.map((d) => `<path d="${d}" fill="none" stroke="${p.s === 'ink' ? '#4a3a30' : mix(p.s, '#fbf6ea', o.k * 0.5)}" stroke-width="${p.w}" stroke-linecap="round" filter="url(#${sid}penL)"/>`).join(''),
+});
 const MODE_DEFS = {
+  blend: (s) => MODE_DEFS.sketch(s) + `<filter id="${s}penL" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="1.3"/></filter><filter id="${s}edge"><feGaussianBlur stdDeviation="0.9"/></filter>`,
   sketch: (s) => `<filter id="${s}pen" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="2.2"/></filter>
     <filter id="${s}pen2"><feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="2" seed="8"/><feDisplacementMap in="SourceGraphic" scale="3"/></filter>
     <filter id="${s}wash" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" seed="5"/><feDisplacementMap in="SourceGraphic" scale="5"/><feGaussianBlur stdDeviation="0.6"/></filter>
@@ -125,6 +150,11 @@ const STAGE = {
     <path d="M-10 92 C20 70 50 74 64 86 C80 66 120 66 132 86 C150 80 168 88 170 98 L-10 98 Z" fill="#ffffff" opacity="0.9"/><path d="M-10 98 L170 98 C160 104 20 106 -10 102 Z" fill="#c8d8ea"/>
     <path d="M0 262 C60 246 120 256 170 248 C220 240 262 250 300 244 L300 360 L0 360 Z" fill="#9cc66a"/><path d="M0 300 C80 288 200 296 300 286 L300 360 L0 360 Z" fill="#86b458"/>
     <path d="M0 262 C60 246 120 256 170 248 C220 240 262 250 300 244" fill="none" stroke="#6c9a44" stroke-width="1.4"/>`,
+  soft: (s) => `<defs><linearGradient id="${s}sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b4d6ee"/><stop offset="0.62" stop-color="#e6f1f2"/><stop offset="1" stop-color="#f3f3e0"/></linearGradient></defs>
+    <rect width="300" height="360" fill="url(#${s}sky)"/>
+    <g filter="url(#${s}wash)"><path d="M-10 92 C20 70 50 74 64 86 C80 66 120 66 132 86 C150 80 168 88 170 98 L-10 98 Z" fill="#ffffff" opacity="0.95"/></g>
+    <path d="M0 262 C60 246 120 256 170 248 C220 240 262 250 300 244 L300 360 L0 360 Z" fill="#b6d48c"/><path d="M0 300 C80 288 200 296 300 286 L300 360 L0 360 Z" fill="#a4c87a"/>
+    <path d="M0 262 C60 246 120 256 170 248 C220 240 262 250 300 244" fill="none" stroke="#7a9a58" stroke-width="1" opacity="0.7" filter="url(#${s}penL)"/>`,
   pop: (s) => `<rect width="300" height="360" fill="#fff3d8"/><circle cx="150" cy="150" r="120" fill="#ffe2a8"/><circle cx="150" cy="150" r="88" fill="#ffd690"/>
     <path d="M0 300 C70 288 230 288 300 300 L300 360 L0 360 Z" fill="#a8d878"/>`,
   graphic: (s) => `<defs><pattern id="${s}_dots" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="5" cy="5" r="1.6" fill="#ffffff" opacity="0.28"/></pattern>
@@ -149,7 +179,7 @@ function draw(model, modeName, opts, stage) {
     body += inner;
   });
   const ground = model.ground ? model.ground(modeName, sid) : '';
-  return `<svg viewBox="0 0 300 360" role="img" aria-label="${model.label}"><defs>${defs.join('')}</defs>${STAGE[stage](sid)}${ground}${body}${modeName === 'sketch' ? GRAIN(sid) : ''}</svg>`;
+  return `<svg viewBox="0 0 300 360" role="img" aria-label="${model.label}"><defs>${defs.join('')}</defs>${STAGE[stage](sid)}${ground}${body}${modeName === 'sketch' || modeName === 'blend' ? GRAIN(sid) : ''}</svg>`;
 }
 const shadowEl = (cx, cy, rx, col = '#3a5a2a', op = 0.22) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${rx * 0.12}" fill="${col}" opacity="${op}"/>`;
 
@@ -385,6 +415,9 @@ const P = [
   ['5', '연필 스케치형', '①과 같은 비율에 흔들리는 연필선과 번진 물감. 손으로 그린 온기가 그대로 남아요.', ['그림책 극장판', '연필선 두 겹', '물감 번짐 · 종이결'], () => draw(WALK_NATURE, 'sketch', null, 'sketch')],
 ];
 const card = ([n, name, desc, tags, fn]) => `<article class="card">${fn()}<div class="t"><i>${n}</i><b>${name}</b></div><p>${desc}</p><ul>${tags.map((t) => `<li>${t}</li>`).join('')}</ul></article>`;
+const MIX = [['가', '조금 연하게', 0.34, 0.2], ['나', '가운데', 0.22, 0.24], ['다', '조금 진하게', 0.1, 0.27]];
+document.getElementById('mixA').innerHTML = MIX.map(([n, name, k, sk]) => `<article class="card">${draw(ELE_NATURE, 'blend', { k, shadeK: sk }, 'soft')}<div class="t"><i>${n}</i><b>${name}</b></div><p>아기 코끼리 · 색 ${Math.round((1 - k) * 100)}%</p></article>`).join('');
+document.getElementById('mixP').innerHTML = MIX.map(([n, name, k, sk]) => `<article class="card">${draw(WALK_NATURE, 'blend', { k, shadeK: sk }, 'soft')}<div class="t"><i>${n}</i><b>${name}</b></div><p>산책자 · 색 ${Math.round((1 - k) * 100)}%</p></article>`).join('');
 document.getElementById('animals').innerHTML = A.map(card).join('');
 document.getElementById('people').innerHTML = P.map(card).join('');
 window.__ok = true;
