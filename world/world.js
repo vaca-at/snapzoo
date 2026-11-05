@@ -5,6 +5,7 @@
 // 동물 · 산책자 · 재질은 zoo3d.js (시안 docs/시안/메타버스3D시안.html 과 같은 코드). 무거운 판이라 휴대폰에서는 그림자 · 풀 · 해상도를 줄여요.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { plain, SPECIES as ZOO, walker as makeWalker, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
@@ -209,31 +210,69 @@ scatter('desert', 90, [[new THREE.DodecahedronGeometry(1.6, 0), rockM, 0.6, 1, 0
 // 북극: 얼음 바위
 scatter('arctic', 90, [[new THREE.IcosahedronGeometry(1.2, 1), iceM, 0.5, 1, 0.8, 1]], 0.5, 1.4);
 
-// ───────── 강가 마을 (모이는 곳) ─────────
+// ───────── 강가 마을 (모이는 곳): 둥근 모서리 흰 벽 · 처마 나온 박공지붕 · 창 · 문 · 굴뚝 · 꽃 화분 ─────────
+function gable(w, d, h, over = 0.5) {   // 박공지붕: 세모 단면을 길게 밀어 낸 모양
+  const sh = new THREE.Shape(); sh.moveTo(-w / 2 - over, 0); sh.lineTo(0, h); sh.lineTo(w / 2 + over, 0); sh.lineTo(w / 2 + over, -0.22); sh.lineTo(0, h - 0.26); sh.lineTo(-w / 2 - over, -0.22); sh.closePath();
+  const g = new THREE.ExtrudeGeometry(sh, { depth: d + over * 2, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 2 }); g.translate(0, 0, -(d + over * 2) / 2); return g;
+}
+function house(w, d, wallH, roofC, wallC) {
+  const h = new THREE.Group(), wall = toon(wallC), trim = toon('#7a5a40'), glass = new THREE.MeshStandardMaterial({ color: '#7fa6c0', roughness: 0.15, metalness: 0.2 });
+  const body = new THREE.Mesh(new RoundedBoxGeometry(w, wallH, d, 3, 0.18), wall); body.position.y = wallH / 2; h.add(body);
+  const base = new THREE.Mesh(new RoundedBoxGeometry(w + 0.2, 0.4, d + 0.2, 2, 0.1), toon('#a89a86')); base.position.y = 0.2; h.add(base);
+  const roof = new THREE.Mesh(gable(w, d, w * 0.42), toon(roofC)); roof.position.y = wallH; h.add(roof);
+  const gableEnd = new THREE.Shape(); gableEnd.moveTo(-w / 2, 0); gableEnd.lineTo(0, w * 0.42 - 0.1); gableEnd.lineTo(w / 2, 0); gableEnd.closePath();
+  for (const s of [-1, 1]) { const ge = new THREE.Mesh(new THREE.ShapeGeometry(gableEnd), wall); ge.position.set(0, wallH - 0.01, s * (d / 2 - 0.02)); if (s < 0) ge.rotation.y = Math.PI; h.add(ge); }
+  const door = new THREE.Mesh(new RoundedBoxGeometry(1.1, 2.0, 0.16, 2, 0.06), toon('#7a4e32')); door.position.set(0, 1.0 + 0.2, d / 2 + 0.02); h.add(door);
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), toon('#d8b060')); knob.position.set(0.35, 1.2, d / 2 + 0.12); h.add(knob);
+  for (const [x, z, ry] of [[-w / 2 + 1.1, d / 2 + 0.02, 0], [w / 2 - 1.1, d / 2 + 0.02, 0], [w / 2 + 0.02, 0, Math.PI / 2], [-w / 2 - 0.02, 0, -Math.PI / 2]]) {
+    if (Math.abs(x) < 0.9 && z) continue;
+    const win = new THREE.Group(); win.position.set(x, 1.75, z); win.rotation.y = ry; h.add(win);
+    const fr = new THREE.Mesh(new RoundedBoxGeometry(1.0, 1.0, 0.12, 2, 0.04), trim); win.add(fr);
+    const gl = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.8), glass); gl.position.z = 0.065; win.add(gl);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.8, 0.03), trim); bar.position.z = 0.08; win.add(bar);
+    const bar2 = bar.clone(); bar2.rotation.z = Math.PI / 2; win.add(bar2);
+    const box = new THREE.Mesh(new RoundedBoxGeometry(1.0, 0.22, 0.28, 2, 0.05), toon('#8a5a3a')); box.position.set(0, -0.58, 0.16); win.add(box);
+    for (let i = 0; i < 5; i++) { const fl = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), toon(['#e86a6a', '#f2c84a', '#ffffff', '#e88ab0', '#f29a4a'][(i + Math.round(x)) % 5])); fl.position.set(-0.36 + i * 0.18, -0.42, 0.2); win.add(fl); }
+  }
+  const ch = new THREE.Mesh(new RoundedBoxGeometry(0.55, 1.4, 0.55, 2, 0.06), toon('#b07a5a')); ch.position.set(w * 0.22, wallH + w * 0.3, -d * 0.2); h.add(ch);
+  h.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  return h;
+}
 {
   const g = new THREE.Group(); g.position.copy(VIL); scene.add(g);
-  const wall = toon('#f2e6cf'), roofs = ['#c8553d', '#4f7aa8', '#d9a33a', '#6b8f4a', '#a8604a', '#5a6a8a'];
+  const walls = ['#f6eee0', '#f2e6d2', '#f8f2e6', '#efe2cc', '#f6ece0', '#f3e8d8'], roofs = ['#c8553d', '#4f7aa8', '#d9a33a', '#6b8f4a', '#a8604a', '#5a6a8a'];
   for (let k = 0; k < 6; k++) {
     const a = (k / 6) * Math.PI * 2, r = 15, hx = Math.cos(a) * r, hz = Math.sin(a) * r, hy = height(VIL.x + hx, VIL.z + hz) - VIL.y;
-    const house = new THREE.Group(); house.position.set(hx, hy, hz); house.rotation.y = -a + Math.PI / 2; g.add(house);
-    const body = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 5), wall); body.position.y = 2; house.add(body);
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(4.8, 3, 4), toon(roofs[k])); roof.position.y = 5.5; roof.rotation.y = Math.PI / 4; house.add(roof);
-    const door = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2, 0.1), toon('#6a4c34')); door.position.set(0, 1, 2.55); house.add(door);
-    house.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    const hs = house(5 + (k % 3) * 0.8, 4.4 + (k % 2) * 0.6, 3.2 + (k % 2) * 0.4, roofs[k], walls[k]); hs.position.set(hx, hy - 0.15, hz); hs.rotation.y = -a - Math.PI / 2; g.add(hs);
   }
-  const well = new THREE.Mesh(cyl(1.6, 1.6, 1.2, 12), toon('#9a8f80')); well.position.y = 0.6; well.castShadow = true; g.add(well);
+  // 우물: 돌 둘레 · 나무 지붕
+  const well = new THREE.Group(); g.add(well);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.35, 12, 28), toon('#a89a86')); ring.rotation.x = Math.PI / 2; ring.position.y = 0.7; well.add(ring);
+  const wall2 = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.4, 0.7, 28, 1, true), toon('#9a8c78')); wall2.position.y = 0.35; well.add(wall2);
+  const water = new THREE.Mesh(new THREE.CircleGeometry(1.0, 24), new THREE.MeshStandardMaterial({ color: '#4f7a90', roughness: 0.1 })); water.rotation.x = -Math.PI / 2; water.position.y = 0.45; well.add(water);
+  for (const s of [-1, 1]) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 2.4, 10), toon('#7a5a40')); post.position.set(s * 1.25, 1.2, 0); well.add(post); }
+  const wr = new THREE.Mesh(gable(2.4, 1.6, 0.9, 0.25), toon('#a8604a')); wr.position.y = 2.35; wr.rotation.y = Math.PI / 2; well.add(wr);
+  well.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   const fire = new THREE.PointLight('#ffb070', 4, 26); fire.position.set(0, 3, 0); g.add(fire);
 }
 
 // ───────── 케이블카: 마을 옆 정류장 ↔ 산꼭대기 ─────────
 const CABLE = new THREE.QuadraticBezierCurve3(STA.clone().add(V.set(0, 12, 0)), new THREE.Vector3((STA.x + TOPS.x) / 2, Math.max(STA.y, TOPS.y) + 30, (STA.z + TOPS.z) / 2), TOPS.clone().add(V.set(0, 12, 0)));
 {
-  const line = new THREE.Mesh(new THREE.TubeGeometry(CABLE, 120, 0.12, 5), toon('#3a3a40')); scene.add(line);
-  for (const p of [STA, TOPS]) { const tw = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 2), toon('#6d6f78')); tw.position.set(p.x, p.y + 6, p.z); tw.castShadow = true; scene.add(tw); }
+  const line = new THREE.Mesh(new THREE.TubeGeometry(CABLE, 160, 0.07, 8), toon('#3a3a40')); scene.add(line);
+  for (const p of [STA, TOPS]) {
+    const tw = new THREE.Group(); tw.position.copy(p); scene.add(tw); const steel = toon('#7d8088');
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 12.4, 10), steel); leg.position.set(sx * 0.8, 6, sz * 0.8); leg.rotation.set(sz * 0.07, 0, -sx * 0.07); tw.add(leg); }
+    for (let y = 2; y < 12; y += 2.5) { const band = new THREE.Mesh(new THREE.TorusGeometry(0.95 - y * 0.03, 0.06, 6, 4), steel); band.rotation.set(Math.PI / 2, 0, Math.PI / 4); band.position.y = y; tw.add(band); }
+    const head = new THREE.Mesh(new RoundedBoxGeometry(3.4, 0.6, 1.2, 2, 0.15), toon('#c8553d')); head.position.y = 12.2; tw.add(head);
+    const pad = new THREE.Mesh(new RoundedBoxGeometry(5, 0.5, 5, 2, 0.15), toon('#a89a86')); pad.position.y = 0.1; tw.add(pad);
+    tw.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  }
 }
 const gondola = new THREE.Group(); scene.add(gondola);
-{ const b = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.2, 2.6), toon('#d8483a')); b.position.y = -2.2; b.castShadow = true; gondola.add(b);
-  const w = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.9, 2.7), toon('#cfe8f6')); w.position.y = -1.9; gondola.add(w);
+{ const b = new THREE.Mesh(new RoundedBoxGeometry(2.6, 2.4, 2.6, 4, 0.45), toon('#d8483a')); b.position.y = -2.3; b.castShadow = true; gondola.add(b);
+  const w = new THREE.Mesh(new RoundedBoxGeometry(2.68, 0.95, 2.68, 4, 0.4), new THREE.MeshStandardMaterial({ color: '#cfe8f6', roughness: 0.1, metalness: 0.2 })); w.position.y = -1.95; gondola.add(w);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(1.0, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), toon('#f2e6d2')); cap.scale.set(1.2, 0.35, 1.2); cap.position.y = -1.1; gondola.add(cap);
   const arm = new THREE.Mesh(cyl(0.08, 0.08, 1.4, 5), toon('#3a3a40')); arm.position.y = -0.7; gondola.add(arm); }
 
 // ───────── 산책자 (나): zoo3d.js 의 산책자 (키 1.65 m, 무릎 굽혀 걷기 · 모자 리본 · 치마 흔들림) ─────────
@@ -243,51 +282,21 @@ me.pos.y = height(me.pos.x, me.pos.z);
 scene.add(me.g);
 
 // ───────── 동물 (구역마다) ─────────
-function quad(o) {
-  const g = new THREE.Group(), m = toon(o.c), leg = toon(o.lc || o.c);
-  const [bw, bh, bl] = o.body, lh = o.legH;
-  const body = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), m); body.scale.set(bw / 2, bh / 2, bl / 2); body.position.y = lh + bh / 2; g.add(body);
-  if (o.belly) { const b = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 6), toon(o.belly)); b.scale.set(bw / 2.15, bh / 2.6, bl / 2.2); b.position.y = lh + bh * 0.38; g.add(b); }
-  const legs = [];
-  for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) { const l = new THREE.Group(); l.position.set(sx * bw * 0.3, lh + 0.1, sz * bl * 0.32); const lm = new THREE.Mesh(cyl(o.legR, o.legR * 0.8, lh + 0.1, 6), leg); lm.position.y = -(lh + 0.1) / 2; l.add(lm); g.add(l); legs.push(l); }
-  const neck = new THREE.Group(); neck.position.set(0, lh + bh * 0.75, bl * 0.42); neck.rotation.x = o.neckA ?? -0.5; g.add(neck);
-  const nm = new THREE.Mesh(cyl(o.neckR ?? bw * 0.18, o.neckR ?? bw * 0.22, o.neckL, 7), m); nm.position.y = o.neckL / 2; neck.add(nm);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(...o.head), m); head.position.set(0, o.neckL, o.head[2] * 0.25); head.rotation.x = -(o.neckA ?? -0.5) + 0.25; neck.add(head);
-  for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(o.head[0] * 0.09, 6, 4), toon('#1e1814')); e.position.set(o.head[0] * 0.48 * s, o.neckL + o.head[1] * 0.15, o.head[2] * 0.5); neck.add(e); }
-  if (o.trunk) { const t = new THREE.Mesh(cyl(0.18, 0.28, o.trunk, 6), m); t.position.set(0, o.neckL - o.trunk / 2, o.head[2] * 0.7); t.rotation.x = 0.2; neck.add(t); }
-  if (o.hump) { const h = new THREE.Mesh(new THREE.SphereGeometry(o.hump, 10, 6), m); h.position.set(0, lh + bh * 0.95, 0); g.add(h); }
-  if (o.ears) for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.BoxGeometry(o.ears[0], o.ears[1], 0.12), m); e.position.set((o.head[0] / 2 + o.ears[0] / 2) * s, o.neckL + 0.1, 0); neck.add(e); }
-  if (o.stripes) for (let k = -2; k <= 2; k++) { const st = new THREE.Mesh(new THREE.BoxGeometry(bw * 1.02, bh * 0.85, 0.14), toon('#2a2628')); st.position.set(0, lh + bh / 2, k * bl * 0.15); g.add(st); }
-  if (o.spots) for (let k = 0; k < 12; k++) { const sp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 6, 4), toon(o.spots)); const a = rnd() * Math.PI * 2; sp.position.set(Math.cos(a) * bw * 0.48, lh + bh * (0.35 + rnd() * 0.4), (rnd() - 0.5) * bl * 0.8); sp.scale.set(1, 1, 0.4); sp.lookAt(0, lh + bh / 2, sp.position.z); g.add(sp); }
-  g.traverse((x) => { if (x.isMesh) x.castShadow = true; });
-  g.scale.setScalar((o.s || 1) * 0.6);   // 옛 덩어리 동물: 실제 키 산책자(1.65 m)에 맞춰 줄임 — 다음에 zoo3d.js 로 새로 빚기
-  return { g, legs, neck };
-}
-function penguin() {
-  const g = new THREE.Group();
-  const b = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 8), toon('#26262c')); b.scale.set(1, 1.5, 0.9); b.position.y = 0.6; g.add(b);
-  const f = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 8), toon('#f4f4f2')); f.scale.set(0.9, 1.35, 0.6); f.position.set(0, 0.55, 0.14); g.add(f);
-  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.2, 6), toon('#f0a030')); beak.rotation.x = Math.PI / 2; beak.position.set(0, 1.05, 0.38); g.add(beak);
-  const legs = [-0.15, 0.15].map((x) => { const l = new THREE.Group(); l.position.set(x, 0.12, 0.05); const m = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.22), toon('#f0a030')); l.add(m); g.add(l); return l; });
-  g.traverse((x) => { if (x.isMesh) x.castShadow = true; });
-  g.scale.setScalar(0.75);
-  return { g, legs, neck: null };
-}
 // 새로 빚은 동물(zoo3d.js)을 이 세계의 동물 모양 { g, legs, neck } 으로 감싸요. 다리 · 고개 · 꼬리는 st.update 가 움직여요
 const z3 = (kind, s = 1) => () => { const st = ZOO[kind](); st.root.scale.setScalar(s); return { g: st.root, st, legs: [], neck: null }; };
-const SPEED = { '아기 코끼리': 1.0, '아기 기린': 1.3, '얼룩말': 1.5, '톰슨가젤': 1.7, '누': 1.4, '펭귄': 0.9, '사막여우': 2.4 };
+const SPEED = { '아기 코끼리': 1.0, '아기 기린': 1.3, '얼룩말': 1.5, '톰슨가젤': 1.7, '누': 1.4, '펭귄': 0.5, '사막여우': 1.6, '고릴라': 0.9, '맥': 1.1, '낙타': 1.3, '북극곰': 1.0 };
 const SPECIES = [
   ['savanna', '아기 코끼리', 4, z3('elephant', 1.15)],
   ['savanna', '아기 기린', 4, z3('giraffe', 1.25)],
   ['savanna', '얼룩말', 5, z3('zebra')],
   ['savanna', '톰슨가젤', 6, z3('gazelle')],
   ['savanna', '누', 5, z3('gnu')],
-  ['jungle', '고릴라', 3, () => quad({ c: '#2e2a2c', body: [1.4, 1.5, 1.4], legH: 0.8, legR: 0.22, neckL: 0.3, neckA: 0.3, head: [0.7, 0.7, 0.6] })],
-  ['jungle', '맥', 3, () => quad({ c: '#2a2a30', body: [1.1, 1.0, 1.9], legH: 0.7, legR: 0.13, neckL: 0.35, neckA: -0.3, head: [0.45, 0.45, 0.7], belly: '#e8e4dc' })],
-  ['desert', '낙타', 4, () => quad({ c: '#c9a26a', body: [1.4, 1.3, 2.4], legH: 2, legR: 0.13, neckL: 1.6, neckA: -0.9, head: [0.45, 0.45, 0.85], hump: 0.7 })],
-  ['desert', '사막여우', 4, () => quad({ c: '#e8c48a', body: [0.45, 0.4, 0.8], legH: 0.35, legR: 0.05, neckL: 0.2, neckA: -0.4, head: [0.3, 0.28, 0.35], ears: [0.22, 0.4] })],
-  ['arctic', '펭귄', 7, penguin],
-  ['arctic', '북극곰', 2, () => quad({ c: '#f2f0ea', body: [1.6, 1.4, 2.4], legH: 0.9, legR: 0.26, neckL: 0.5, neckA: -0.4, head: [0.7, 0.6, 0.8] })],
+  ['jungle', '고릴라', 3, z3('gorilla')],
+  ['jungle', '맥', 3, z3('tapir')],
+  ['desert', '낙타', 4, z3('camel')],
+  ['desert', '사막여우', 4, z3('fennec', 1.3)],
+  ['arctic', '펭귄', 8, z3('penguin', 1.2)],
+  ['arctic', '북극곰', 2, z3('polarbear')],
 ];
 const animals = [];
 for (const [zone, name, n, mk] of SPECIES) {
@@ -304,10 +313,8 @@ for (const [zone, name, n, mk] of SPECIES) {
 // 돌고래: 강 하구 앞바다에서 뛰어올라요
 const dolphins = [];
 for (let k = 0; k < 4; k++) {
-  const g = new THREE.Group();
-  const b = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 8), toon('#6f8fa8')); b.scale.set(0.8, 0.8, 2.6); g.add(b);
-  const fin = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.7, 4), toon('#5a7a94')); fin.position.set(0, 0.55, -0.1); g.add(fin);
-  scene.add(g); dolphins.push({ g, phase: k * 1.6, cx: -205 + k * 9, cz: 300 + (k % 2) * 12 });
+  const st = ZOO.dolphin(), g = st.root; g.scale.setScalar(1.15);
+  scene.add(g); dolphins.push({ g, st, phase: k * 1.6, cx: -205 + k * 9, cz: 300 + (k % 2) * 12 });
 }
 
 
@@ -344,7 +351,7 @@ function layGrass(cx, cz) {
 }
 
 // 확인 · 공유용: 주소에 ?at=savanna (또는 jungle · desert · arctic) 를 붙이면 그 구역 동물 곁에서 바로 시작
-{ const at = new URLSearchParams(location.search).get('at'); const a = at && animals.find((x) => x.zone === at);
+{ const at = new URLSearchParams(location.search).get('at'); const a = at && at !== 'village' && animals.find((x) => x.zone === at);
   if (a) { me.pos.copy(a.home).add(V.set(6, 0, 9)); me.pos.y = height(me.pos.x, me.pos.z); me.face = Math.PI + 0.4; } }
 
 // ───────── 카메라 · 조작 ─────────
@@ -354,8 +361,8 @@ controls.minDistance = 2.5; controls.maxDistance = 320; controls.maxPolarAngle =
 controls.target.copy(me.pos).add(V.set(0, 1.1, 0));
 // 처음엔 섬 전체를 보다가 마을로 내려와요 (덮개 화면 없이)
 camera.position.set(260, 260, 380);
-let intro = { t: 0, from: camera.position.clone(), to: me.pos.clone().add(new THREE.Vector3(5, 4, 10)) };
-if (new URLSearchParams(location.search).get('at')) { camera.position.copy(intro.to); controls.target.copy(me.pos).add(V.set(0, 1.1, 0)); intro = null; }
+let intro = { t: 0, from: camera.position.clone(), to: VIL.clone().add(new THREE.Vector3(5, 3.8, 1.5)) };   // 마을 광장 안쪽에서 나를 바라보게 (집에 가리지 않게)
+if (new URLSearchParams(location.search).get('at')) { if (new URLSearchParams(location.search).get('at') !== 'village') intro.to = me.pos.clone().add(V.set(5, 4, 10)); camera.position.copy(intro.to); controls.target.copy(me.pos).add(V.set(0, 1.1, 0)); intro = null; }
 
 const keys = new Set();
 addEventListener('keydown', (e) => { const k = e.key.toLowerCase(); if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(k)) { keys.add(k); me.target = null; e.preventDefault(); hideHint(); } });
@@ -468,8 +475,8 @@ function frame() {
       const dx = a.target.x - a.pos.x, dz = a.target.z - a.pos.z, d = Math.hypot(dx, dz);
       if (d < 0.5) { a.target = null; a.wait = 3 + rnd() * 6; }
       else { const nx = a.pos.x + (dx / d) * a.speed * dt, nz = a.pos.z + (dz / d) * a.speed * dt, ny = height(nx, nz);
-        const rv = riverNear(nx, nz);
-        if (ny > 1.5 && zoneAt(nx, nz, ny) === a.zone && !(rv.i >= 0 && rv.d < riverW(rv.i) * 0.9)) {   // 강물에는 안 들어가요 a.pos.x = nx; a.pos.z = nz; a.face = Math.atan2(dx, dz); walking = true; } else { a.target = null; a.wait = 1; } }
+        const rv = riverNear(nx, nz);   // 강물에는 안 들어가요
+        if (ny > 1.5 && zoneAt(nx, nz, ny) === a.zone && !(rv.i >= 0 && rv.d < riverW(rv.i) * 0.9)) { a.pos.x = nx; a.pos.z = nz; a.face = Math.atan2(dx, dz); walking = true; } else { a.target = null; a.wait = 1; } }
     }
     a.pos.y = height(a.pos.x, a.pos.z);
     a.g.position.copy(a.pos); a.g.rotation.y = lerp(a.g.rotation.y, a.face, 0.08);
@@ -482,7 +489,7 @@ function frame() {
     a.tag.classList.toggle('on', on);
     if (on) { V.copy(a.pos); V.y += a.tagH; V.project(camera); a.tag.style.transform = `translate(${(V.x * 0.5 + 0.5) * innerWidth}px, ${(-V.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`; if (V.z > 1) a.tag.classList.remove('on'); }
   }
-  for (const d of dolphins) { const k = ((T * 0.35 + d.phase) % 3) / 3, j = Math.sin(k * Math.PI); d.g.position.set(d.cx + k * 26, k < 1 ? j * 4 - 1.2 : -3, d.cz); d.g.rotation.x = -Math.cos(k * Math.PI) * 0.9; d.g.rotation.y = Math.PI / 2; }
+  for (const d of dolphins) { const k = ((T * 0.35 + d.phase) % 3) / 3, j = Math.sin(k * Math.PI); d.g.position.set(d.cx + k * 26, k < 1 ? j * 4 - 1.2 : -3, d.cz); d.g.rotation.x = -Math.cos(k * Math.PI) * 0.9; d.g.rotation.order = 'YXZ'; d.g.rotation.y = Math.PI / 2; d.st.update(T); }
 
   // 풀밭: 12 m 넘게 벗어나면 내 둘레로 다시 깔기
   if (!me.riding && Math.hypot(me.pos.x - grassAt.x, me.pos.z - grassAt.z) > 12) layGrass(me.pos.x, me.pos.z);

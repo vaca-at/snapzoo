@@ -74,6 +74,20 @@ function ell(sx, sy, sz, seg = 22) { const q = STYLE[S].q; const g = new THREE.S
 //  reg: 0 몸 1 다리 2 목 3 머리 4 꼬리 5 갈기 · 수염 6 코(코끼리)
 // =====================================================================
 const COATS = {
+  camel: { c: ['#c9a26a', '#e2c898', '#7a5a3a'], glsl: `
+    vec3 c=C0; if(reg<0.5 && T.z<-0.45) c=C1; if(reg>0.5 && reg<1.5 && R.y<0.25) c=mix(C0,C1,0.5); if(reg>3.5 && reg<4.5 && T.x>0.32) c=C2; return c;` },
+  tapir: { c: ['#2c2a30', '#ece8e0', '#3a3640'], glsl: `
+    vec3 c=C0; if(reg<0.5 && T.x>0.12 && T.x<0.78 && T.z>-0.75) c=C1; if(reg>2.5 && reg<3.5 && T.x<0.02) c=C1; return c;` },
+  polarbear: { c: ['#f2ede0', '#ddd4c2', '#2a2624'], glsl: `
+    vec3 c=C0; if(T.z<-0.4) c=mix(C0,C1,0.6); if(reg>0.5 && reg<1.5 && R.y<0.12) c=C1; return c;` },
+  fennec: { c: ['#e8c48a', '#f8f0e0', '#3a2a22'], glsl: `
+    vec3 c=C0; if((reg<0.5 || reg>1.5 && reg<2.5) && T.z<-0.3) c=C1; if(reg>2.5 && reg<3.5 && T.z<-0.2) c=C1; if(reg>3.5 && reg<4.5 && T.x>0.21) c=C2; return c;` },
+  gorilla: { c: ['#2e2c2e', '#8e8c92', '#3c3436'], glsl: `
+    vec3 c=C0; if(reg<0.5 && R.z<0.1 && T.z>0.15) c=mix(C0,C1,smoothstep(0.15,0.55,T.z)); if(reg>5.5) c=C2; return c;` },
+  penguin: { c: ['#25252c', '#f6f4f0', '#f2b84a'], glsl: `
+    vec3 c=C0; if(reg<0.5 && T.z>0.3) c=C1; if(reg<0.5 && T.z>0.2 && T.z<0.3) c=mix(C0,C1,0.5); if(reg>2.5 && reg<3.5 && abs(T.y)>0.7 && T.z>0.0 && R.y<0.74) c=C2; return c;` },
+  dolphin: { c: ['#7890a4', '#dfe6ea', '#5f7a90'], glsl: `
+    vec3 c=C0; if(reg<0.5) c=mix(C0,C1,smoothstep(-0.05,-0.45,T.z)); if(reg<0.5 && T.z>0.6) c=C2; return c;` },
   gazelle: { c: ['#d2a064', '#f6efe2', '#2e2420', '#c08a54'], glsl: `
     vec3 c=C0; float y=R.y;
     if(reg<0.5){ if(y<0.425+0.015*sin(R.z*6.0)) c=C1; if(abs(y-0.465)<0.022 && R.z>-0.34 && R.z<0.34) c=C2; if(R.z<-0.4 && y>0.44) c=C1; }
@@ -157,7 +171,7 @@ function quad(sp) {
   // 다리: 엉덩이 관절(hip) → 무릎(knee) → 발굽
   const legs = [];
   for (const [sx, front] of [[-1, 1], [1, 1], [-1, 0], [1, 0]]) {
-    const z = (front ? 1 : -1) * L * sp.legZ, top = cy - H * 0.05, len = top;
+    const z = (front ? 1 : -1) * L * sp.legZ, top = cy - H * 0.05 + (front ? sp.chestY : sp.rumpY) * 0.85, len = top;
     const hip = J(root, sx * W * 0.3, top, z), a = len * 0.5;
     const r0 = sp.legR * (front ? 1.15 : 1.4);
     M(hip, tube([[0, H * 0.18, 0], [0, -a * 0.5, front ? 0 : -0.02 * len], [0, -a, front ? 0.01 : -0.07 * len]], (t) => r0 * (1 - 0.45 * t) + sp.legR * 0.1, 10, 12), coat, 1);
@@ -179,9 +193,10 @@ function quad(sp) {
   M(head, ell(hr * 0.22, hr * 0.15, hr * 0.12, 10), plain('#2a2220'), undefined, 0, -0.0, hl + 0.005).userData.noLine = true;
   const ears = [-1, 1].map((s) => { const e = J(head, s * hr * 0.55, hr * 0.65, -hr * 0.2); e.rotation.set(-0.3, 0, s * (sp.earOut || 0.9)); M(e, ell(sp.earW, sp.earL, sp.earW * 0.38), coat, 3, 0, sp.earL * 0.85, 0); M(e, ell(sp.earW * 0.66, sp.earL * 0.78, sp.earW * 0.2), plain(sp.earIn || '#e8c8b0'), undefined, 0, sp.earL * 0.85, sp.earW * 0.2).userData.noLine = true; return e; });
   if (sp.horn) sp.horn(head, hr, hl);
+  if (sp.extra) sp.extra(body, coat, { cy, L, H, W });   // 혹 같은 덧붙이기
   // 꼬리
   const tail = J(body, 0, cy + sp.rumpY + H * 0.28, -L / 2 + 0.02);
-  M(tail, tube([[0, 0, 0], [0, -sp.tailL * 0.4, -0.05], [0, -sp.tailL, -0.04]], (t) => sp.legR * 0.32 * (1 - 0.5 * t), 10, 8), coat, 4);
+  M(tail, tube([[0, 0, 0], [0, -sp.tailL * 0.4, -0.05], [0, -sp.tailL, -0.04]], sp.tailR ? (t) => sp.tailR * pow(max(0.01, sin(PI * min(1, t * 0.9 + 0.08))), 0.6) : (t) => sp.legR * 0.32 * (1 - 0.5 * t), 10, 10), coat, 4);
   if (sp.tuft) M(tail, ell(sp.legR * 0.42, sp.tuft, sp.legR * 0.42), plain('#2a2420'), undefined, 0, -sp.tailL - sp.tuft * 0.6, -0.04);
   bakeCoat(root); outlines(root);
   const ph = Math.random() * 9;
@@ -189,7 +204,7 @@ function quad(sp) {
   st.update = (t, dt) => {
     t += ph;
     body.scale.y = 1 + sin(t * 1.4) * 0.008;
-    tail.rotation.x = 0.3 + sin(t * 1.2) * 0.05; tail.rotation.z = sin(t * 2.6) * 0.35;
+    tail.rotation.x = (sp.tailA ?? 0.3) + sin(t * 1.2) * 0.05; tail.rotation.z = sin(t * 2.6) * 0.35;
     ears.forEach((e, i) => { e.rotation.x = -0.3 + (t % 5 < 0.25 && i ? sin(t * 40) * 0.25 : 0); });
     const bl = (t % 4.6) < 0.12; eyes.forEach((e) => (e.scale.y = bl ? 0.1 : 1));
     // 풀 뜯기: 가끔 고개를 땅까지
@@ -321,6 +336,47 @@ const LOOK = {
   low: { top: '#5f9ed8', mid: '#a9cfe8', hor: '#eadfc4', glow: '#fff2d0', fog: '#e4dcc4', fogN: 60, fogF: 520, sun: V(-0.5, 0.75, 0.4), sunC: '#fff0d8', sunI: 2.3, hemi: ['#dceaf6', '#6b5a3c', 1.1], grassA: '#a8b85a', grassB: '#c8b86a', lush: '#7aa84a', far: '#b8b49a', exp: 1.0 },
   toon: { top: '#3f86d6', mid: '#86bdea', hor: '#e2eef0', glow: '#ffffff', fog: '#d8e6e8', fogN: 70, fogF: 560, sun: V(-0.4, 0.85, 0.35), sunC: '#ffffff', sunI: 1.9, hemi: ['#e4f0ff', '#7a8a50', 1.25], grassA: '#9cc45c', grassB: '#c4cc6a', lush: '#7ab84c', far: '#9eb4b8', exp: 1.0 },
   soft: { top: '#5a78b0', mid: '#d4aa8a', hor: '#ffd9a0', glow: '#ffe8b8', fog: '#ecd2a6', fogN: 40, fogF: 430, sun: V(0.75, 0.2, -0.65), sunC: '#ffd29a', sunI: 3.2, hemi: ['#ffe2c0', '#4a4a30', 0.85], grassA: '#a4a648', grassB: '#c8aa5a', lush: '#7e9a3a', far: '#b49a8a', exp: 1.05 },
+};
+
+
+// ───── 정글 · 사막 · 북극 · 바다 식구 (2026-11-05) ─────
+Object.assign(SPECIES, {
+  camel: () => quad({ kind: 'camel', len: 1.5, bodyH: 0.74, bodyW: 0.55, shoulder: 1.9, rumpY: 0.0, chestY: 0.0, front: 0.05, legZ: 0.3, legR: 0.055, hoof: 0.06, hoofC: '#6a5440', neckIn: 0.05, neckA: 0.95, neckL: 0.78, neckR: [0.17, 0.09], neckRest: 0, headA: 0.12, headL: 0.46, headR: 0.1, eyeR: 0.021, earW: 0.03, earL: 0.05, earOut: 0.9, earIn: '#d8b888', tailL: 0.42, tuft: 0.06, graze: 0.75,
+    extra: (b, coat, { cy, H }) => { M(b, ell(0.3, 0.34, 0.4), coat, 0, 0, cy + H * 0.42, -0.02); } }),
+  tapir: () => quad({ kind: 'tapir', len: 1.3, bodyH: 0.6, bodyW: 0.48, shoulder: 1.0, rumpY: 0.06, chestY: -0.03, front: -0.05, legZ: 0.3, legR: 0.06, hoof: 0.05, hoofC: '#1e1c22', neckIn: 0.1, neckA: 1.3, neckL: 0.2, neckR: [0.21, 0.16], neckRest: 0, headA: 0.55, headL: 0.42, headR: 0.12, eyeR: 0.015, earW: 0.045, earL: 0.07, earOut: 0.5, earIn: '#ece8e0', tailL: 0.07, tuft: 0, graze: 0.9,
+    horn: (h, r, l) => { M(h, tube([[0, -r * 0.05, l * 0.9], [0, -r * 0.3, l + 0.08], [0, -r * 0.75, l + 0.12]], (t) => 0.05 * (1 - 0.35 * t), 10, 10), coatMat('tapir'), 3); } }),
+  polarbear: () => quad({ kind: 'polarbear', len: 1.6, bodyH: 0.8, bodyW: 0.72, shoulder: 1.25, rumpY: 0.08, chestY: -0.02, front: 0.05, legZ: 0.3, legR: 0.11, hoof: 0.05, hoofC: '#3a3432', neckIn: 0.15, neckA: 1.15, neckL: 0.36, neckR: [0.31, 0.21], neckRest: 0, headA: 0.4, headL: 0.42, headR: 0.17, eyeR: 0.015, earW: 0.05, earL: 0.05, earOut: 0.8, earIn: '#d8d0c4', tailL: 0.1, tuft: 0, graze: 0.45 }),
+  fennec: () => quad({ kind: 'fennec', len: 0.38, bodyH: 0.17, bodyW: 0.13, shoulder: 0.31, rumpY: 0.01, chestY: 0.0, front: 0.05, legZ: 0.3, legR: 0.016, hoof: 0.015, hoofC: '#b08a5a', neckIn: 0.03, neckA: 0.7, neckL: 0.08, neckR: [0.05, 0.04], neckRest: 0, headA: 0.25, headL: 0.12, headR: 0.05, eyeR: 0.012, earW: 0.045, earL: 0.11, earOut: 0.35, earIn: '#f6d6c4', tailL: 0.26, tailR: 0.036, tailA: 1.05, tuft: 0, graze: 0 }),
+  gorilla: () => quad({ kind: 'gorilla', len: 0.95, bodyH: 0.7, bodyW: 0.7, shoulder: 1.25, rumpY: -0.14, chestY: 0.25, front: 0.35, legZ: 0.3, legR: 0.085, hoof: 0.05, hoofC: '#2a2628', neckIn: 0.12, neckA: 0.9, neckL: 0.12, neckR: [0.25, 0.2], neckRest: 0, headA: 0.15, headL: 0.26, headR: 0.17, eyeR: 0.017, earW: 0.03, earL: 0.035, earOut: 1.4, earIn: '#3a3434', tailL: 0.01, tuft: 0, graze: 0,
+    horn: (h, r, l) => { const cm = coatMat('gorilla'); M(h, ell(r * 0.95, r * 0.28, r * 0.5), cm, 6, 0, r * 0.45, l * 0.28); M(h, ell(r * 0.75, r * 0.55, r * 0.5), cm, 6, 0, -r * 0.3, l * 0.78); M(h, ell(r * 0.7, r * 0.7, r * 0.7), cm, 3, 0, r * 0.55, -r * 0.2); } }),
+});
+// 펭귄: 서서 뒤뚱뒤뚱
+SPECIES.penguin = () => {
+  const coat = coatMat('penguin'), root = new THREE.Group(), body = J(root);
+  M(body, tube([[0, 0.06, 0], [0, 0.28, 0.02], [0, 0.52, 0.0], [0, 0.66, -0.01]], (t) => { const k = pow(max(0.01, sin(PI * (t * 0.86 + 0.1))), 0.5); return [0.17 * k, 0.15 * k]; }, 22, 20, V(0, 0, 1)), coat, 0);
+  const head = J(body, 0, 0.72, 0);
+  M(head, ell(0.1, 0.1, 0.105), coat, 3);
+  M(head, tube([[0, -0.01, 0.07], [0, -0.025, 0.13], [0, -0.035, 0.17]], (t) => 0.022 * (1 - 0.75 * t), 8, 8), plain('#e8963a'));
+  const eyes = [-1, 1].map((s) => { M(head, ell(0.022, 0.022, 0.012, 10), plain('#ffffff'), undefined, s * 0.055, 0.025, 0.07).rotation.y = s * 0.6; return eye(head, 0.012, s * 0.058, 0.026, 0.078, s * 0.6); });
+  const fl = [-1, 1].map((s) => { const f = J(body, s * 0.165, 0.5, 0); M(f, ell(0.022, 0.17, 0.06), coat, 1, 0, -0.13, 0); f.rotation.z = s * 0.18; return f; });
+  [-1, 1].forEach((s) => M(root, ell(0.05, 0.018, 0.08, 12), plain('#e8963a'), undefined, s * 0.06, 0.018, 0.05));
+  bakeCoat(root);
+  const ph = Math.random() * 9, st = { root, walk: 0, step: 0 };
+  st.update = (t, dt) => { t += ph; st.step += dt * st.walk * 9; body.rotation.z = sin(st.step) * 0.12 * st.walk; body.position.y = abs(sin(st.step)) * 0.02 * st.walk; fl.forEach((f, i) => { f.rotation.z = (i ? 1 : -1) * (0.18 + (st.walk ? 0.25 + sin(st.step) * 0.15 : max(0, sin(t * 3)) * 0.12)); }); head.rotation.y = sin(t * 0.6) * 0.5; head.rotation.x = sin(t * 0.4) * 0.1; const bl = (t % 3.8) < 0.12; eyes.forEach((e) => (e.scale.y = bl ? 0.1 : 1)); };
+  return st;
+};
+// 돌고래: 바다에서 뛰어올라요 (몸은 +z 를 봐요)
+SPECIES.dolphin = () => {
+  const coat = coatMat('dolphin'), root = new THREE.Group(), body = J(root);
+  M(body, tube([[0, 0.02, -1.0], [0, 0.06, -0.55], [0, 0.08, 0.0], [0, 0.05, 0.5], [0, 0.0, 0.8], [0, -0.03, 1.05]], (t) => { const k = t < 0.82 ? pow(max(0.02, sin(PI * min(1, t * 0.62 + 0.04))), 0.75) : 0.36 * (1 - (t - 0.82) / 0.2) + 0.12; return [0.24 * k, 0.26 * k]; }, 30, 20), coat, 0);
+  M(body, tube([[0, 0.28, -0.05], [0, 0.42, -0.2], [0, 0.48, -0.32]], (t) => [0.02, 0.1 * (1 - 0.8 * t)], 8, 8, V(1, 0, 0)), plain('#5f7a90'));
+  const fluke = J(body, 0, 0.02, -1.0); M(fluke, ell(0.32, 0.02, 0.11), plain('#6a8498'), undefined, 0, 0, -0.06);
+  [-1, 1].forEach((s) => { const f = M(body, ell(0.16, 0.02, 0.07), plain('#6a8498'), undefined, s * 0.2, -0.12, 0.42); f.rotation.set(0, s * 0.5, s * -0.5); });
+  const eyes = [-1, 1].map((s) => eye(body, 0.018, s * 0.16, 0.06, 0.66, s * 1.1));
+  bakeCoat(root);
+  const st = { root, walk: 0 };
+  st.update = (t) => { fluke.rotation.x = sin(t * 6) * 0.35; const bl = (t % 4) < 0.1; eyes.forEach((e) => (e.scale.y = bl ? 0.1 : 1)); };
+  return st;
 };
 
 // 아카시아 한 그루를 줄기 · 잎 두 덩이 도형으로 (여러 그루는 InstancedMesh 로)
