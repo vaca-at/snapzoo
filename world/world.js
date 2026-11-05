@@ -9,6 +9,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js';
 import { IslandNet, myName, myLook } from './net.js';
 import { IslandSound } from './sound.js';
+import { ROSTER } from './fauna.js';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
 import { HATS, plain, SPECIES as ZOO, walker as makeWalker, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
@@ -302,35 +303,74 @@ me.pos.y = height(me.pos.x, me.pos.z);
 scene.add(me.g);
 
 // ───────── 동물 (구역마다) ─────────
-// 새로 빚은 동물(zoo3d.js)을 이 세계의 동물 모양 { g, legs, neck } 으로 감싸요. 다리 · 고개 · 꼬리는 st.update 가 움직여요
-const z3 = (kind, s = 1) => () => { const st = ZOO[kind](); st.root.scale.setScalar(s); return { g: st.root, st, legs: [], neck: null }; };
-const SPEED = { '아기 코끼리': 1.0, '아기 기린': 1.3, '얼룩말': 1.5, '톰슨가젤': 1.7, '누': 1.4, '펭귄': 0.5, '사막여우': 1.6, '고릴라': 0.9, '맥': 1.1, '낙타': 1.3, '북극곰': 1.0 };
-// [구역, 도감 id, 이름, 무리 수, 무리당 마리, 만들기] — 무리마다 집(home)을 구역 곳곳에 떨어뜨려 놓아요
-const SPECIES = [
-  ['savanna', 'elephant', '아기 코끼리', 3, 3, z3('elephant', 1.15)],
-  ['savanna', 'giraffe', '아기 기린', 3, 2, z3('giraffe', 1.25)],
-  ['savanna', 'zebra', '얼룩말', 3, 4, z3('zebra')],
-  ['savanna', 'gazelle', '톰슨가젤', 3, 4, z3('gazelle')],
-  ['savanna', 'gnu', '누', 3, 3, z3('gnu')],
-  ['jungle', 'gorilla', '고릴라', 3, 3, z3('gorilla')],
-  ['jungle', 'tapir', '맥', 3, 2, z3('tapir')],
-  ['desert', 'camel', '낙타', 3, 3, z3('camel')],
-  ['desert', 'fennec', '사막여우', 3, 2, z3('fennec', 1.3)],
-  ['arctic', 'penguin', '펭귄', 3, 5, z3('penguin', 1.2)],
-  ['arctic', 'polarbear', '북극곰', 3, 1, z3('polarbear')],
-];
-const animals = [];
-for (const [zone, id, name, herds, per, mk] of SPECIES) {
-  const homes = [], ok = (x, z, y) => (zone === 'arctic' ? y > 104 : true);
+// ───────── 🛶 뗏목 (강) · ⛵ 작은 배 (바다): 물에 들어가면 저절로 타요. 바다는 너무 멀리(깊이 15 m 넘게) 못 가요 ─────────
+const raft = new THREE.Group(), boat = new THREE.Group(); scene.add(raft, boat); raft.visible = boat.visible = false;
+{ const wood = toon('#9a7048'), rope = toon('#d8c494');
+  for (let i = 0; i < 6; i++) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 2.2, 12), wood); l.rotation.x = Math.PI / 2; l.position.set(-0.68 + i * 0.27, 0, 0); l.castShadow = true; raft.add(l); }
+  for (const z of [-0.75, 0.75]) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.06, 0.14), rope); b.position.set(0, 0.13, z); raft.add(b); }
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.4, 8), wood); pole.position.set(0.55, 0.9, 0.6); pole.rotation.z = -0.35; raft.add(pole);
+  const hullS = new THREE.Shape(); hullS.moveTo(0, 1.5); hullS.quadraticCurveTo(0.75, 0.9, 0.7, -0.9); hullS.lineTo(-0.7, -0.9); hullS.quadraticCurveTo(-0.75, 0.9, 0, 1.5);
+  const hull = new THREE.Mesh(new THREE.ExtrudeGeometry(hullS, { depth: 0.45, bevelEnabled: true, bevelSize: 0.06, bevelThickness: 0.06, bevelSegments: 3 }), toon('#f2e6d2')); hull.rotation.x = Math.PI / 2; hull.position.y = 0.2; hull.castShadow = true; boat.add(hull);
+  const band = new THREE.Mesh(new THREE.ExtrudeGeometry(hullS, { depth: 0.08, bevelEnabled: false }), toon('#c8553d')); band.rotation.x = Math.PI / 2; band.position.y = 0.12; band.scale.set(1.04, 1.04, 1); boat.add(band);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.04, 1.9), toon('#9a7048')); deck.position.set(0, -0.12, -0.05); boat.add(deck);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 2.6, 8), toon('#7a5638')); mast.position.set(0, 1.2, 0.35); boat.add(mast);
+  const sail = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(0, 2.1), new THREE.Vector2(-0.95, 0.05)])), toon('#fbf6ea', { side: THREE.DoubleSide })); sail.position.set(-0.02, 0.3, 0.35); sail.rotation.y = Math.PI / 2; boat.add(sail); boat.userData.sail = sail; }
+// 지금 서 있는 곳의 물: 'river' · 'sea' · null, 그리고 물 높이
+function waterAt(x, z) {
+  const y = height(x, z);
+  if (y < 0.05) return { kind: 'sea', y: 0 };
+  const rv = riverNear(x, z);
+  if (rv.i >= 0 && rv.d < riverW(rv.i) * 0.6) { const p = RS[rv.i], wy = Math.max(height(p.x, p.z) + 1.0, 0.25); if (y < wy - 0.05) return { kind: 'river', y: wy }; }
+  return null;
+}
+
+// ───────── 동물: 구역마다 10종 (fauna.js 의 ROSTER). 사람을 해치는 동물은 없어요 ─────────
+// 움직임: walk 구역 안을 거닐어요 · still 거의 가만히 · shore 바닷가 모래 · swim 물속 · jump 돌고래(아래에서 따로)
+const SEA_Y = { whale: -0.9, fish: -0.35, seaturtle: -0.18, octopus: -0.05, seaotter: 0.02 };
+const onBeach = (x, z) => { const y = height(x, z); return y > 0.35 && y < 2.6 && riverNear(x, z).d > 6; };
+const inSea = (x, z) => { const y = height(x, z); return y < -1.2 && y > -15 && riverNear(x, z).d > 4; };   // 너무 멀리(깊이)는 안 가요
+const inVillage = (x, z) => { const r = Math.hypot(x - VIL.x, z - VIL.z); return r < 27 && r > 3.5 && Math.abs(r - 15) > 4.2 && riverNear(x, z).d > 6; };
+function okFor(a, x, z) {
+  if (a.zone === 'village') return inVillage(x, z);
+  if (a.move === 'swim') return inSea(x, z) && Math.hypot(x - a.home.x, z - a.home.z) < 34;
+  if (a.move === 'shore') return onBeach(x, z) && Math.hypot(x - a.home.x, z - a.home.z) < 30;
+  const y = height(x, z), rv = riverNear(x, z);
+  return y > 1.5 && zoneAt(x, z, y) === a.zone && !(rv.i >= 0 && rv.d < riverW(rv.i) * 0.9) && Math.hypot(x - VIL.x, z - VIL.z) > 30;
+}
+function spotFor(zone, move, test) {
+  for (let k = 0; k < 4000; k++) {
+    let x, z;
+    if (zone === 'village') { const a = rnd() * Math.PI * 2, r = 4 + rnd() * 23; x = VIL.x + Math.sin(a) * r; z = VIL.z + Math.cos(a) * r; if (!inVillage(x, z)) continue; }
+    else { x = (rnd() - 0.5) * 640; z = (rnd() - 0.5) * 640; const y = height(x, z);
+      if (move === 'swim') { if (!inSea(x, z) || height(x, z) < -9) continue; }
+      else if (move === 'shore') { if (!onBeach(x, z)) continue; }
+      else if (!(y > 2.8 && zoneAt(x, z, y) === zone && riverNear(x, z).d > 10 && clearAt(x, z) && (zone !== 'arctic' || y > 104))) continue; }
+    if (test(x, z)) return new THREE.Vector3(x, height(x, z), z);
+  }
+  return null;
+}
+const animals = [], POOLS = new Map();
+// 구역마다 '모이는 곳'(물웅덩이 · 풀밭 같은) 너덧 군데. 종마다 무리를 여기 나눠 놓으니 한 곳에 여러 종이 섞여 지내요
+function poolFor(zone, move) {
+  const key = zone + (move === 'swim' || move === 'shore' ? move : ''); if (POOLS.has(key)) return POOLS.get(key);
+  const n = zone === 'village' ? 3 : 5, pool = [];
+  for (let i = 0; i < n; i++) { const p = spotFor(zone, move, (x, z) => pool.every((o) => Math.hypot(o.x - x, o.z - z) > (zone === 'village' ? 14 : 55))) || spotFor(zone, move, () => true); if (p) pool.push(p); }
+  POOLS.set(key, pool); return pool;
+}
+for (const [zone, id, name, herds, per, scale, move, speed] of ROSTER) {
+  if (move === 'jump') continue;
+  const pool = poolFor(zone, move), start = Math.floor(rnd() * pool.length);
   for (let h = 0; h < herds; h++) {
-    const home = findSpot(zone, (x, z, y) => ok(x, z, y) && homes.every((o) => Math.hypot(o.x - x, o.z - z) > 55), 3000) || findSpot(zone, ok, 2000);
-    if (!home) continue; homes.push(home);
+    const base = pool[(start + h) % pool.length]; if (!base) continue;
+    const home = base.clone().add(V.set((rnd() - 0.5) * (zone === 'village' ? 6 : 16), 0, (rnd() - 0.5) * (zone === 'village' ? 6 : 16)));
     for (let k = 0; k < per; k++) {
-      const a = mk(), p = home.clone().add(V.set((rnd() - 0.5) * 24, 0, (rnd() - 0.5) * 24));
-      p.y = height(p.x, p.z); a.g.position.copy(p); scene.add(a.g);
-      const tag = document.createElement('div'); tag.className = 'tag'; tag.textContent = name; document.body.append(tag);
-      const tagH = new THREE.Box3().setFromObject(a.g).getSize(V).y + 0.35;
-      animals.push({ ...a, id, name, zone, home, pos: p, target: null, wait: rnd() * 4, face: rnd() * 6, t: rnd() * 9, tag, tagH, speed: SPEED[name] || 1.4 });
+      const st = ZOO[id](); st.root.scale.setScalar(scale);
+      const a = { g: st.root, st, id, name, zone, move, home, target: null, wait: rnd() * 4, face: rnd() * 6, t: rnd() * 9, speed: speed || 0 };
+      let p = null; for (let i = 0; i < 40 && !p; i++) { const q = home.clone().add(V.set((rnd() - 0.5) * (zone === 'village' ? 12 : 28), 0, (rnd() - 0.5) * (zone === 'village' ? 10 : 20))); if (okFor(a, q.x, q.z) || i === 39) p = q; }
+      p.y = move === 'swim' ? SEA_Y[id] ?? -0.2 : height(p.x, p.z); a.pos = p; a.g.position.copy(p); scene.add(a.g);
+      const tag = document.createElement('div'); tag.className = 'tag'; tag.textContent = name; document.body.append(tag); a.tag = tag;
+      a.tagH = Math.max(0.35, new THREE.Box3().setFromObject(a.g).getSize(V).y + 0.3); if (move === 'swim') a.tagH = Math.min(a.tagH, 1.2);
+      animals.push(a);
     }
   }
 }
@@ -432,8 +472,15 @@ $('#cable').onclick = () => {
 function closeDrawer() { $('#drawer').classList.remove('on'); $('#drawer').setAttribute('aria-hidden', 'true'); $('#drawerBtn').setAttribute('aria-expanded', 'false'); }
 $('#drawerBtn').onclick = (e) => { e.stopPropagation(); const on = !$('#drawer').classList.contains('on'); if (!on) return closeDrawer(); $('#drawer').classList.add('on'); $('#drawer').setAttribute('aria-hidden', 'false'); $('#drawerBtn').setAttribute('aria-expanded', 'true'); };
 $('#drawer').addEventListener('click', (e) => { if (e.target.closest('button') && e.target.closest('button').id !== 'setBtn') closeDrawer(); });
+// 📘 매뉴얼
+function closeManual() { $('#manual').classList.remove('on'); $('#manual').setAttribute('aria-hidden', 'true'); }
+$('#helpBtn').onclick = () => { closeAlbum(); closeDex(); $('#manual').classList.add('on'); $('#manual').setAttribute('aria-hidden', 'false'); };
+$('#manualX').onclick = closeManual;
+addEventListener('keydown', (e) => { if (e.key === 'Escape') closeManual(); });
 addEventListener('pointerdown', (e) => { if (!e.target.closest('#drawer, #drawerBtn, #settings')) closeDrawer(); });
 addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+let limitT = 0;
+function toastMsg(b, sm) { const t = $('#toast'); t.querySelector('img').removeAttribute('src'); t.querySelector('span').innerHTML = `<b>${b}</b><small>${sm}</small>`; t.classList.add('on'); clearTimeout(toastMsg.tt); toastMsg.tt = setTimeout(() => t.classList.remove('on'), 2400); }
 let travelling = false;
 function travelTo(label, where) {
   if (me.riding || travelling) return; travelling = true; exitPhoto(); me.target = null;
@@ -476,9 +523,8 @@ $('#sAmb').oninput = (e) => { SET.amb = +e.target.value; snd.setVolume('amb', SE
 
 // ───────── 📷 사진 찍기 (아이용 동물 왕국처럼): 뷰파인더로 바꿔 움직이는 동물을 따라 조준 · 확대 · 찰칵 → 점수 · 별 · 도감 ─────────
 //  점수 = 가운데 40 + 크기 30 + 특별한 순간 30 (♥ 반가워할 때 · 나를 바라볼 때 · 돌고래가 뛰어오를 때)
-const DEX = [['elephant', '아기 코끼리', 'savanna'], ['giraffe', '아기 기린', 'savanna'], ['zebra', '얼룩말', 'savanna'], ['gazelle', '톰슨가젤', 'savanna'], ['gnu', '누', 'savanna'],
-  ['gorilla', '고릴라', 'jungle'], ['tapir', '맥', 'jungle'], ['camel', '낙타', 'desert'], ['fennec', '사막여우', 'desert'], ['penguin', '펭귄', 'arctic'], ['polarbear', '북극곰', 'arctic'], ['dolphin', '돌고래', 'sea']];
-const ZLAB = { savanna: '🦁 초원', jungle: '🌴 정글', desert: '🏜️ 사막', arctic: '🐧 북극', sea: '🌊 바다' };
+const DEX = ROSTER.map(([zone, id, name]) => [id, name, zone]);
+const ZLAB = { village: '🏘 마을', savanna: '🦁 초원', jungle: '🌴 정글', desert: '🏜️ 사막', arctic: '🐧 북극', sea: '🌊 바다' };
 let dex = (() => { try { return JSON.parse(localStorage.getItem('snapzoo-island-dex') || '{}'); } catch { return {}; } })();
 const saveDex = () => { try { localStorage.setItem('snapzoo-island-dex', JSON.stringify(dex)); } catch {} };
 const starsOf = (sc) => (sc >= 85 ? 3 : sc >= 60 ? 2 : sc > 0 ? 1 : 0);
@@ -708,7 +754,7 @@ function wave() {
   me.st.waveT = 2.4; waves = (waves + 1) % 1000;
   for (const a of animals) {
     const dx = a.pos.x - me.pos.x, dz = a.pos.z - me.pos.z, d = Math.hypot(dx, dz);
-    if (d > 18 || d < 1) continue;
+    if (d > 18 || d < 1 || !a.speed || a.move === 'swim') { if (d <= 18) a.heart = 3; continue; }
     const stay = 2.4 + a.tagH * 1.1;   // 큰 동물은 조금 떨어져서
     a.target = me.pos.clone().add(V.set((dx / d) * stay, 0, (dz / d) * stay)); a.call = 12; a.wait = 0;
   }
@@ -812,10 +858,10 @@ function frame() {
   const moving = mv.lengthSq() > 0;
   if (moving) {
     mv.normalize();
-    const y0 = height(me.pos.x, me.pos.z), inWater = y0 < 0.6 || riverNear(me.pos.x, me.pos.z).d < 3;
-    const sp = (mode === 'photo' ? 1.4 : inWater ? 1.6 : 3.6) * SET.speed * dt;   // ⚙ 걷는 속도
+    const inWater = !!waterAt(me.pos.x, me.pos.z);
+    const sp = (mode === 'photo' ? 1.4 : inWater ? 2.8 : 3.6) * SET.speed * dt;   // 뗏목 · 배는 조금 느리게   // ⚙ 걷는 속도
     const nx = me.pos.x + mv.x * sp, nz = me.pos.z + mv.z * sp, ny = height(nx, nz);
-    if (ny > -2.2 && Math.abs(nx) < SIZE / 2 - 4 && Math.abs(nz) < SIZE / 2 - 4) { me.pos.x = nx; me.pos.z = nz; } else me.target = null;   // 깊은 바다는 못 들어가요
+    if (ny > -15 && Math.abs(nx) < SIZE / 2 - 4 && Math.abs(nz) < SIZE / 2 - 4) { me.pos.x = nx; me.pos.z = nz; } else { me.target = null; if (!limitT) { limitT = 2.5; toastMsg('⛵ 여기까지만 갈 수 있어요', '섬에서 너무 멀어지면 돌아와요'); } }   // 너무 먼 바다는 못 가요
     if (mode !== 'photo') me.face = Math.atan2(mv.x, mv.z);
   }
   if (me.riding) {
@@ -824,7 +870,13 @@ function frame() {
     $('#rideBar').style.width = `${Math.round(k * 100)}%`; $('#rideS').textContent = k < 1 ? `${Math.ceil(r.dur * (1 - k))}초 남았어요 · ${r.dir > 0 ? '🐧 눈 덮인 꼭대기' : '🏘 강가 마을'}` : '도착!';
     if (k >= 1) { const end = r.dir > 0 ? TOPS : STA; me.pos.copy(end).add(V.set(3, 0, 3)); me.pos.y = height(me.pos.x, me.pos.z); me.riding = null; $('#cable').disabled = false; setTimeout(() => $('#ride').classList.remove('on'), 700); }
   } else {
-    me.pos.y = lerp(me.pos.y, Math.max(height(me.pos.x, me.pos.z), -0.6), 0.5);
+    const wa = waterAt(me.pos.x, me.pos.z), deck = wa ? (wa.kind === 'sea' ? 0.22 : 0.28) : 0;
+    me.pos.y = lerp(me.pos.y, wa ? wa.y + deck + Math.sin(T * 1.6) * 0.04 : height(me.pos.x, me.pos.z), 0.3);
+    raft.visible = wa?.kind === 'river'; boat.visible = wa?.kind === 'sea';
+    const vessel = raft.visible ? raft : boat.visible ? boat : null;
+    if (vessel) { vessel.position.set(me.pos.x, me.pos.y - deck, me.pos.z); vessel.rotation.set(Math.sin(T * 1.3) * 0.03, me.g.rotation.y, Math.sin(T * 1.1) * 0.04); if (vessel === boat) boat.userData.sail.rotation.x = Math.sin(T * 0.9) * 0.08; }
+    if (wa?.kind !== frame.lastWater) { frame.lastWater = wa?.kind; if (wa) toastMsg(wa.kind === 'river' ? '🛶 뗏목을 타고 강을 건너요' : '⛵ 작은 배를 타고 바다로', wa.kind === 'river' ? '건너편 강둑에 닿으면 내려요' : '돌고래 · 바다거북 · 해달을 만나 보세요'); }
+    if (limitT > 0) limitT -= dt;
     const atTop = me.pos.distanceTo(TOPS) < me.pos.distanceTo(STA);
     const cl = atTop ? '마을로 내려가기' : '산꼭대기로'; if ($('#cable small').textContent !== cl) $('#cable small').textContent = cl;
     gondola.position.copy(CABLE.getPointAt(0.5 + 0.5 * Math.sin(T * 0.08)));   // 빈 케이블카는 천천히 오가요
@@ -833,19 +885,29 @@ function frame() {
   me.g.rotation.y = lerp(me.g.rotation.y, me.face, 0.2);
   me.st.rate = SET.speed; me.st.walk = lerp(me.st.walk, moving ? 1 : 0, 0.2); me.st.update(T, dt);
 
+  // 내 캐릭터가 화면에서 차지하는 네모: 그 뒤에 있는 동물의 이름표는 숨겨요 (이름표가 사람 몸 위로 뜨지 않게)
+  const camD = camera.position.distanceTo(me.pos);
+  V.copy(me.pos).project(camera); const fx = (V.x * 0.5 + 0.5) * innerWidth, fy0 = (-V.y * 0.5 + 0.5) * innerHeight;
+  V.copy(me.pos); V.y += 2.0; V.project(camera); const fy1 = (-V.y * 0.5 + 0.5) * innerHeight, fw = Math.max(18, (fy0 - fy1) * 0.42);
+  const behindMe = (px, py, d) => me.g.visible && d > camD && px > fx - fw && px < fx + fw && py > fy1 - 10 && py < fy0 + 6;
   // 동물: 집 둘레를 천천히 거닐다 멈춰 쉬어요. 가까이 가면 나를 바라보고 이름표
   for (const a of animals) {
     const dMe = Math.hypot(a.pos.x - me.pos.x, a.pos.z - me.pos.z);
-    a.g.visible = dMe < 170;
+    a.g.visible = dMe < 120;
     // 걸음: 목표 쪽으로 먼저 몸을 돌리고, 천천히 출발 · 멈춤. 다리는 실제 빠르기에 맞춰요
     let want = 0;
     const called = a.call > 0; if (called) a.call -= dt;
-    if (dMe < 9 && !called) a.face = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z);
+    if (a.leave > 0) a.leave -= dt;
+    if (a.visit && !called) {   // 인사받고 와서 5초 반기고(사진 찍을 틈) → 제 자리로 돌아가요
+      a.face = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z); a.wait -= dt;
+      if (a.wait <= 0) { a.visit = false; a.leave = 10; a.target = a.home.clone().add(V.set((rnd() - 0.5) * 16, 0, (rnd() - 0.5) * 16)); }
+    }
+    else if (dMe < 9 && !called && !(a.leave > 0) && !a.target) a.face = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z);
     else if (a.wait > 0 && !called) a.wait -= dt;
     else {
-      if (!a.target) a.target = a.home.clone().add(V.set((rnd() - 0.5) * 40, 0, (rnd() - 0.5) * 40));
+      if (!a.target) a.target = a.speed ? a.home.clone().add(V.set((rnd() - 0.5) * 40, 0, (rnd() - 0.5) * 40)) : a.pos.clone();
       const dx = a.target.x - a.pos.x, dz = a.target.z - a.pos.z, d = Math.hypot(dx, dz);
-      if (d < 0.6) { a.target = null; a.wait = called ? 7 : 3 + rnd() * 6; if (called) { a.call = 0; a.heart = 3; } }
+      if (d < 0.6) { a.target = null; a.wait = called ? 5 : 3 + rnd() * 6; if (called) { a.call = 0; a.heart = 5; a.visit = true; } }
       else { a.face = Math.atan2(dx, dz); want = a.speed * (called ? 1.4 : 1) * smooth(0, 2.5, d); }
     }
     let dr = a.face - a.g.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); a.g.rotation.y += dr * Math.min(1, dt * 2.6);
@@ -853,21 +915,21 @@ function frame() {
     a.v = lerp(a.v || 0, want, Math.min(1, dt * 1.8));
     if (a.v > 0.02) {
       const nx = a.pos.x + Math.sin(a.g.rotation.y) * a.v * dt, nz = a.pos.z + Math.cos(a.g.rotation.y) * a.v * dt, ny = height(nx, nz), rv = riverNear(nx, nz);
-      if (ny > 1.5 && zoneAt(nx, nz, ny) === a.zone && !(rv.i >= 0 && rv.d < riverW(rv.i) * 0.9)) { a.pos.x = nx; a.pos.z = nz; }   // 강물에는 안 들어가요
+      if (called && a.move === 'walk' ? ny > 0.4 && !(rv.i >= 0 && rv.d < riverW(rv.i) * 0.9) : okFor(a, nx, nz)) { a.pos.x = nx; a.pos.z = nz; }   // 제 구역 안에서만 (부르면 조금 벗어나도 돼요)
       else { a.target = null; a.wait = 1; a.v = 0; a.call = 0; }
     }
     // 내 둘레 거리 두기: 큰 동물일수록 넉넉히 (카메라가 몸 안에 들어가지 않게)
     const room = mode === 'photo' ? 1.6 + a.tagH * 1.2 : Math.max(1.3, a.tagH * 0.75), dxm = a.pos.x - me.pos.x, dzm = a.pos.z - me.pos.z;
     if (dMe < room && dMe > 0.01) { const push = (room - dMe) * Math.min(1, dt * 4); a.pos.x += (dxm / dMe) * push; a.pos.z += (dzm / dMe) * push; }
     const walking = a.v > 0.05;
-    a.pos.y = height(a.pos.x, a.pos.z);
+    a.pos.y = a.move === 'swim' ? (SEA_Y[a.id] ?? -0.2) + Math.sin(T * 0.9 + a.t) * 0.06 : height(a.pos.x, a.pos.z);
     a.g.position.copy(a.pos);
-    if (a.st) { a.st.walk = Math.min(1, a.v / a.speed); if (a.g.visible) a.st.update(T, dt); }
+    if (a.st) { a.st.walk = a.speed ? Math.min(1, a.v / a.speed) : 0; if (a.g.visible) a.st.update(T, dt); }
     if (a.heart > 0) a.heart -= dt;
     // 이름표
     const on = dMe < 14 && mode !== 'photo';
     a.tag.classList.toggle('on', on);
-    if (on) { const tx = (a.heart > 0 ? '♥ ' : '') + a.name; if (a.tag.textContent !== tx) a.tag.textContent = tx; V.copy(a.pos); V.y += a.tagH; V.project(camera); a.tag.style.transform = `translate(${(V.x * 0.5 + 0.5) * innerWidth}px, ${(-V.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`; if (V.z > 1) a.tag.classList.remove('on'); }
+    if (on) { const tx = (a.heart > 0 ? '♥ ' : '') + a.name; if (a.tag.textContent !== tx) a.tag.textContent = tx; V.copy(a.pos); V.y += a.tagH; V.project(camera); const tx2 = (V.x * 0.5 + 0.5) * innerWidth, ty2 = (-V.y * 0.5 + 0.5) * innerHeight; a.tag.style.transform = `translate(${tx2}px, ${ty2}px) translate(-50%, -100%)`; if (V.z > 1 || behindMe(tx2, ty2, camera.position.distanceTo(a.pos))) a.tag.classList.remove('on'); }
   }
   for (const d of dolphins) { const k = ((T * 0.35 + d.phase) % 3) / 3, j = Math.sin(k * Math.PI); d.g.position.set(d.cx + k * 26, k < 1 ? j * 4 - 1.2 : -3, d.cz); d.g.rotation.x = -Math.cos(k * Math.PI) * 0.9; d.g.rotation.order = 'YXZ'; d.g.rotation.y = Math.PI / 2; d.st.update(T); }
 

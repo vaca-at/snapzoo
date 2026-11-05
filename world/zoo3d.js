@@ -434,4 +434,4 @@ function acaciaGeos(seed = 1) {
   const strip = (gs) => mergeGeometries(gs.map((g) => { const n = g.index ? g.toNonIndexed() : g; for (const k of Object.keys(n.attributes)) if (k !== 'position' && k !== 'normal') n.deleteAttribute(k); return n; }));
   return { bark: strip(bark), leaf: strip(leaf) };
 }
-export { LOOKS, HATS, THREE, S, plain, tube, ell, M, J, V, rng, smooth, NOISE, coatMat, bakeCoat, SPECIES, walker, skyDome, cloudTex, LOOK, acaciaGeos };
+export { COATS, quad, eye, prof, LOOKS, HATS, THREE, S, plain, tube, ell, M, J, V, rng, smooth, NOISE, coatMat, bakeCoat, SPECIES, walker, skyDome, cloudTex, LOOK, acaciaGeos };
