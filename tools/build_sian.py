@@ -18,6 +18,7 @@ PAGES = {
     'char': ('_char_tpl.html', '캐릭터그림체시안.html'),
     'herd': ('_herd_tpl.html', '초원식구들.html'),
     'meta': ('_meta_tpl.html', '메타버스3D시안.html'),
+    'brand3d': ('_brand3d_tpl.html', '아이콘미리보기로딩시안.html'),   # __ZOO__ = world/zoo3d.js (게임과 같은 그림 도구)
 }
 
 def font_b64():
@@ -32,7 +33,7 @@ def main():
     font, engine = font_b64(), (SIAN / '_cel_engine.js').read_text()
     for n in names:
         src, out = PAGES[n]
-        html = (SIAN / src).read_text().replace('__ENGINE__', engine).replace('__FONT__', font)
+        html = (SIAN / src).read_text().replace('__ENGINE__', engine).replace('__ZOO__', (ROOT / 'world' / 'zoo3d.js').read_text()).replace('__FONT__', font)
         (SIAN / out).write_text(html)
         print('만듦:', out, f'{len(html) // 1024} KB')
 

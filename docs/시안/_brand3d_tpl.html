@@ -1,0 +1,272 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스냅주 아이콘 · 미리보기 · 로딩</title>
+<style>
+@font-face { font-family: 'OngleipUnz'; src: url(data:font/woff2;base64,__FONT__) format('woff2'); font-display: block; }
+:root {
+  --bg: #f3ece0; --paper: #fffaf1; --ink: #3a2e24; --soft: #7a6a5a; --line: #e2d6c2; --accent: #c8553d;
+  --hand: "OngleipUnz", "Apple SD Gothic Neo", sans-serif; --body: "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #1e1a16; --paper: #2a241e; --ink: #f0e6d8; --soft: #b8a894; --line: #3e352c; --accent: #e8836a; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg: #1e1a16; --paper: #2a241e; --ink: #f0e6d8; --soft: #b8a894; --line: #3e352c; --accent: #e8836a; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.6; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 26px max(16px, env(safe-area-inset-right, 0px)) 60px max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 20px; }
+.eyebrow { margin: 0; font-family: var(--hand); color: var(--accent); font-size: 18px; }
+h1 { margin: 2px 0 6px; font-family: var(--hand); font-weight: 400; font-size: clamp(34px, 6.4vw, 54px); line-height: 1.05; }
+h2 { margin: 18px 0 0; font-family: var(--hand); font-weight: 400; font-size: 34px; }
+.lead { margin: 0; color: var(--soft); max-width: 74ch; }
+.row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 860px) { .row { grid-template-columns: 1fr; } }
+.card { background: var(--paper); border: 1.5px solid var(--line); border-radius: 20px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.card .t { display: flex; gap: 8px; align-items: center; }
+.card .t i { font-style: normal; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: var(--paper); font-family: var(--hand); font-size: 19px; flex: none; }
+.card .t b { font-family: var(--hand); font-weight: 400; font-size: 25px; line-height: 1.1; }
+.card p { margin: 0; color: var(--soft); font-size: 13.5px; }
+canvas { display: block; max-width: 100%; }
+.icons { display: flex; gap: 14px; align-items: flex-end; justify-content: center; padding: 8px 0; flex-wrap: wrap; }
+.icons canvas { border-radius: 22.5%; box-shadow: 0 6px 18px rgba(40,25,10,.22); }
+.icons figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--soft); }
+.og canvas { width: 100%; height: auto; border-radius: 12px; box-shadow: 0 6px 18px rgba(40,25,10,.18); }
+.share { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); }
+.share canvas { border-radius: 0; box-shadow: none; }
+.share div { padding: 8px 12px; font-size: 13px; color: var(--soft); }
+.share div b { display: block; color: var(--ink); font-size: 14px; }
+.phone { width: min(100%, 250px); margin: 0 auto; aspect-ratio: 9 / 19.5; border-radius: 34px; padding: 9px; background: #1c1814; box-shadow: 0 10px 28px rgba(40,25,10,.28); }
+.phone canvas { width: 100%; height: 100%; border-radius: 26px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">③ 극장판 부드러운 3D에 맞춘 얼굴들</p>
+    <h1>아이콘 · 가로 미리보기 · 로딩 화면</h1>
+    <p class="lead">따로 그린 그림이 아니라 게임 속 3D 동물 · 산책자 · 노을 초원을 그대로 찍어 만들었어요. 그래서 처음 보는 아이콘부터 들어가는 화면까지 같은 느낌이에요. 종류마다 A · B · C 중 하나씩 골라 주세요. 로딩 화면은 실제처럼 움직여요.</p>
+  </header>
+
+  <h2>앱 아이콘</h2>
+  <div class="row" id="icons"></div>
+  <h2>가로 미리보기 (링크 공유 · 1200×630)</h2>
+  <div class="row" id="ogs"></div>
+  <h2>로딩 화면</h2>
+  <div class="row" id="loads"></div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+</script>
+<script type="module">
+__ZOO__
+// =====================================================================
+// 여기부터 시안 페이지: zoo3d.js(게임과 같은 그림 도구)로 장면을 찍어 2D 로 꾸며요
+// =====================================================================
+const LK0 = LOOK.soft, SUN = new THREE.Vector3(0.75, 0.22, -0.62).normalize();
+const FONT = 'OngleipUnz, sans-serif';
+const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const gH = (x, z) => 0.5 * Math.sin(x * 0.05) * Math.cos(z * 0.04) + 0.3 * Math.sin((x + z) * 0.08) + sm(70, 220, Math.hypot(x, z)) * 14;
+const BLADE = (() => { const g = new THREE.BufferGeometry(), w = 0.05; g.setAttribute('position', new THREE.Float32BufferAttribute([-w, 0, 0, w, 0, 0, -w * 0.7, 0.45, 0.02, w * 0.7, 0.45, 0.02, -w * 0.3, 0.8, 0.05, w * 0.3, 0.8, 0.05, 0, 1, 0.1], 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 0.45, 1, 0.45, 0, 0.8, 1, 0.8, 0.5, 1], 2)); g.setIndex([0, 1, 2, 2, 1, 3, 2, 3, 4, 4, 3, 5, 4, 5, 6]); return g; })();
+// ── 장면 하나: 땅 색 · 하늘 색 · 풀 여부만 바꿔 초원 · 눈밭 · 사막
+function land(o = {}) {
+  const L = { ...LK0, ...o.look }, sc = new THREE.Scene(), r = rng(o.seed || 3);
+  sc.fog = new THREE.Fog(L.fog, o.fogN ?? 30, o.fogF ?? 260);
+  sc.add(skyDome(L.top, L.mid, L.hor, SUN, L.glow));
+  sc.add(new THREE.HemisphereLight(L.hemi[0], L.hemi[1], L.hemi[2] * 1.4));
+  const sun = new THREE.DirectionalLight(L.sunC, L.sunI); sun.position.copy(SUN).multiplyScalar(60); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -25, right: 25, top: 25, bottom: -25, near: 1, far: 140 }); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03; sc.add(sun, sun.target);
+  const gg = new THREE.PlaneGeometry(600, 600, 160, 160); gg.rotateX(-Math.PI / 2); const pa = gg.attributes.position, col = new Float32Array(pa.count * 3), A = new THREE.Color(o.gA || '#c8aa5a'), B = new THREE.Color(o.gB || '#a4a648'), c = new THREE.Color();
+  for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), z = pa.getZ(i); pa.setY(i, gH(x, z) * (o.flat ? 0.3 : 1)); c.copy(A).lerp(B, Math.sin(x * 0.09 + Math.sin(z * 0.07) * 2) * 0.5 + 0.5); col.set([c.r, c.g, c.b], i * 3); }
+  gg.setAttribute('color', new THREE.BufferAttribute(col, 3)); gg.computeVertexNormals();
+  const ground = new THREE.Mesh(gg, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 })); ground.receiveShadow = true; sc.add(ground);
+  if (o.pond) { const w = new THREE.Mesh(new THREE.CircleGeometry(o.pond[2], 48), new THREE.MeshStandardMaterial({ color: '#6a90a8', roughness: 0.06, metalness: 0.2 })); w.rotation.x = -Math.PI / 2; w.position.set(o.pond[0], gH(o.pond[0], o.pond[1]) + 0.03, o.pond[1]); sc.add(w); }
+  let gm = null;
+  if (o.grass !== false) {
+    gm = new THREE.ShaderMaterial({ side: THREE.DoubleSide, uniforms: { uTime: { value: 0 }, uRoot: { value: new THREE.Color('#5a6a26') }, uTip: { value: new THREE.Color('#d8b862') }, uGust: { value: new THREE.Color('#fff2c0') }, uFog: { value: new THREE.Color(L.fog) }, uFogN: { value: o.fogN ?? 30 }, uFogF: { value: o.fogF ?? 260 }, uSun: { value: new THREE.Color(L.sunC) } },
+      vertexShader: NOISE + `uniform float uTime; varying float vH,vGust,vDist; varying vec3 vCol; void main(){ vec4 wp=modelMatrix*instanceMatrix*vec4(position,1.0); float h=uv.y; float g=noise(wp.xz*0.05+vec2(-uTime*0.35,uTime*0.12))*0.5+0.5; float gust=smoothstep(0.45,0.95,g); float sway=sin(uTime*1.7+wp.x*0.4+wp.z*0.23)*0.06; wp.x+=(sway+gust*0.4)*h*h; wp.z+=gust*0.16*h*h; wp.y-=gust*0.12*h*h; vH=h; vGust=gust; vCol=instanceColor; vec4 mv=viewMatrix*wp; vDist=-mv.z; gl_Position=projectionMatrix*mv; }`,
+      fragmentShader: `uniform vec3 uRoot,uTip,uGust,uFog,uSun; uniform float uFogN,uFogF; varying float vH,vGust,vDist; varying vec3 vCol; void main(){ vec3 c=mix(uRoot,uTip*vCol,smoothstep(0.0,1.0,vH)); c=mix(c,uGust,vGust*vH*0.55); c*=0.8+0.4*vH; c+=uSun*pow(vH,3.0)*0.2; c=mix(c,uFog,smoothstep(uFogN,uFogF,vDist)); gl_FragColor=vec4(c,1.0);
+        #include <colorspace_fragment>
+      }` });
+    const N = 40000, im = new THREE.InstancedMesh(BLADE, gm, N), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s3 = new THREE.Vector3(), cc = new THREE.Color();
+    let k = 0; while (k < N) { const a = r() * Math.PI * 2, d = Math.sqrt(r()) * 34, x = Math.sin(a) * d + (o.gx || 0), z = Math.cos(a) * d + (o.gz || 0); if (o.pond && Math.hypot(x - o.pond[0], z - o.pond[1]) < o.pond[2] + 0.5) continue; const s = 0.32 + r() * 0.3; q.setFromEuler(e.set(0, r() * 6, (r() - 0.5) * 0.3)); im.setMatrixAt(k, m4.compose(v.set(x, gH(x, z) - 0.03, z), q, s3.set(s, s * (0.55 + r() * 0.7), s))); im.setColorAt(k, cc.setScalar(0.9 + r() * 0.25)); k++; }
+    im.frustumCulled = false; sc.add(im);
+  }
+  if (o.trees) { const ag = acaciaGeos(3), bark = plain('#6a5038'), leaf = plain('#6f8a36'); for (const [x, z, s] of o.trees) { const t = new THREE.Group(); t.position.set(x, gH(x, z), z); t.scale.setScalar(s); t.rotation.y = x; const b = new THREE.Mesh(ag.bark, bark), l = new THREE.Mesh(ag.leaf, leaf); b.castShadow = l.castShadow = true; t.add(b, l); sc.add(t); } }
+  const actors = [];
+  const put = (mk, x, z, ry, s = 1) => { const a = mk(); a.root.position.set(x, gH(x, z) * (o.flat ? 0.3 : 1), z); a.root.rotation.y = ry; a.root.scale.setScalar(s); sc.add(a.root); actors.push(a); return a; };
+  return { sc, put, actors, sun, update(t, dt) { if (gm) gm.uniforms.uTime.value = t; actors.forEach((a) => a.update(t, dt)); } };
+}
+const randTrees = (n, seed, R0 = 40, R1 = 160) => { const r = rng(seed), out = []; for (let i = 0; i < n; i++) { const a = r() * 6.28, d = R0 + r() * (R1 - R0); out.push([Math.sin(a) * d, Math.cos(a) * d - 30, 0.9 + r() * 0.6]); } return out; };
+// ── 그리기 도구: 렌더러 하나로 찍어서 2D 캔버스에 옮겨 담기
+const GL = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); GL.outputColorSpace = THREE.SRGBColorSpace; GL.toneMapping = THREE.ACESFilmicToneMapping; GL.toneMappingExposure = LK0.exp; GL.shadowMap.enabled = true; GL.shadowMap.type = THREE.PCFSoftShadowMap; GL.setPixelRatio(1);
+function snap(S, cam, w, h) { GL.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); GL.render(S.sc, cam); return GL.domElement; }
+function camAt(p, look, fov = 40) { const c = new THREE.PerspectiveCamera(fov, 1, 0.05, 2000); c.position.set(...p); c.lookAt(...look); return c; }
+const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+function paperNoise(g, w, h, a = 0.05) { const r = rng(7); for (let i = 0; i < w * h / 600; i++) { g.fillStyle = `rgba(120,95,60,${r() * a})`; g.fillRect(r() * w, r() * h, 2, 2); } }
+function polaroid(g, img, x, y, w, rot, cap, sub) {
+  const ph = w * 0.75, pad = w * 0.045, H = ph + pad * 2 + w * 0.2;
+  g.save(); g.translate(x, y); g.rotate(rot); g.shadowColor = 'rgba(40,25,10,.35)'; g.shadowBlur = w * 0.06; g.shadowOffsetY = w * 0.02;
+  g.fillStyle = '#fbf8f0'; g.fillRect(-w / 2 - pad, -H / 2, w + pad * 2, H); g.shadowColor = 'transparent';
+  g.drawImage(img, -w / 2, -H / 2 + pad, w, ph);
+  if (cap) { g.fillStyle = '#3a2e24'; g.font = `${w * 0.085}px ${FONT}`; g.fillText(cap, -w / 2 + 4, -H / 2 + pad + ph + w * 0.11); }
+  if (sub) { g.fillStyle = '#8a7a6a'; g.font = `${w * 0.055}px ${FONT}`; g.fillText(sub, -w / 2 + 4, -H / 2 + pad + ph + w * 0.18); }
+  g.restore();
+}
+
+// ── 장면들
+const SAV = land({ pond: [6, -10, 7], trees: [[16, -18, 1.25], [-14, -26, 1.1], [24, -40, 1], ...randTrees(26, 5)] });
+SAV.put(() => SPECIES.elephant(), -1.6, -4.6, 2.3, 1.05).drink = true;
+SAV.put(() => SPECIES.giraffe(), 13, -15, -0.8, 1.3); SAV.put(() => SPECIES.giraffe(), 10.5, -19, 0.4, 1.05);
+SAV.put(() => SPECIES.zebra(), -4, -9, 0.9); SAV.put(() => SPECIES.zebra(), -6.5, -12, 1.3, 0.95);
+SAV.put(() => SPECIES.gazelle(), 3, -2.5, -2.2); SAV.put(() => SPECIES.gazelle(), 5.5, -1.2, -1.4, 0.95); SAV.put(() => SPECIES.gazelle(), 1.8, -0.3, 0.7);
+SAV.put(() => SPECIES.gnu(), -10, -18, 0.5); SAV.put(() => SPECIES.gnu(), -13, -15, 1.1, 0.95);
+const ME = SAV.put(() => walker(0), -1.2, 5, Math.PI * 0.82, 1);
+// 친구들 (C 미리보기용) — 같은 초원에 옷이 다른 산책자 넷
+const FR = [[2.6, 2.2, -2.6, 1], [-3.6, 1.2, 2.4, 2], [4.4, -3.6, -1.9, 3], [-2.2, -2.6, 2.0, 4]].map(([x, z, ry, l]) => SAV.put(() => walker(l), x + 6, z + 6, ry, 1));
+FR.forEach((f) => (f.root.visible = false));
+const SNOW = land({ look: { top: '#6a88b8', mid: '#c8b8c8', hor: '#f6dcc8', fog: '#e6e2ea' }, gA: '#f4f2f2', gB: '#e6eaf0', grass: false, flat: true, fogN: 20, fogF: 160 });
+SNOW.put(() => SPECIES.penguin(), 0, 0, 0.4, 1.4); SNOW.put(() => SPECIES.penguin(), 0.9, -0.6, -0.3, 1.25); SNOW.put(() => SPECIES.penguin(), -0.8, -0.9, 0.9, 1.3); SNOW.put(() => SPECIES.polarbear(), 3.4, -4.5, -0.6, 1.0);
+const DES = land({ look: { fog: '#f2d2a2' }, gA: '#e6b87a', gB: '#d8a064', grass: false, fogN: 30, fogF: 200 });
+DES.put(() => SPECIES.camel(), 0, 0, 0.9, 1.0); DES.put(() => SPECIES.camel(), -2.6, -3, 1.3, 0.9); DES.put(() => SPECIES.fennec(), 1.6, 1.4, -0.5, 1.6);
+// 아이콘 B: 산책자 얼굴만 (따뜻한 바탕)
+const PORT = { sc: new THREE.Scene(), actors: [], update(t, dt) { this.actors.forEach((a) => a.update(t, dt)); } };
+PORT.sc.background = new THREE.Color('#f2b878');
+PORT.sc.add(new THREE.HemisphereLight('#ffe8cc', '#8a5a3a', 1.3)); { const d = new THREE.DirectionalLight('#fff0d8', 2.4); d.position.set(-2, 3, 4); PORT.sc.add(d); const rim = new THREE.DirectionalLight('#ffd090', 2.6); rim.position.set(3, 2, -3); PORT.sc.add(rim); }
+{ const w = walker(0); w.root.rotation.y = 0.32; PORT.sc.add(w.root); PORT.actors.push(w); }
+// 장면 안 동물을 조금 움직여 둔 뒤 찍기
+function settle(S, t = 3.2) { for (let i = 0; i < 20; i++) S.update(t + i * 0.05, 0.05); }
+
+// =====================================================================
+// 아이콘 세 개
+// =====================================================================
+function iconA(sz) {   // 노을 속 기린
+  settle(SAV, 4);
+  const img = snap(SAV, camAt([7.5, 1.3, -2], [13.6, 3.0, -15.2], 36), sz, sz);
+  const c = mk(sz, sz), g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const v = g.createRadialGradient(sz / 2, sz / 2, sz * 0.35, sz / 2, sz / 2, sz * 0.75); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(60,25,10,.35)'); g.fillStyle = v; g.fillRect(0, 0, sz, sz);
+  return c;
+}
+function iconB(sz) {   // 밀짚모자 산책자
+  settle(PORT, 2);
+  const img = snap(PORT, camAt([0.1, 1.6, 1.15], [0, 1.53, 0], 30), sz, sz);
+  const c = mk(sz, sz), g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const sunG = g.createRadialGradient(sz * 0.82, sz * 0.2, 0, sz * 0.82, sz * 0.2, sz * 0.35); sunG.addColorStop(0, 'rgba(255,240,200,.55)'); sunG.addColorStop(1, 'rgba(255,240,200,0)'); g.globalCompositeOperation = 'screen'; g.fillStyle = sunG; g.fillRect(0, 0, sz, sz); g.globalCompositeOperation = 'source-over';
+  return c;
+}
+function iconC(sz) {   // 폴라로이드 속 아기 코끼리
+  settle(SAV, 6);
+  const shot = mk(400, 300); shot.getContext('2d').drawImage(snap(SAV, camAt([-4.6, 1.05, -1.6], [-1.0, 0.75, -5.4], 38), 400, 300), 0, 0);
+  const c = mk(sz, sz), g = c.getContext('2d');
+  const bg = g.createLinearGradient(0, 0, 0, sz); bg.addColorStop(0, '#f6c88a'); bg.addColorStop(1, '#d8764e'); g.fillStyle = bg; g.fillRect(0, 0, sz, sz);
+  polaroid(g, shot, sz * 0.5, sz * 0.53, sz * 0.66, -0.12);
+  return c;
+}
+// =====================================================================
+// 가로 미리보기 세 개 (1200 × 630)
+// =====================================================================
+const TITLE = '스냅주', TAG = '노을 진 섬에서 동물과 걷는 힐링 메타버스';
+function ogA() {
+  ME.root.visible = true; FR.forEach((f) => (f.root.visible = false)); settle(SAV, 5);
+  const img = snap(SAV, camAt([-3.2, 1.55, 9.5], [4, 1.9, -12], 42), 1200, 630);
+  const c = mk(1200, 630), g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const L = g.createLinearGradient(0, 0, 640, 0); L.addColorStop(0, 'rgba(40,22,10,.55)'); L.addColorStop(1, 'rgba(40,22,10,0)'); g.fillStyle = L; g.fillRect(0, 0, 1200, 630);
+  g.fillStyle = '#fff6e6'; g.shadowColor = 'rgba(40,20,5,.45)'; g.shadowBlur = 18; g.font = `150px ${FONT}`; g.fillText(TITLE, 70, 300);
+  g.font = `40px ${FONT}`; g.fillText(TAG.slice(0, 11), 76, 375); g.fillText(TAG.slice(12), 76, 428); g.shadowColor = 'transparent';
+  g.fillStyle = 'rgba(255,246,230,.85)'; g.font = `30px ${FONT}`; g.fillText('snapzoo.site', 78, 560);
+  return c;
+}
+function ogB() {
+  settle(SAV, 7); settle(SNOW, 3); settle(DES, 3);
+  const shots = [[SAV, camAt([-8.5, 1.2, -4.5], [-4.6, 1.0, -9.6], 40)], [SNOW, camAt([0.6, 0.85, 3.4], [0.1, 0.55, -0.4], 40)], [DES, camAt([4.2, 1.6, 4.6], [-0.4, 1.3, -0.8], 42)]].map(([S, cm]) => { const s = mk(480, 360); s.getContext('2d').drawImage(snap(S, cm, 480, 360), 0, 0); return s; });
+  const c = mk(1200, 630), g = c.getContext('2d');
+  const bg = g.createLinearGradient(0, 0, 1200, 630); bg.addColorStop(0, '#f8dcb0'); bg.addColorStop(1, '#e89a6a'); g.fillStyle = bg; g.fillRect(0, 0, 1200, 630); paperNoise(g, 1200, 630, 0.06);
+  polaroid(g, shots[0], 690, 250, 330, -0.09, '🦁 초원', '얼룩말과 함께');
+  polaroid(g, shots[2], 1030, 340, 280, 0.08, '🏜️ 사막', '낙타와 함께');
+  polaroid(g, shots[1], 820, 470, 260, 0.03, '🐧 북극', '펭귄과 함께');
+  g.fillStyle = '#3a2416'; g.font = `140px ${FONT}`; g.fillText(TITLE, 62, 250);
+  g.font = `36px ${FONT}`; g.fillStyle = '#5a3a26'; g.fillText('노을 진 섬을 걸으며', 68, 330); g.fillText('동물 친구들을 사진에 담아요', 68, 380);
+  g.font = `28px ${FONT}`; g.fillStyle = 'rgba(58,36,22,.7)'; g.fillText('snapzoo.site', 70, 560);
+  return c;
+}
+function ogC() {
+  ME.root.visible = true; FR.forEach((f) => (f.root.visible = true)); ME.root.position.set(5.2, gH(5.2, 4.8), 4.8); ME.root.rotation.y = -2.9; settle(SAV, 8);
+  FR[0].waveT = 2; ME.waveT = 1.6; settle(SAV, 9.2);
+  const img = snap(SAV, camAt([4.0, 2.0, 13.5], [5.6, 1.0, 2.0], 40), 1200, 630);
+  const c = mk(1200, 630), g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const T = g.createLinearGradient(0, 0, 0, 260); T.addColorStop(0, 'rgba(50,25,10,.5)'); T.addColorStop(1, 'rgba(50,25,10,0)'); g.fillStyle = T; g.fillRect(0, 0, 1200, 260);
+  g.fillStyle = '#fff6e6'; g.shadowColor = 'rgba(40,20,5,.45)'; g.shadowBlur = 16; g.textAlign = 'center'; g.font = `112px ${FONT}`; g.fillText(TITLE, 600, 130);
+  g.font = `36px ${FONT}`; g.fillText('친구와 같은 노을을 걸어요 · 👋 손 흔들면 동물이 다가와요', 600, 190); g.shadowColor = 'transparent'; g.textAlign = 'left';
+  // 이름표처럼
+  const tag = (txt, x, y) => { g.font = `24px ${FONT}`; const w = g.measureText(txt).width + 26; g.fillStyle = 'rgba(255,244,214,.95)'; g.strokeStyle = '#e0b84a'; g.lineWidth = 2; g.beginPath(); g.roundRect(x - w / 2, y - 20, w, 36, 18); g.fill(); g.stroke(); g.fillStyle = '#3a2e24'; g.textAlign = 'center'; g.fillText(txt, x, y + 7); g.textAlign = 'left'; };
+  const p = new THREE.Vector3(), cam = camAt([4.0, 2.0, 13.5], [5.6, 1.0, 2.0], 40); cam.aspect = 1200 / 630; cam.updateProjectionMatrix();
+  [[FR[0], '👋 다정한 수달'], [FR[1], '느긋한 고래'], [FR[2], '반가운 참새'], [ME, '나 · 포근한 여우']].forEach(([a, n]) => { p.copy(a.root.position); p.y += 2.0; p.project(cam); if (Math.abs(p.x) < 1) tag(n, (p.x * 0.5 + 0.5) * 1200, (-p.y * 0.5 + 0.5) * 630); });
+  FR.forEach((f) => (f.root.visible = false)); ME.root.position.set(-1.2, gH(-1.2, 5), 5); ME.root.rotation.y = Math.PI * 0.82;
+  return c;
+}
+
+// =====================================================================
+// 로딩 화면 세 개 (움직여요): 각자 캔버스 + 진행 0→100% 되풀이
+// =====================================================================
+const LW = 390, LH = 845;
+const loadsDef = [
+  ['A', '노을 지평선', '노을 초원이 천천히 흘러가고, 아래에 가는 진행선 하나. 덮개 없이 그대로 게임 첫 장면으로 이어져요.', (g, t, k) => {
+    const a = t * 0.05; const cam = camAt([Math.sin(a) * 4 - 2, 1.5, 9 + Math.cos(a) * 2], [4, 2.1, -12], 46);
+    g.drawImage(snap(SAV, cam, LW, LH), 0, 0);
+    const v = g.createLinearGradient(0, LH * 0.45, 0, LH); v.addColorStop(0, 'rgba(40,20,8,0)'); v.addColorStop(1, 'rgba(40,20,8,.55)'); g.fillStyle = v; g.fillRect(0, 0, LW, LH);
+    g.textAlign = 'center'; g.fillStyle = '#fff6e6'; g.shadowColor = 'rgba(40,20,5,.5)'; g.shadowBlur = 14; g.font = `92px ${FONT}`; g.fillText('스냅주', LW / 2, LH * 0.62);
+    g.font = `22px ${FONT}`; g.fillText('노을 진 섬으로 들어가는 중', LW / 2, LH * 0.62 + 44); g.shadowColor = 'transparent';
+    g.fillStyle = 'rgba(255,246,230,.3)'; g.fillRect(70, LH - 120, LW - 140, 3); g.fillStyle = '#fff6e6'; g.fillRect(70, LH - 120, (LW - 140) * k, 3);
+    g.font = `18px ${FONT}`; g.fillStyle = 'rgba(255,246,230,.9)'; g.fillText('👋 손을 흔들면 가까운 동물이 다가와요', LW / 2, LH - 80); g.textAlign = 'left';
+  }],
+  ['B', '폴라로이드 현상', '하얀 폴라로이드에 섬 풍경이 서서히 떠올라요. 다 떠오르면 그 사진 속으로 들어가요. 사진 찍는 게임이라는 걸 첫 화면부터 보여 줘요.', (g, t, k) => {
+    const bg = g.createLinearGradient(0, 0, 0, LH); bg.addColorStop(0, '#f8dcb0'); bg.addColorStop(1, '#e48e62'); g.fillStyle = bg; g.fillRect(0, 0, LW, LH); paperNoise(g, LW, LH, 0.05);
+    const a = t * 0.06; const shot = snap(SAV, camAt([-3 + Math.sin(a), 1.4, 7], [3, 1.6, -10], 44), 480, 360);
+    const pc = mk(480, 360), pg = pc.getContext('2d'); pg.drawImage(shot, 0, 0); pg.fillStyle = `rgba(250,246,236,${1 - sm(0.05, 0.95, k)})`; pg.fillRect(0, 0, 480, 360);
+    pg.fillStyle = `rgba(80,60,40,${0.25 * (1 - k)})`; pg.fillRect(0, 0, 480, 360);
+    polaroid(g, pc, LW / 2, LH * 0.45, 290, Math.sin(t * 0.8) * 0.02 - 0.03, '🦁 초원 · 넓은 들', `${Math.round(k * 100)}% 현상 중…`);
+    g.textAlign = 'center'; g.fillStyle = '#3a2416'; g.font = `64px ${FONT}`; g.fillText('스냅주', LW / 2, LH * 0.82); g.font = `19px ${FONT}`; g.fillStyle = '#5a3a26'; g.fillText('📷 스페이스로 찰칵, 앨범에 모여요', LW / 2, LH * 0.82 + 38); g.textAlign = 'left';
+  }],
+  ['C', '산책자 걸음', '해 지는 언덕 위를 산책자 혼자 걸어가고, 발자국이 하나씩 찍히며 차올라요. 가장 조용하고 가벼운 안이에요.', (g, t, k) => {
+    WALK.update(t, 1 / 60); WALK.root.position.set(0, 0, 0);
+    const img = snap(WK, WKcam, LW, LH); g.drawImage(img, 0, 0);
+    g.textAlign = 'center'; g.fillStyle = '#fff6e6'; g.shadowColor = 'rgba(40,20,5,.4)'; g.shadowBlur = 12; g.font = `80px ${FONT}`; g.fillText('스냅주', LW / 2, LH * 0.2); g.font = `20px ${FONT}`; g.fillText('섬으로 걸어가는 중', LW / 2, LH * 0.2 + 40); g.shadowColor = 'transparent';
+    const n = 10, on = Math.floor(k * n + 0.001);
+    for (let i = 0; i < n; i++) { const x = LW / 2 - 135 + i * 30, y = LH - 120 + (i % 2) * 14; g.save(); g.translate(x, y); g.rotate(0.25); g.fillStyle = i < on ? 'rgba(255,246,230,.95)' : 'rgba(255,246,230,.28)'; g.beginPath(); g.ellipse(0, 0, 6, 10, 0, 0, 7); g.fill(); g.beginPath(); g.ellipse(1, -14, 4, 4, 0, 0, 7); g.fill(); g.restore(); }
+    g.font = `18px ${FONT}`; g.fillStyle = 'rgba(255,246,230,.9)'; g.fillText(`${Math.round(k * 100)}%`, LW / 2, LH - 70); g.textAlign = 'left';
+  }],
+];
+// 로딩 C 용: 노을 앞 언덕 위 산책자 (옆모습, 실루엣에 가깝게)
+const WK = { sc: new THREE.Scene() }, WALK = walker(0); WALK.walk = 1;
+WK.sc.background = null; WK.sc.add(skyDome('#5a6aa8', '#e89a7a', '#ffd8a0', new THREE.Vector3(0, 0.12, -1), '#fff0c8'));
+WK.sc.add(new THREE.HemisphereLight('#ffd8b0', '#3a2a20', 0.7)); { const d = new THREE.DirectionalLight('#ffc880', 2.2); d.position.set(0, 1, -4); WK.sc.add(d); }
+{ const hill = new THREE.Mesh(new THREE.SphereGeometry(30, 64, 32), new THREE.MeshStandardMaterial({ color: '#4a3a2a', roughness: 1 })); hill.position.set(0, -30, 0); WK.sc.add(hill); }
+WALK.root.rotation.y = Math.PI / 2; WK.sc.add(WALK.root);
+const WKcam = camAt([0, 1.0, 6.4], [0.3, 1.25, 0], 40);
+
+// =====================================================================
+// 화면에 놓기
+// =====================================================================
+const ICONS = [['A', '노을 속 기린', '해 질 녘 금빛 역광 속 아기 기린과 아카시아. 멀리서도 ‘초원 · 노을’이 한눈에 보여요.', iconA], ['B', '밀짚모자 산책자', '주인공 얼굴과 밀짚모자 · 빨간 리본. 사람 냄새 나는 따뜻한 아이콘이에요.', iconB], ['C', '폴라로이드 코끼리', '노을빛 바탕에 비스듬한 폴라로이드, 그 안에 물 마시는 아기 코끼리. 사진 찍는 게임이라는 게 바로 보여요.', iconC]];
+const OGS = [['A', '노을 초원 와이드', '산책자 뒤에서 물웅덩이 쪽 동물 무리를 바라보는 영화 같은 장면에 제목.', ogA], ['B', '구역 폴라로이드 콜라주', '초원 · 북극 · 사막에서 찍은 폴라로이드 세 장. 섬이 넓고 사진을 모으는 게임이라는 걸 보여 줘요.', ogB], ['C', '친구들과 물가에서', '옷이 다른 친구 넷이 노을 물가에 모여 손을 흔들어요. 메타버스라는 걸 강조해요.', ogC]];
+document.fonts.load(`40px OngleipUnz`).then(() => document.fonts.ready).then(() => {
+  const card = (L, n, d, inner) => `<article class="card"><div class="t"><i>${L}</i><b>${n}</b></div>${inner}<p>${d}</p></article>`;
+  document.getElementById('icons').innerHTML = ICONS.map(([L, n, d], i) => card(L, n, d, `<div class="icons" data-i="${i}"></div>`)).join('');
+  document.getElementById('ogs').innerHTML = OGS.map(([L, n, d], i) => card(L, n, d, `<div class="og share" data-i="${i}"><div><b>스냅주 · 노을 진 섬의 힐링 메타버스</b>snapzoo.site</div></div>`)).join('');
+  document.getElementById('loads').innerHTML = loadsDef.map(([L, n, d], i) => card(L, n, d, `<div class="phone" data-i="${i}"></div>`)).join('');
+  // 아이콘: 크게 하나 그리고 줄여서 세 크기
+  document.querySelectorAll('.icons').forEach((el) => {
+    const big = ICONS[+el.dataset.i][3](512);
+    for (const [s, lab] of [[150, '홈 화면'], [72, '작게'], [36, '탭']]) { const c = mk(s * 2, s * 2); c.style.width = c.style.height = s + 'px'; c.getContext('2d').drawImage(big, 0, 0, s * 2, s * 2); const f = document.createElement('figure'); f.append(c); const cap = document.createElement('figcaption'); cap.textContent = lab; f.append(cap); el.append(f); }
+  });
+  document.querySelectorAll('.og').forEach((el) => { const c = OGS[+el.dataset.i][3](); el.prepend(c); });
+  // 로딩: 움직이는 캔버스
+  const phones = [...document.querySelectorAll('.phone')].map((el) => { const c = mk(LW, LH); el.append(c); return { c, g: c.getContext('2d'), f: loadsDef[+el.dataset.i][3] }; });
+  ME.root.visible = true;
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let t0 = performance.now(), last = t0;
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now; const t = still ? 3 : (now - t0) / 1000, k = still ? 0.62 : (t % 7) / 6.2;
+    SAV.update(t, dt);
+    phones.forEach((p) => { const r = p.c.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight) return; p.f(p.g, t, Math.min(1, k)); });
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  window.__ok = true;
+});
+</script>
