@@ -4,8 +4,26 @@
 <meta charset="utf-8">
 <!-- snapzoo.site 첫 화면 = 어른용 스냅주 섬 (그림 · 놀이 코드는 world/ 폴더). 아이용은 /kids/ -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>스냅주</title>
-<meta name="theme-color" content="#8fc3ec">
+<title>Snapzoo · 스냅주</title>
+<meta name="theme-color" content="#e8a070">
+<meta name="description" content="노을 진 섬에서 동물과 걷는 힐링 메타버스. 사진을 찍고, 친구에게 손을 흔들어요.">
+<link rel="icon" type="image/png" sizes="32x32" href="brand/icon-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="brand/icon-64.png">
+<link rel="apple-touch-icon" href="brand/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Snapzoo">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Snapzoo · 스냅주">
+<meta property="og:title" content="Snapzoo · 노을 진 섬의 힐링 메타버스">
+<meta property="og:description" content="노을 진 섬에서 동물과 걷고, 사진을 찍고, 친구에게 손을 흔들어요.">
+<meta property="og:url" content="https://snapzoo.site/">
+<meta property="og:image" content="https://snapzoo.site/brand/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="노을 진 초원의 물웅덩이에 모인 코끼리 · 기린 · 얼룩말과 Snapzoo 글자">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" as="image" href="brand/loading-landscape.jpg" media="(orientation: landscape)">
+<link rel="preload" as="image" href="brand/loading-portrait.jpg" media="(orientation: portrait)">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
@@ -16,7 +34,7 @@
 @font-face { font-family: 'OngleipUnz'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2406-1@1.0/Ownglyph_UNZ-Rg.woff2') format('woff2'); font-display: swap; }
 :root { --ink: #24302a; --paper: rgba(255,252,243,.92); --line: #d8d2bf; --hand: "OngleipUnz", "Apple SD Gothic Neo", sans-serif; }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: #8fc3ec; font-family: var(--hand); color: var(--ink); -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #e8a070; font-family: var(--hand); color: var(--ink); -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
 canvas#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 /* 지금 있는 곳 */
 #zone { position: fixed; left: max(14px, env(safe-area-inset-left)); top: max(12px, env(safe-area-inset-top)); z-index: 3; pointer-events: none; display: flex; flex-direction: column; gap: 2px; }
@@ -58,14 +76,26 @@ canvas#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block
 #viewer img { max-width: min(92vw, 720px); max-height: 74vh; box-shadow: 0 10px 40px rgba(0,0,0,.5); border-radius: 4px; }
 #viewer div { display: flex; gap: 10px; }
 #viewer button, #viewer a { font: 21px var(--hand); background: var(--paper); color: var(--ink); border: 2px solid #5a463a; border-radius: 999px; padding: 7px 18px; cursor: pointer; text-decoration: none; }
-#loading { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; background: linear-gradient(180deg, #8fc3ec, #e9e2c6); color: #fff; font-size: 34px; text-shadow: 0 2px 8px rgba(20,40,30,.4); transition: opacity .8s; }
+/* 로딩 (시안 A '노을 지평선'): 미리 찍어 둔 노을 초원 위에 Snapzoo · 가는 진행선 · 한 줄 도움말 */
+#loading { position: fixed; inset: 0; z-index: 9; color: #fff6e6; background: #e8a070 url(brand/loading-landscape.jpg) center / cover no-repeat; transition: opacity .8s .25s; text-align: center; }
+@media (orientation: portrait) { #loading { background-image: url(brand/loading-portrait.jpg); } }
+#loading::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(40,20,8,0) 40%, rgba(40,20,8,.55)); }
+#loading > * { position: absolute; left: 0; right: 0; text-shadow: 0 2px 12px rgba(40,20,5,.5); }
+#loading b { top: 54%; font-weight: 400; font-size: clamp(64px, 12vw, 120px); line-height: 1; }
+#loading span { top: calc(54% + clamp(72px, 13vw, 132px)); font-size: clamp(19px, 2.6vw, 26px); }
+#loading .bar { bottom: calc(max(22px, env(safe-area-inset-bottom)) + 92px); width: min(64%, 420px); height: 3px; margin: 0 auto; background: rgba(255,246,230,.3); border-radius: 2px; overflow: hidden; }
+#loading .bar i { display: block; height: 100%; width: 0; background: #fff6e6; animation: fill 7s cubic-bezier(.2,.7,.3,1) forwards; }
+@keyframes fill { to { width: 92%; } }
+#loading p { bottom: calc(max(22px, env(safe-area-inset-bottom)) + 44px); margin: 0; font-size: clamp(16px, 2vw, 20px); opacity: .92; }
 #loading.out { opacity: 0; pointer-events: none; }
+#loading.out .bar i { width: 100%; animation: none; transition: width .25s; }
+@media (prefers-reduced-motion: reduce) { #loading .bar i { animation-duration: .01s; } }
 @media (max-width: 560px) { #zone b { font-size: 24px; } #zone small { font-size: 15px; } #mini { width: 96px; height: 96px; } #acts { gap: 6px; width: calc(100% - 20px); justify-content: center; flex-wrap: wrap; } #acts button { font-size: 17px; padding: 6px 11px; } #hint { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 104px); font-size: 16px; } }
 </style>
 </head>
 <body>
 <canvas id="gl" aria-label="스냅주 높은 산과 강 3D 세계. 누른 곳으로 걸어가요, 끌어서 둘러봐요"></canvas>
-<div id="loading">높은 산과 강을 짓고 있어요…</div>
+<div id="loading" role="status" aria-label="노을 진 섬으로 들어가는 중"><b>Snapzoo</b><span>노을 진 섬으로 들어가는 중</span><div class="bar"><i></i></div><p>👋 손을 흔들면 가까운 동물이 다가와요</p></div>
 <div id="zone" aria-live="polite"><b id="zoneName">🏘 강가 마을</b><small id="zoneSub">강을 따라 올라가면 산꼭대기 눈밭이에요</small><small id="people"></small></div>
 <canvas id="mini" width="264" height="264" aria-label="작은 지도"></canvas>
 <div id="hint">누른 곳으로 걸어가요 · 방향키 · WASD · 끌어서 둘러보기</div>

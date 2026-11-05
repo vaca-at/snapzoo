@@ -1,0 +1,17 @@
+{
+  "name": "Snapzoo · 스냅주",
+  "short_name": "Snapzoo",
+  "description": "노을 진 섬에서 동물과 걷는 힐링 메타버스",
+  "lang": "ko",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#e8a070",
+  "theme_color": "#e8a070",
+  "icons": [
+    { "src": "brand/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "brand/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "brand/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

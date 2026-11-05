@@ -558,7 +558,7 @@ function iconB(sz) {   // 밀짚모자 산책자
 }
 function iconC(sz) {   // 폴라로이드 속 아기 코끼리
   settle(SAV, 6);
-  const shot = mk(400, 300); shot.getContext('2d').drawImage(snap(SAV, camAt([-4.6, 1.05, -1.6], [-1.0, 0.75, -5.4], 38), 400, 300), 0, 0);
+  const shot = mk(400, 300); shot.getContext('2d').drawImage(snap(SAV, camAt([0.9, 1.0, -7.0], [-1.6, 0.75, -4.6], 38), 400, 300), 0, 0);
   const c = mk(sz, sz), g = c.getContext('2d');
   const bg = g.createLinearGradient(0, 0, 0, sz); bg.addColorStop(0, '#f6c88a'); bg.addColorStop(1, '#d8764e'); g.fillStyle = bg; g.fillRect(0, 0, sz, sz);
   polaroid(g, shot, sz * 0.5, sz * 0.53, sz * 0.66, -0.12);
@@ -568,14 +568,15 @@ function iconC(sz) {   // 폴라로이드 속 아기 코끼리
 // 가로 미리보기 세 개 (1200 × 630)
 // =====================================================================
 const TITLE = '스냅주', TAG = '노을 진 섬에서 동물과 걷는 힐링 메타버스';
-function ogA() {
-  ME.root.visible = true; FR.forEach((f) => (f.root.visible = false)); settle(SAV, 5);
+function ogA(noMe) {
+  ME.root.visible = !noMe; FR.forEach((f) => (f.root.visible = false)); settle(SAV, 5);
   const img = snap(SAV, camAt([-3.2, 1.55, 9.5], [4, 1.9, -12], 42), 1200, 630);
   const c = mk(1200, 630), g = c.getContext('2d'); g.drawImage(img, 0, 0);
   const L = g.createLinearGradient(0, 0, 640, 0); L.addColorStop(0, 'rgba(40,22,10,.55)'); L.addColorStop(1, 'rgba(40,22,10,0)'); g.fillStyle = L; g.fillRect(0, 0, 1200, 630);
-  g.fillStyle = '#fff6e6'; g.shadowColor = 'rgba(40,20,5,.45)'; g.shadowBlur = 18; g.font = `150px ${FONT}`; g.fillText(TITLE, 70, 300);
-  g.font = `40px ${FONT}`; g.fillText(TAG.slice(0, 11), 76, 375); g.fillText(TAG.slice(12), 76, 428); g.shadowColor = 'transparent';
+  g.fillStyle = '#fff6e6'; g.shadowColor = 'rgba(40,20,5,.45)'; g.shadowBlur = 18; g.font = `150px ${FONT}`; g.fillText(noMe ? 'Snapzoo' : TITLE, 70, 300);
+  g.font = `40px ${FONT}`; g.fillText('노을 진 섬에서 동물과', 76, 375); g.fillText('걷는 힐링 메타버스', 76, 428); g.shadowColor = 'transparent';
   g.fillStyle = 'rgba(255,246,230,.85)'; g.font = `30px ${FONT}`; g.fillText('snapzoo.site', 78, 560);
+  ME.root.visible = true;
   return c;
 }
 function ogB() {
@@ -675,5 +676,16 @@ document.fonts.load(`40px OngleipUnz`).then(() => document.fonts.ready).then(() 
   }
   requestAnimationFrame(frame);
   window.__ok = true;
+  // 고른 안을 실제 파일로: 아이콘 C · 미리보기 A(사람 없이 · Snapzoo) · 로딩 A 배경(글자 없이)
+  window.__export = () => {
+    const out = {}, big = iconC(1024);
+    for (const s of [512, 192, 180, 64, 32]) { const c = mk(s, s); const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(big, 0, 0, s, s); out['icon-' + s + '.png'] = c.toDataURL('image/png'); }
+    out['og.jpg'] = ogA(true).toDataURL('image/jpeg', 0.9);
+    ME.root.visible = false; settle(SAV, 5);
+    const bgP = mk(900, 1950); bgP.getContext('2d').drawImage(snap(SAV, camAt([-2, 1.5, 11], [4, 2.1, -12], 46), 900, 1950), 0, 0); out['loading-portrait.jpg'] = bgP.toDataURL('image/jpeg', 0.84);
+    const bgL = mk(1920, 1080); bgL.getContext('2d').drawImage(snap(SAV, camAt([-2, 1.5, 11], [4, 2.1, -12], 42), 1920, 1080), 0, 0); out['loading-landscape.jpg'] = bgL.toDataURL('image/jpeg', 0.84);
+    ME.root.visible = true;
+    return out;
+  };
 });
 </script>
