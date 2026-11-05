@@ -63,7 +63,7 @@
 ### 다음 할 일
 - 동물 다리 관절(무릎 · 발목) → 동물도 조금씩 걸어 다니기.
 - 사진: 지금은 동물 그림 카드 → 실제로 보이는 장면을 찍은 사진(구도 · 점수)으로.
-- 완성되면 루트 `index.html`(지금은 /kids/ 로 넘김)을 `play/` 로 바꾸기.
+- 루트 `index.html` 은 2026-11-05 부터 `/world/` 로 넘김 (아이용은 `/kids/` 로 직접).
 
 ## 시안 만들기
 ```
@@ -74,6 +74,6 @@ python3 -m http.server 8765        # http://localhost:8765/docs/시안/초원식
 글꼴 파일은 저장소에 넣지 않음(재배포 금지, 웹 임베딩은 허용).
 
 ## 예전 것: 아이용 '동물 왕국'
-- `kids/` (태그 `kids-v1`), jsun.site/snapzoo 에도 복사본. snapzoo.site 첫 주소는 지금 /kids/ 로 넘김.
+- `kids/` (태그 `kids-v1`), jsun.site/snapzoo 에도 복사본. snapzoo.site 첫 주소는 이제 /world/ (어른용 섬). 아이용은 /kids/ 로 직접.
 - 중계 서버 `server/worker.js` (Cloudflare, snapzoo-rooms.bellachord.workers.dev), 관리 화면 `admin/`.
 - 자세한 옛 계획은 `PLAN.md`.
