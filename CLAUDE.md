@@ -31,7 +31,7 @@
 - 시안 `docs/시안/메타버스3D시안.html`(틀 `_meta_tpl.html`) 세 방식 중 **③**: 매끈한 면 · 노을 역광 · 부드러운 그림자 · 안개 · 바람 풀밭. (① 캠핑장 결 로우폴리, ② 그림체 '나' 툰은 탈락)
 - 기준: 캠핑장 · 큰법당(~/Documents/campingjang, templestay) 수준의 단정한 세계.
 - 그림 도구 `world/zoo3d.js` = 시안 코드 그대로(S='soft'). 동물은 곡선 관(tube)으로 몸통 · 목 · 다리(무릎) · 머리를 빚고, 무늬는 셰이더로 몸에 직접(얼룩말 줄 · 기린 그물 · 가젤 옆줄). 산책자 키 1.65 m, 얼굴은 그림(faceTex).
-- `world/` 에 입힘: 노을 하늘 · 빛 · 안개, 매끈한 정글 · 아카시아(InstancedMesh), 내 둘레 바람 풀밭(`layGrass`, 12 m 벗어나면 다시 깔기), 초원 동물 = 새 다섯 종(코끼리 · 기린 · 얼룩말 · 가젤 · 누). 확인용 `world/?at=savanna|jungle|desert|arctic`.
+- `world/` 에 입힘: 노을 하늘 · 빛 · 안개, 매끈한 정글 · 아카시아(InstancedMesh), 내 둘레 바람 풀밭(`layGrass`, 12 m 벗어나면 다시 깔기), 초원 동물 = 새 다섯 종(코끼리 · 기린 · 얼룩말 · 가젤 · 누). 확인용 `snapzoo.site/?at=savanna|jungle|desert|arctic`.
 - 섬 식구 12종 모두 zoo3d.js 로 새로 빚음(+ 고릴라 · 맥 · 낙타 · 사막여우 · 펭귄 · 북극곰 · 돌고래). 한자리에 보기 `world/zoo.html`. quad() 는 다리 높이가 몸통 기울기(rumpY · chestY)를 따라가고, `extra`(혹) · `tailR`(굵은 꼬리) · `tailA` 를 받아요.
 - 마을: 둥근 모서리 벽 · 박공지붕 · 창틀 · 꽃 화분 · 굴뚝 집 여섯, 지붕 우물, 철탑 · 둥근 곤돌라 케이블카.
 - ⚠️ 한 줄에 `// 주석` 을 넣을 땐 뒤 코드까지 주석이 되지 않게 (d9d74e2 에서 이것 때문에 world 가 멈췄어요). 고친 뒤엔 괄호 짝 확인 + 화면 찍어 보기.
@@ -63,7 +63,7 @@
 ### 다음 할 일
 - 동물 다리 관절(무릎 · 발목) → 동물도 조금씩 걸어 다니기.
 - 사진: 지금은 동물 그림 카드 → 실제로 보이는 장면을 찍은 사진(구도 · 점수)으로.
-- 루트 `index.html` 은 2026-11-05 부터 `/world/` 로 넘김 (아이용은 `/kids/` 로 직접).
+- 루트 `index.html` = 섬 화면 그 자체 (snapzoo.site 에서 바로, 코드는 `world/world.js`). `world/index.html` 은 첫 주소로 돌려보내기만. 아이용은 `/kids/`.
 
 ## 시안 만들기
 ```
@@ -74,6 +74,6 @@ python3 -m http.server 8765        # http://localhost:8765/docs/시안/초원식
 글꼴 파일은 저장소에 넣지 않음(재배포 금지, 웹 임베딩은 허용).
 
 ## 예전 것: 아이용 '동물 왕국'
-- `kids/` (태그 `kids-v1`), jsun.site/snapzoo 에도 복사본. snapzoo.site 첫 주소는 이제 /world/ (어른용 섬). 아이용은 /kids/ 로 직접.
+- `kids/` (태그 `kids-v1`), jsun.site/snapzoo 에도 복사본. snapzoo.site 첫 주소 = 어른용 섬(주소 그대로). 아이용은 /kids/ 로 직접.
 - 중계 서버 `server/worker.js` (Cloudflare, snapzoo-rooms.bellachord.workers.dev), 관리 화면 `admin/`.
 - 자세한 옛 계획은 `PLAN.md`.

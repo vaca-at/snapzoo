@@ -2,20 +2,78 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- snapzoo.site 첫 화면 = 어른용 스냅주 섬 (그림 · 놀이 코드는 world/ 폴더). 아이용은 /kids/ -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>스냅주</title>
-<meta name="theme-color" content="#e8a070">
-<!-- 첫 주소(snapzoo.site)로 들어오면 어른용 스냅주 섬(/world/)으로 가요. (2026-11-05: 아이용으로 넘기던 것을 멈춤)
-     아이용 '동물 왕국'은 snapzoo.site/kids/ 로 그대로 들어갈 수 있어요.
-     주소 뒤의 ?… · #… 는 그대로 따라가요 -->
-<meta http-equiv="refresh" content="0; url=/world/">
-<script>location.replace("/world/" + location.search + location.hash);</script>
+<meta name="theme-color" content="#8fc3ec">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
 <style>
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: linear-gradient(180deg, #e8a070, #f6d6a8); color: #3a2416; font-family: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; text-align: center; }
-  a { color: #3a2416; font-weight: 700; }
+@font-face { font-family: 'OngleipUnz'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2406-1@1.0/Ownglyph_UNZ-Rg.woff2') format('woff2'); font-display: swap; }
+:root { --ink: #24302a; --paper: rgba(255,252,243,.92); --line: #d8d2bf; --hand: "OngleipUnz", "Apple SD Gothic Neo", sans-serif; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #8fc3ec; font-family: var(--hand); color: var(--ink); -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+canvas#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+/* 지금 있는 곳 */
+#zone { position: fixed; left: max(14px, env(safe-area-inset-left)); top: max(12px, env(safe-area-inset-top)); z-index: 3; pointer-events: none; display: flex; flex-direction: column; gap: 2px; }
+#zone b { font-weight: 400; font-size: 30px; color: #fff; text-shadow: 0 2px 6px rgba(20,40,30,.55); transition: opacity .4s; }
+#zone small { font-size: 18px; color: #fff; text-shadow: 0 1px 4px rgba(20,40,30,.6); opacity: .92; }
+/* 작은 지도 */
+#mini { position: fixed; right: max(12px, env(safe-area-inset-right)); top: max(12px, env(safe-area-inset-top)); z-index: 3; width: 132px; height: 132px; border-radius: 50%; border: 3px solid rgba(255,252,243,.9); box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+/* 단추 */
+#acts { position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 3; display: flex; gap: 10px; }
+#acts button { font: 22px var(--hand); background: var(--paper); color: var(--ink); border: 2px solid #5a463a; border-radius: 999px; padding: 8px 18px; box-shadow: 0 3px 0 #5a463a; cursor: pointer; white-space: nowrap; }
+#acts button:active { transform: translateY(2px); box-shadow: 0 1px 0 #5a463a; }
+#acts button:disabled { opacity: .5; }
+#hint { position: fixed; left: 50%; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 62px); transform: translateX(-50%); z-index: 3; color: #fff; font-size: 19px; text-shadow: 0 1px 4px rgba(20,40,30,.7); pointer-events: none; transition: opacity 1s; white-space: nowrap; }
+/* 동물 이름표 (가까이 가면) */
+.tag { position: fixed; left: 0; top: 0; z-index: 2; transform: translate(-50%, -100%); background: var(--paper); border: 1.5px solid var(--line); border-radius: 999px; padding: 2px 12px; font-size: 19px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .3s; }
+.tag.on { opacity: 1; }
+.tag.friend { background: #fff4d6; border-color: #e0b84a; font-size: 18px; }
+#people { font-size: 16px !important; opacity: .95; }
+/* 📷 사진 */
+#acts button.shot { background: #c8553d; color: #fff; border-color: #6a2a1e; box-shadow: 0 3px 0 #6a2a1e; }
+#flash { position: fixed; inset: 0; z-index: 5; background: #fff; opacity: 0; pointer-events: none; transition: opacity .5s; }
+#flash.on { opacity: .85; transition: none; }
+#toast { position: fixed; left: 50%; top: max(70px, calc(env(safe-area-inset-top) + 60px)); transform: translate(-50%, -10px); z-index: 6; display: flex; gap: 12px; align-items: center; background: var(--paper); border: 1.5px solid var(--line); border-radius: 18px; padding: 8px 14px 8px 8px; font-size: 21px; opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+#toast.on { opacity: 1; transform: translate(-50%, 0); }
+#toast img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; }
+/* 🖼 앨범: 아래에서 올라오는 판 */
+#album { position: fixed; left: 0; right: 0; bottom: 0; z-index: 7; max-height: 78vh; background: #fbf8f0; border-radius: 22px 22px 0 0; box-shadow: 0 -8px 30px rgba(0,0,0,.25); transform: translateY(105%); transition: transform .35s ease; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
+#album.on { transform: none; }
+#album header { display: flex; align-items: center; gap: 10px; padding: 14px 18px 6px; }
+#album header b { font-weight: 400; font-size: 28px; flex: 1; }
+#album header small { font-size: 17px; color: #7a7064; }
+.x { font: 22px var(--hand); background: none; border: 2px solid #5a463a; border-radius: 999px; width: 42px; height: 42px; cursor: pointer; color: var(--ink); }
+#grid { overflow-y: auto; padding: 8px 16px 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+#grid button { border: 0; padding: 0; background: none; cursor: pointer; }
+#grid img { width: 100%; display: block; border-radius: 4px; box-shadow: 0 3px 10px rgba(0,0,0,.18); transform: rotate(var(--tilt, 0deg)); }
+#grid .empty { grid-column: 1 / -1; text-align: center; color: #7a7064; font-size: 21px; padding: 30px 0; }
+#viewer { position: fixed; inset: 0; z-index: 8; background: rgba(30,26,22,.82); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px; }
+#viewer.on { display: flex; }
+#viewer img { max-width: min(92vw, 720px); max-height: 74vh; box-shadow: 0 10px 40px rgba(0,0,0,.5); border-radius: 4px; }
+#viewer div { display: flex; gap: 10px; }
+#viewer button, #viewer a { font: 21px var(--hand); background: var(--paper); color: var(--ink); border: 2px solid #5a463a; border-radius: 999px; padding: 7px 18px; cursor: pointer; text-decoration: none; }
+#loading { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; background: linear-gradient(180deg, #8fc3ec, #e9e2c6); color: #fff; font-size: 34px; text-shadow: 0 2px 8px rgba(20,40,30,.4); transition: opacity .8s; }
+#loading.out { opacity: 0; pointer-events: none; }
+@media (max-width: 560px) { #zone b { font-size: 24px; } #zone small { font-size: 15px; } #mini { width: 96px; height: 96px; } #acts { gap: 6px; width: calc(100% - 20px); justify-content: center; flex-wrap: wrap; } #acts button { font-size: 17px; padding: 6px 11px; } #hint { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 104px); font-size: 16px; } }
 </style>
 </head>
 <body>
-  <p>🌅 노을 진 섬으로 가는 중이에요…<br><a href="/world/">여기를 누르세요</a></p>
+<canvas id="gl" aria-label="스냅주 높은 산과 강 3D 세계. 누른 곳으로 걸어가요, 끌어서 둘러봐요"></canvas>
+<div id="loading">높은 산과 강을 짓고 있어요…</div>
+<div id="zone" aria-live="polite"><b id="zoneName">🏘 강가 마을</b><small id="zoneSub">강을 따라 올라가면 산꼭대기 눈밭이에요</small><small id="people"></small></div>
+<canvas id="mini" width="264" height="264" aria-label="작은 지도"></canvas>
+<div id="hint">누른 곳으로 걸어가요 · 방향키 · WASD · 끌어서 둘러보기</div>
+<div id="acts"><button type="button" id="shot" class="shot" aria-label="사진 찍기 (스페이스)">📷 찰칵</button><button type="button" id="wave" aria-label="손 흔들어 인사하기 (H)">👋 인사</button><button type="button" id="albumBtn">🖼 앨범</button><button type="button" id="cable">🚡 산꼭대기로</button><button type="button" id="home">🏘 마을로</button></div>
+<div id="flash"></div>
+<div id="toast" role="status" aria-live="polite"><img alt=""><span></span></div>
+<section id="album" aria-label="섬 앨범" aria-hidden="true"><header><b>🖼 섬 앨범</b><small id="albumN"></small><button type="button" class="x" id="albumX" aria-label="앨범 닫기">✕</button></header><div id="grid"></div></section>
+<div id="viewer" role="dialog" aria-label="사진 크게 보기"><img alt=""><div><a id="vSave" download>💾 저장</a><button type="button" id="vDel">🗑 지우기</button><button type="button" id="vX">닫기</button></div></div>
+<script type="module" src="world/world.js"></script>
 </body>
 </html>
