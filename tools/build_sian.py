@@ -17,6 +17,7 @@ PAGES = {
     'styles': ('_styles_tpl.html', '그림방식시안.html'),
     'char': ('_char_tpl.html', '캐릭터그림체시안.html'),
     'herd': ('_herd_tpl.html', '초원식구들.html'),
+    'meta': ('_meta_tpl.html', '메타버스3D시안.html'),
 }
 
 def font_b64():
