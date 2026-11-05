@@ -312,11 +312,16 @@ function walker(look = 0) {
   M(hat, new THREE.CylinderGeometry(0.119, 0.12, 0.028, S === 'low' ? 10 : 36, 1, true), plain(L.band, { side: THREE.DoubleSide }), undefined, 0, 0.018, 0);
   const rib = J(hat, 0.05, 0.015, -0.11); const rb = M(rib, new THREE.BoxGeometry(0.03, 0.17, 0.006), plain(L.band, { side: THREE.DoubleSide }), undefined, 0, -0.08, 0);
   outlines(root);
-  const st = { root, walk: 0, step: 0 };
+  const st = { root, walk: 0, step: 0, waveT: 0 };
   st.update = (t, dt) => {
     st.step += dt * st.walk * 8.4; const p = st.step, w = st.walk;
     legs.forEach(({ l, k }, i) => { const q = p + i * PI; l.rotation.x = sin(q) * 0.42 * w; k.rotation.x = max(0, -sin(q - 0.9)) * 0.65 * w; });
     arms.forEach(({ a, f }, i) => { a.rotation.x = -sin(p + i * PI) * 0.35 * w + sin(t * 0.8 + i) * 0.03; f.rotation.x = -0.15 - 0.12 * w; });
+    // 👋 손 흔들기: 오른팔을 들어 아래팔을 좌우로 (st.waveT 초 동안)
+    if (st.waveT > 0) st.waveT = max(0, st.waveT - dt);
+    const wv = st.waveT > 0 ? min(1, st.waveT * 4, (2.4 - st.waveT) * 5) : 0;
+    if (wv > 0) { const R = arms[1]; R.a.rotation.z = 0.08 + wv * 2.55; R.a.rotation.x *= 1 - wv; R.f.rotation.x = -0.15 * (1 - wv); R.f.rotation.z = wv * sin(t * 13) * 0.55; }
+    else { arms[1].a.rotation.z = 0.08; arms[1].f.rotation.z = 0; }
     hips.position.y = 0.86 + abs(sin(p)) * 0.025 * w + sin(t * 1.5) * 0.003 * (1 - w);
     body.rotation.y = sin(p) * 0.06 * w;
     skirt.rotation.x = sin(p * 2) * 0.04 * w + sin(t * 1.9) * 0.02; skirt.rotation.z = sin(p) * 0.04 * w;

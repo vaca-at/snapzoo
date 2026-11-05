@@ -115,11 +115,11 @@ export function cleanState(d) {
   };
 }
 
-// 섬(어른용): 이름(같은 낱말 조합) · 자리 · 방향 · 걷는 중 · 케이블카 · 모습 번호 · 찰칵 횟수만
+// 섬(어른용): 이름(같은 낱말 조합) · 자리 · 방향 · 걷는 중 · 케이블카 · 모습 번호 · 찰칵 횟수 · 인사 횟수만
 export function cleanIsland(d) {
   if (!d || typeof d !== 'object' || !NAMES.has(d.n)) return null;
   return { n: d.n, x: num(d.x, 345), z: num(d.z, 345), y: Math.max(-5, num(d.y, 260)), r: num(d.r, 7), m: d.m ? 1 : 0, k: d.k ? 1 : 0,
-    l: Number.isInteger(d.l) && d.l >= 0 && d.l < 8 ? d.l : 0, p: Number.isInteger(d.p) && d.p >= 0 && d.p < 1000 ? d.p : 0 };
+    l: Number.isInteger(d.l) && d.l >= 0 && d.l < 8 ? d.l : 0, p: Number.isInteger(d.p) && d.p >= 0 && d.p < 1000 ? d.p : 0, w: Number.isInteger(d.w) && d.w >= 0 && d.w < 1000 ? d.w : 0 };
 }
 
 export class Room extends DurableObject {

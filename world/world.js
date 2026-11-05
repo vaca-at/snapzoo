@@ -98,7 +98,7 @@ const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2600);
 
 // 하늘: 위는 푸른 저녁빛, 지평선은 금빛, 해 둘레가 환하게
 { const sk = skyDome(LK.top, LK.mid, LK.hor, SUN_DIR, LK.glow); sk.scale.setScalar(1.3); scene.add(sk); }
-scene.add(new THREE.HemisphereLight(LK.hemi[0], LK.hemi[1], LK.hemi[2] * 1.4));   // 역광이어도 동물 얼굴이 보이게
+const hemi = new THREE.HemisphereLight(LK.hemi[0], LK.hemi[1], LK.hemi[2] * 1.4); scene.add(hemi);   // 역광이어도 동물 얼굴이 보이게
 const sun = new THREE.DirectionalLight(LK.sunC, LK.sunI);
 sun.castShadow = true;
 sun.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048);
@@ -191,7 +191,7 @@ function scatter(zone, n, parts, sMin = 0.8, sMax = 1.3, test) {
   for (const [geo, mat, oy, sx = 1, sy = 1, sz = 1] of parts) {
     const im = new THREE.InstancedMesh(geo, mat, spots.length);
     spots.forEach(([p, s, r], i) => { Q.setFromAxisAngle(UP, r); M4.compose(V.set(p.x, p.y + oy * s, p.z), Q, SC.set(sx * s, sy * s, sz * s)); im.setMatrixAt(i, M4); });
-    im.castShadow = true; im.receiveShadow = true; scene.add(im);
+    im.castShadow = true; im.receiveShadow = true; scene.add(im); (spots.ims ||= []).push(im);
   }
   return spots;
 }
@@ -199,9 +199,22 @@ const trunkM = new THREE.MeshStandardMaterial({ color: '#6a5038', roughness: 0.8
 const cyl = (r1, r2, h, s = 16) => new THREE.CylinderGeometry(r1, r2, h, s);
 const blob = (r, d = 3) => new THREE.IcosahedronGeometry(r, d);
 // 정글: 키 큰 나무 (줄기 + 둥근 잎 두 덩이)
-scatter('jungle', MOBILE ? 900 : 1700, [[cyl(0.35, 0.55, 8, 10), trunkM, 4], [blob(3.2), leafJ, 8.6, 1, 0.82, 1], [blob(2.4), leafJ2, 10.6, 1, 0.85, 1]], 0.8, 1.5);
+const JT = []; JT.push(scatter('jungle', MOBILE ? 900 : 1700, [[cyl(0.17, 0.3, 8, 10), trunkM, 4], [blob(3.2), leafJ, 8.6, 1, 0.82, 1], [blob(2.4), leafJ2, 10.6, 1, 0.85, 1]], 0.8, 1.5));
 // 눈 경계 아래 소나무 (산허리 위쪽)
-scatter('jungle', 420, [[cyl(0.25, 0.35, 3, 10), trunkM, 1.5], [new THREE.ConeGeometry(2.2, 6, 18), pineM, 5.5], [new THREE.ConeGeometry(1.1, 2.2, 18), snowCap, 8]], 0.8, 1.2, (x, z, y) => y > 70);
+JT.push(scatter('jungle', 420, [[cyl(0.25, 0.35, 3, 10), trunkM, 1.5], [new THREE.ConeGeometry(2.2, 6, 18), pineM, 5.5], [new THREE.ConeGeometry(1.1, 2.2, 18), snowCap, 8]], 0.8, 1.2, (x, z, y) => y > 70));
+// 정글 나무가 카메라와 나 사이를 가리면 그 나무만 잠깐 숨겨요 (숲 전체를 비치게 하지 않고)
+const HIDE = new THREE.Matrix4().makeScale(0, 0, 0), keepM = new Map();
+function clearView() {
+  const ax = camera.position.x, az = camera.position.z, bx = me.pos.x, bz = me.pos.z, lx = bx - ax, lz = bz - az, L2 = lx * lx + lz * lz || 1;
+  for (const sp of JT) sp.forEach(([p], i) => {
+    const t = clamp(((p.x - ax) * lx + (p.z - az) * lz) / L2, 0, 1), d = Math.hypot(ax + lx * t - p.x, az + lz * t - p.z);
+    const hide = curZone === 'jungle' && t > 0.02 && t < 0.97 && d < 3.6 && p.y + 12 > camera.position.y - 6;   // 정글을 벗어나면 모두 되돌려요
+    const key = sp.ims[0].id + ':' + i, was = keepM.has(key);
+    if (hide === was) return;
+    sp.ims.forEach((im, k) => { if (hide) { const m = new THREE.Matrix4(); im.getMatrixAt(i, m); keepM.set(key + ':' + k, m); im.setMatrixAt(i, HIDE); } else { im.setMatrixAt(i, keepM.get(key + ':' + k)); keepM.delete(key + ':' + k); } im.instanceMatrix.needsUpdate = true; });
+    if (hide) keepM.set(key, true); else keepM.delete(key);
+  });
+}
 // 초원: 아카시아 (납작한 우산 잎) · 덤불
 { const ag = acaciaGeos(3); scatter('savanna', 240, [[ag.bark, trunkM, 0], [ag.leaf, acaciaM, 0]], 0.9, 1.5); }
 scatter('savanna', 420, [[blob(1.3, 2), bushM, 0.6, 1, 0.7, 1]], 0.7, 1.5);
@@ -458,6 +471,22 @@ $('#vDel').onclick = async () => { if (!viewing) return; await removePhoto(viewi
 addEventListener('keydown', (e) => { if (e.key === 'Escape') { if ($('#viewer').classList.contains('on')) $('#viewer').classList.remove('on'); else closeAlbum(); } });
 
 
+
+// ───────── 👋 인사: 손을 흔들면 가까운(18 m 안) 동물이 다가와 반겨요 (♥). 친구 화면에서도 손을 흔들어요 ─────────
+let waves = 0;
+function wave() {
+  if (me.riding || me.st.waveT > 0.6) return;
+  me.st.waveT = 2.4; waves = (waves + 1) % 1000;
+  for (const a of animals) {
+    const dx = a.pos.x - me.pos.x, dz = a.pos.z - me.pos.z, d = Math.hypot(dx, dz);
+    if (d > 18 || d < 1) continue;
+    const stay = 2.2 + a.tagH * 0.9;   // 큰 동물은 조금 떨어져서
+    a.target = me.pos.clone().add(V.set((dx / d) * stay, 0, (dz / d) * stay)); a.call = 12; a.wait = 0;
+  }
+}
+$('#wave').onclick = wave;
+addEventListener('keydown', (e) => { if (e.key.toLowerCase() === 'h' && e.target === document.body) wave(); });
+
 // ───────── 섬 친구들 (메타버스): 같은 섬 방의 친구가 각자 옷으로 걸어 다녀요 ─────────
 const friends = new Map();
 function friendOf(id, d) {
@@ -472,7 +501,7 @@ function friendOf(id, d) {
 }
 function dropFriend(id) { const f = friends.get(id); if (!f) return; scene.remove(f.st.root); f.tag.remove(); friends.delete(id); }
 const net = new IslandNet({
-  onState(id, d) { const f = friendOf(id, d); if (d.p !== f.p) { f.p = d.p; f.snapT = 2.2; } f.d = d; f.name = d.n; f.to.set(d.x, d.y, d.z); f.r = d.r; },
+  onState(id, d) { const f = friendOf(id, d); if (d.p !== f.p) { f.p = d.p; f.snapT = 2.2; } if (d.w !== f.w) { if (f.w !== undefined) { f.st.waveT = 2.4; f.waveT = 2.4; } f.w = d.w; } f.d = d; f.name = d.n; f.to.set(d.x, d.y, d.z); f.r = d.r; },
   onLeave: dropFriend,
   onReset() { [...friends.keys()].forEach(dropFriend); },
   onStatus() { showPeople(); },
@@ -488,9 +517,9 @@ function updateFriends(dt) {
     const d = Math.hypot(g.position.x - me.pos.x, g.position.z - me.pos.z);
     g.visible = !f.d.k && d < 220;
     f.st.walk = lerp(f.st.walk, f.d.m ? 1 : 0, 0.15); if (g.visible) f.st.update(clock.elapsedTime, dt);
-    f.snapT = Math.max(0, f.snapT - dt);
+    f.snapT = Math.max(0, f.snapT - dt); f.waveT = Math.max(0, (f.waveT || 0) - dt);
     const on = g.visible && d < 60; f.tag.classList.toggle('on', on);
-    if (on) { V.copy(g.position); V.y += 2.1; V.project(camera); if (V.z > 1) { f.tag.classList.remove('on'); continue; } f.tag.textContent = (f.snapT > 0 ? '📷 ' : '') + f.name; f.tag.style.transform = `translate(${(V.x * 0.5 + 0.5) * innerWidth}px, ${(-V.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`; }
+    if (on) { V.copy(g.position); V.y += 2.1; V.project(camera); if (V.z > 1) { f.tag.classList.remove('on'); continue; } f.tag.textContent = (f.waveT > 0 ? '👋 ' : f.snapT > 0 ? '📷 ' : '') + f.name; f.tag.style.transform = `translate(${(V.x * 0.5 + 0.5) * innerWidth}px, ${(-V.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`; }
   }
   if (friends.size !== showPeople.n) { showPeople.n = friends.size; showPeople(); }
 }
@@ -527,14 +556,14 @@ const snow = new THREE.Points(snowG, new THREE.PointsMaterial({ color: '#ffffff'
 snow.visible = false;
 scene.add(snow);
 // 정글에서는 나뭇잎을 반쯤 비치게 해서 나무가 나를 가리지 않게
-for (const m of [leafJ, leafJ2, pineM, trunkM]) m.transparent = true;
+
 
 // ───────── 매 프레임 ─────────
 function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
 const fwd = new THREE.Vector3(), right = new THREE.Vector3(), mv = new THREE.Vector3();
-let miniT = 0;
+let miniT = 0; const V2C = new THREE.Color();
 function frame() {
   const dt = Math.min(0.05, clock.getDelta()), T = clock.elapsedTime;
   // 걷기
@@ -574,27 +603,34 @@ function frame() {
   for (const a of animals) {
     const dMe = Math.hypot(a.pos.x - me.pos.x, a.pos.z - me.pos.z);
     a.g.visible = dMe < 170;
-    let walking = false;
-    if (dMe < 9) a.face = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z);
-    else if (a.wait > 0) a.wait -= dt;
+    // 걸음: 목표 쪽으로 먼저 몸을 돌리고, 천천히 출발 · 멈춤. 다리는 실제 빠르기에 맞춰요
+    let want = 0;
+    const called = a.call > 0; if (called) a.call -= dt;
+    if (dMe < 9 && !called) a.face = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z);
+    else if (a.wait > 0 && !called) a.wait -= dt;
     else {
-      if (!a.target) { a.target = a.home.clone().add(V.set((rnd() - 0.5) * 40, 0, (rnd() - 0.5) * 40)); }
+      if (!a.target) a.target = a.home.clone().add(V.set((rnd() - 0.5) * 40, 0, (rnd() - 0.5) * 40));
       const dx = a.target.x - a.pos.x, dz = a.target.z - a.pos.z, d = Math.hypot(dx, dz);
-      if (d < 0.5) { a.target = null; a.wait = 3 + rnd() * 6; }
-      else { const nx = a.pos.x + (dx / d) * a.speed * dt, nz = a.pos.z + (dz / d) * a.speed * dt, ny = height(nx, nz);
-        const rv = riverNear(nx, nz);   // 강물에는 안 들어가요
-        if (ny > 1.5 && zoneAt(nx, nz, ny) === a.zone && !(rv.i >= 0 && rv.d < riverW(rv.i) * 0.9)) { a.pos.x = nx; a.pos.z = nz; a.face = Math.atan2(dx, dz); walking = true; } else { a.target = null; a.wait = 1; } }
+      if (d < 0.6) { a.target = null; a.wait = called ? 7 : 3 + rnd() * 6; if (called) { a.call = 0; a.heart = 3; } }
+      else { a.face = Math.atan2(dx, dz); want = a.speed * (called ? 1.4 : 1) * smooth(0, 2.5, d); }
     }
+    let dr = a.face - a.g.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); a.g.rotation.y += dr * Math.min(1, dt * 2.6);
+    if (Math.abs(dr) > 0.7) want *= 0.2;
+    a.v = lerp(a.v || 0, want, Math.min(1, dt * 1.8));
+    if (a.v > 0.02) {
+      const nx = a.pos.x + Math.sin(a.g.rotation.y) * a.v * dt, nz = a.pos.z + Math.cos(a.g.rotation.y) * a.v * dt, ny = height(nx, nz), rv = riverNear(nx, nz);
+      if (ny > 1.5 && zoneAt(nx, nz, ny) === a.zone && !(rv.i >= 0 && rv.d < riverW(rv.i) * 0.9)) { a.pos.x = nx; a.pos.z = nz; }   // 강물에는 안 들어가요
+      else { a.target = null; a.wait = 1; a.v = 0; a.call = 0; }
+    }
+    const walking = a.v > 0.05;
     a.pos.y = height(a.pos.x, a.pos.z);
-    a.g.position.copy(a.pos); a.g.rotation.y = lerp(a.g.rotation.y, a.face, 0.08);
-    a.t += dt * (walking ? 7 : 0);
-    if (a.st) { a.st.walk = lerp(a.st.walk, walking ? 1 : 0, 0.1); if (a.g.visible) a.st.update(T, dt); }
-    a.legs.forEach((l, i) => { l.rotation.x = walking ? Math.sin(a.t + (i % 3 ? Math.PI : 0)) * 0.45 : 0; });
-    if (a.neck && !walking && dMe >= 9) a.neck.rotation.z = Math.sin(T * 0.7 + a.home.x) * 0.06;
+    a.g.position.copy(a.pos);
+    if (a.st) { a.st.walk = Math.min(1, a.v / a.speed); if (a.g.visible) a.st.update(T, dt); }
+    if (a.heart > 0) a.heart -= dt;
     // 이름표
     const on = dMe < 14;
     a.tag.classList.toggle('on', on);
-    if (on) { V.copy(a.pos); V.y += a.tagH; V.project(camera); a.tag.style.transform = `translate(${(V.x * 0.5 + 0.5) * innerWidth}px, ${(-V.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`; if (V.z > 1) a.tag.classList.remove('on'); }
+    if (on) { const tx = (a.heart > 0 ? '♥ ' : '') + a.name; if (a.tag.textContent !== tx) a.tag.textContent = tx; V.copy(a.pos); V.y += a.tagH; V.project(camera); a.tag.style.transform = `translate(${(V.x * 0.5 + 0.5) * innerWidth}px, ${(-V.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`; if (V.z > 1) a.tag.classList.remove('on'); }
   }
   for (const d of dolphins) { const k = ((T * 0.35 + d.phase) % 3) / 3, j = Math.sin(k * Math.PI); d.g.position.set(d.cx + k * 26, k < 1 ? j * 4 - 1.2 : -3, d.cz); d.g.rotation.x = -Math.cos(k * Math.PI) * 0.9; d.g.rotation.order = 'YXZ'; d.g.rotation.y = Math.PI / 2; d.st.update(T); }
 
@@ -627,8 +663,9 @@ function frame() {
   setZone(z0);
   const fogNear = z0 === 'jungle' ? 30 : z0 === 'arctic' ? 60 : 120, fogFar = z0 === 'jungle' ? 260 : z0 === 'arctic' ? 420 : 720;
   scene.fog.near = lerp(scene.fog.near, fogNear, 0.02); scene.fog.far = lerp(scene.fog.far, fogFar, 0.02);
-  const leafA = z0 === 'jungle' ? 0.38 : 1;
-  for (const m of [leafJ, leafJ2, pineM, trunkM]) { m.opacity = lerp(m.opacity, leafA, 0.08); m.depthWrite = m.opacity > 0.95; }
+  const ZL = { jungle: ['#a9bf8e', 1.75], arctic: ['#dde5ee', 1.35], desert: ['#f2d2a2', 1.1] }[z0] || [LK.fog, LK.hemi[2] * 1.4];   // 정글은 초록 안개 · 밝은 하늘빛
+  scene.fog.color.lerp(V2C.set(ZL[0]), 0.03); grassMat.uniforms.uFog.value.copy(scene.fog.color); hemi.intensity = lerp(hemi.intensity, ZL[1], 0.03);
+  if (z0 === 'jungle' || clearView.on) { clearView.on = z0 === 'jungle'; if ((clearView.t = (clearView.t || 0) + dt) > 0.12) { clearView.t = 0; clearView(); } }
   snow.material.opacity = z0 === 'arctic' ? lerp(snow.material.opacity, 0.9, 0.05) : 0;
   snow.visible = snow.material.opacity > 0.02;
   if (snow.visible) {
@@ -638,7 +675,7 @@ function frame() {
   }
   if ((miniT += dt) > 0.2) { miniT = 0; drawMini(); }
   updateFriends(dt);
-  net.send({ n: myName, x: +me.pos.x.toFixed(2), z: +me.pos.z.toFixed(2), y: +me.pos.y.toFixed(2), r: +me.g.rotation.y.toFixed(2), m: moving ? 1 : 0, k: me.riding ? 1 : 0, l: myLook, p: shots }, performance.now());
+  net.send({ n: myName, x: +me.pos.x.toFixed(2), z: +me.pos.z.toFixed(2), y: +me.pos.y.toFixed(2), r: +me.g.rotation.y.toFixed(2), m: moving ? 1 : 0, k: me.riding ? 1 : 0, l: myLook, p: shots, w: waves }, performance.now());
   renderer.render(scene, camera);
   if (wantShot) { wantShot = false; shoot(); }   // 그린 바로 다음에 찍어야 화면이 비지 않아요
   requestAnimationFrame(frame);
