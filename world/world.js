@@ -6,13 +6,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107f';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107f';
-import { IslandSound } from './sound.js?v=20261107f';
-import { ROSTER } from './fauna.js?v=20261107f';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107f';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js?v=20261107f';
-import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107f';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107h';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107h';
+import { IslandSound } from './sound.js?v=20261107h';
+import { ROSTER } from './fauna.js?v=20261107h';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107h';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js?v=20261107h';
+import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107h';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -585,6 +585,19 @@ let limitT = 0;
 const josa = (w) => { const c = w.charCodeAt(w.length - 1) - 0xac00; return c >= 0 && c <= 11171 && c % 28 ? '과' : '와'; };
 function toastMsg(b, sm) { const t = $('#toast'); t.querySelector('img').removeAttribute('src'); t.querySelector('span').innerHTML = `<b>${b}</b><small>${sm}</small>`; t.classList.add('on'); clearTimeout(toastMsg.tt); toastMsg.tt = setTimeout(() => t.classList.remove('on'), 2400); }
 let travelling = false;
+// 도착하면 그곳 동물 1~3마리가 내 앞쪽에 보이게 불러와요 (이미 곁에 있으면 그만큼 덜 불러요)
+function bringAnimals() {
+  if (me.inHome) return; const x = me.pos.x, z = me.pos.z, y = height(x, z), isl = isleD(x, z) < ISLE.r + 40;
+  const zone = Math.hypot(x - VIL.x, z - VIL.z) < 30 ? 'village' : y < 2.8 && onBeach(x, z, isl) ? (isl ? 'islesea' : 'sea') : isl ? 'isle' : zoneAt(x, z, y);
+  const L = animals.filter((a) => a.zone === zone && !a.night && a.move !== 'fly' && a.move !== 'swim').sort((p, q) => p.pos.distanceTo(me.pos) - q.pos.distanceTo(me.pos));
+  const dx = x - camera.position.x, dz = z - camera.position.z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl;
+  const ahead = (a) => Math.hypot(a.pos.x - x, a.pos.z - z) < 13 && (a.pos.x - x) * ux + (a.pos.z - z) * uz > 2;   // 내 앞쪽에 보이는 동물만 세요
+  let need = Math.max(0, 2 + (rnd() < 0.5 ? 1 : 0) - L.filter(ahead).length); if (!need) return;
+  for (const a of L) { if (!need) break; if (ahead(a)) continue;
+    for (let i = 0; i < 24; i++) { const r = 5 + (i % 6) * 1.2, sd = ((i * 7) % 11 - 5) * 0.9, px = x + ux * r - uz * sd, pz = z + uz * r + ux * sd, py = height(px, pz);
+      if (py < 0.7 || (zone !== 'sea' && zone !== 'islesea' && py < 2) || !seenFrom(new THREE.Vector3(x, y + 1.4, z), new THREE.Vector3(px, py + 0.6, pz))) continue;
+      a.pos.set(px, py, pz); a.home = a.pos.clone(); a.target = null; a.wait = 6; a.v = 0; a.face = Math.atan2(x - px, z - pz); a.g.position.copy(a.pos); need--; break; } }
+}
 function travelTo(label, where) {
   if (me.riding || travelling) return; travelling = true; exitPhoto(); me.target = null;
   $('#travelT').textContent = label; $('#travelBar').style.width = '0'; $('#travel').classList.add('on');
@@ -592,7 +605,7 @@ function travelTo(label, where) {
   const step = (now) => {
     const k = Math.min(1, (now - t0) / dur); $('#travelBar').style.width = `${Math.round((1 - Math.pow(1 - k, 2)) * 100)}%`;
     if (k > 0.55 && !moved) { moved = true; const old = me.pos.clone(); me.pos.copy(where()); me.pos.y = me.inHome ? ROOM.y : height(me.pos.x, me.pos.z); V.copy(me.pos).sub(old); camera.position.add(V); controls.target.copy(me.pos).add(V.set(0, 1.1, 0)); layGrass(me.pos.x, me.pos.z); }
-    if (k < 1) requestAnimationFrame(step); else setTimeout(() => { $('#travel').classList.remove('on'); travelling = false; }, 250);
+    if (k < 1) requestAnimationFrame(step); else { bringAnimals(); setTimeout(() => { $('#travel').classList.remove('on'); travelling = false; }, 250); }
   };
   requestAnimationFrame(step);
 }
@@ -1517,11 +1530,11 @@ function frame() {
     if (r.ferry) {
       const p = FERRY.getPointAt(u), tn = FERRY.getTangentAt(u); me.pos.set(p.x, waveAt(p.x, p.z) + 0.34, p.z); me.face = Math.atan2(tn.x * r.dir, tn.z * r.dir); boat.visible = true; raft.visible = false; boat.position.set(p.x, me.pos.y - 0.22, p.z); boat.rotation.set(Math.sin(T * 1.3) * 0.03, me.g.rotation.y, Math.sin(T * 1.1) * 0.04);
       $('#rideBar').style.width = `${Math.round(k * 100)}%`; $('#rideS').textContent = k < 1 ? `${Math.ceil(r.dur * (1 - k))}초 남았어요 · ${r.dir > 0 ? '🏝 갈라파고스 섬' : '🏘 마을 쪽 나루'}` : '도착!';
-      if (k >= 1) { const end = r.dir > 0 ? PIER.isle : PIER.main, s = r.dir > 0 ? -1 : 1; me.pos.set(end.x + PIER.ux * s * 3, 0, end.z + PIER.uz * s * 3); me.pos.y = height(me.pos.x, me.pos.z); me.riding = null; boat.visible = false; $('#ferry').disabled = false; setTimeout(() => $('#ride').classList.remove('on'), 700); }
+      if (k >= 1) { const end = r.dir > 0 ? PIER.isle : PIER.main, s = r.dir > 0 ? -1 : 1; me.pos.set(end.x + PIER.ux * s * 3, 0, end.z + PIER.uz * s * 3); me.pos.y = height(me.pos.x, me.pos.z); me.riding = null; boat.visible = false; $('#ferry').disabled = false; setTimeout(() => { $('#ride').classList.remove('on'); bringAnimals(); }, 700); }
     } else {
     const p = CABLE.getPointAt(u); gondola.position.copy(p); me.pos.set(p.x, p.y - 3.3, p.z);
     $('#rideBar').style.width = `${Math.round(k * 100)}%`; $('#rideS').textContent = k < 1 ? `${Math.ceil(r.dur * (1 - k))}초 남았어요 · ${r.dir > 0 ? '🐧 눈 덮인 꼭대기' : '🏘 강가 마을'}` : '도착!';
-    if (k >= 1) { const end = r.dir > 0 ? TOPS : STA; me.pos.copy(end).add(V.set(3, 0, 3)); me.pos.y = height(me.pos.x, me.pos.z); me.riding = null; $('#cable').disabled = false; setTimeout(() => $('#ride').classList.remove('on'), 700); }
+    if (k >= 1) { const end = r.dir > 0 ? TOPS : STA; me.pos.copy(end).add(V.set(3, 0, 3)); me.pos.y = height(me.pos.x, me.pos.z); me.riding = null; $('#cable').disabled = false; setTimeout(() => { $('#ride').classList.remove('on'); bringAnimals(); }, 700); }
     }
   } else {
     const wa = me.inHome ? null : waterAt(me.pos.x, me.pos.z), deck = wa ? (wa.kind === 'sea' ? 0.22 : 0.28) : 0;
