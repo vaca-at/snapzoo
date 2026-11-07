@@ -341,5 +341,227 @@ export const DEX_PHOTOS = {
   "by": "Mathias Appel",
   "license": "CC0",
   "link": "https://commons.wikimedia.org/wiki/File:Meerkat_Standing.jpg"
+ },
+ "bluefoot": {
+  "src": "dex/bluefoot.jpg",
+  "by": "Ndecam from London, UK",
+  "license": "CC BY 2.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Sula_nebouxii_-Santa_Cruz,_Galapagos_Islands,_Ecuador-8_(1).jpg"
+ },
+ "butterflyfish": {
+  "src": "dex/butterflyfish.jpg",
+  "by": "Holger Krisp",
+  "license": "CC BY 3.0",
+  "link": "https://commons.wikimedia.org/wiki/File:F%C3%A4hnchen-Falterfisch_(Chaetodon_auriga).jpg"
+ },
+ "camel": {
+  "src": "dex/camel.jpg",
+  "by": "Bachmont",
+  "license": "CC BY 2.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Maroc_Sahara_caravane.jpg"
+ },
+ "capybara": {
+  "src": "dex/capybara.jpg",
+  "by": "Wilfredor",
+  "license": "CC0",
+  "link": "https://commons.wikimedia.org/wiki/File:Hydrochoeris_hydrochaeris_in_Brazil_in_Petr%C3%B3polis,_Rio_de_Janeiro,_Brazil_09.jpg"
+ },
+ "catfish": {
+  "src": "dex/catfish.jpg",
+  "by": "Naturalis Biodiversity Center",
+  "license": "CC0",
+  "link": "https://commons.wikimedia.org/wiki/File:Silurus_glanis_Linnaeus,_1758_2599925104.jpg"
+ },
+ "cormorant": {
+  "src": "dex/cormorant.jpg",
+  "by": "위키미디어 공용",
+  "license": "CC BY 3.0",
+  "link": "https://commons.wikimedia.org/wiki/File:PhalacrocoraxHarrisi-TagusCove.jpg"
+ },
+ "crayfish": {
+  "src": "dex/crayfish.jpg",
+  "by": "A. C. Tatarinov",
+  "license": "CC0",
+  "link": "https://commons.wikimedia.org/wiki/File:Cambaroides_dauricus.JPG"
+ },
+ "crucian": {
+  "src": "dex/crucian.jpg",
+  "by": "George Chernilevsky",
+  "license": "Public domain",
+  "link": "https://commons.wikimedia.org/wiki/File:Carassius_wild_golden_fish_2013_G1.jpg"
+ },
+ "cushionstar": {
+  "src": "dex/cushionstar.jpg",
+  "by": "Chris Spain",
+  "license": "CC0",
+  "link": "https://commons.wikimedia.org/wiki/File:Pentaceraster_cumingi_448944979.jpg"
+ },
+ "egret": {
+  "src": "dex/egret.jpg",
+  "by": "Hobbyfotowiki",
+  "license": "CC0",
+  "link": "https://commons.wikimedia.org/wiki/File:Great_egret_(great_egret_(Ardea_alba)_at_Federsee,_Germany)_at_Federsee.jpg"
+ },
+ "fennec": {
+  "src": "dex/fennec.jpg",
+  "by": "Caninest",
+  "license": "CC BY 2.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Fennec_Fox_Ears_(4394678079).jpg"
+ },
+ "finch": {
+  "src": "dex/finch.jpg",
+  "by": "Andrew Katsis",
+  "license": "CC BY 4.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Medium_ground_finch_on_Floreana_Island_in_the_Gal%C3%A1pagos_Islands.jpg"
+ },
+ "frigate": {
+  "src": "dex/frigate.jpg",
+  "by": "Virtual-Pano",
+  "license": "CC BY 4.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Magnificent_frigatebird_tandem_above_Belize.jpg"
+ },
+ "galdove": {
+  "src": "dex/galdove.jpg",
+  "by": "Andrew Katsis",
+  "license": "CC BY 4.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Gal%C3%A1pagos_dove_close-up_on_Santa_Cruz_Island.jpg"
+ },
+ "galpenguin": {
+  "src": "dex/galpenguin.jpg",
+  "by": "위키미디어 공용",
+  "license": "Public domain",
+  "link": "https://commons.wikimedia.org/wiki/File:Spheniscus_mendiculus.jpg"
+ },
+ "galtortoise": {
+  "src": "dex/galtortoise.jpg",
+  "by": "Pandanus",
+  "license": "Public domain",
+  "link": "https://commons.wikimedia.org/wiki/File:Galapagos_Geochelone_nigra_porteri.jpg"
+ },
+ "greenturtle": {
+  "src": "dex/greenturtle.jpg",
+  "by": "Anna Varona",
+  "license": "CC BY 4.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Sea_Turtle_in_Apo_Island.jpg"
+ },
+ "kingfisher": {
+  "src": "dex/kingfisher.jpg",
+  "by": "Alexis Lours",
+  "license": "CC BY 4.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Common_Kingfisher_2025_09_28_03.jpg"
+ },
+ "koi": {
+  "src": "dex/koi.jpg",
+  "by": "Arden",
+  "license": "CC BY 2.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Koi_feeding,_National_Arboretum.jpg"
+ },
+ "landiguana": {
+  "src": "dex/landiguana.jpg",
+  "by": "E bailey",
+  "license": "CC0",
+  "link": "https://commons.wikimedia.org/wiki/File:Gal%C3%A1pagos_land_iguana_(Conolophus_subcristatus)_July_2025.jpg"
+ },
+ "lavagull": {
+  "src": "dex/lavagull.jpg",
+  "by": "Zygy",
+  "license": "CC0",
+  "link": "https://commons.wikimedia.org/wiki/File:Leucophaeus_fuliginosus_59279200.jpg"
+ },
+ "lavalizard": {
+  "src": "dex/lavalizard.jpg",
+  "by": "Mirko Schoenitz",
+  "license": "CC0",
+  "link": "https://commons.wikimedia.org/wiki/File:Microlophus_albemarlensis_345146328.jpg"
+ },
+ "marineiguana": {
+  "src": "dex/marineiguana.jpg",
+  "by": "David Stanley from Nanaimo, Canada",
+  "license": "CC BY 2.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Fernandina_Island_Iguanas_(49510614233).jpg"
+ },
+ "medaka": {
+  "src": "dex/medaka.jpg",
+  "by": "NOZO",
+  "license": "CC BY 3.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Nihonmedaka.jpg"
+ },
+ "minnow": {
+  "src": "dex/minnow.jpg",
+  "by": "Ffish.asia",
+  "license": "CC BY 4.0",
+  "link": "https://commons.wikimedia.org/wiki/File:%E3%82%AA%E3%82%A4%E3%82%AB%E3%83%AF%EF%BC%88%E4%B8%8A%EF%BC%89%E3%81%A8%E3%82%AB%E3%83%AF%E3%83%A0%E3%83%84%EF%BC%88%E4%B8%8B%EF%BC%89%E3%81%AE%E7%A8%9A%E9%AD%9A_PA050701s.jpg"
+ },
+ "mockingbird": {
+  "src": "dex/mockingbird.jpg",
+  "by": "Judy Gallagher",
+  "license": "CC BY 2.0",
+  "link": "https://commons.wikimedia.org/wiki/File:365_Galapagos_Mockingbird_-_Mimus_parvulus,_Isabela_Island,_Galapagos,_July_9,_2021.jpg"
+ },
+ "otter": {
+  "src": "dex/otter.jpg",
+  "by": "Bouke ten Cate",
+  "license": "CC BY 4.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Otter_-_Eurasian_otter_-_Lutra_lutra.jpg"
+ },
+ "parrotfish": {
+  "src": "dex/parrotfish.jpg",
+  "by": "Amada44",
+  "license": "CC BY 3.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Scarus_ghobban_0870.jpg"
+ },
+ "pondturtle": {
+  "src": "dex/pondturtle.jpg",
+  "by": "Pedro Henrique Maloso Ramos",
+  "license": "CC BY 4.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Chinese_Pond_Turtle_(Mauremys_reevesii).jpg"
+ },
+ "pufferfish": {
+  "src": "dex/pufferfish.jpg",
+  "by": "Chris Spain",
+  "license": "CC0",
+  "link": "https://commons.wikimedia.org/wiki/File:Arothron_meleagris_449742970.jpg"
+ },
+ "redcrab": {
+  "src": "dex/redcrab.jpg",
+  "by": "Lieutenant Elizabeth Crapo, NOAA Corps",
+  "license": "Public domain",
+  "link": "https://commons.wikimedia.org/wiki/File:Grapsus_grapsus_Galapagos_Islands.jpg"
+ },
+ "sealion": {
+  "src": "dex/sealion.jpg",
+  "by": "David Broad",
+  "license": "CC BY 3.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Sealion_beach,_Isla_Espanola,_Punta_Suarez,_Galapagos_-_panoramio.jpg"
+ },
+ "seaturtle": {
+  "src": "dex/seaturtle.jpg",
+  "by": "ukanda",
+  "license": "CC BY 2.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Loggerhead_sea_turtle.jpg"
+ },
+ "sloth": {
+  "src": "dex/sloth.jpg",
+  "by": "Christian Mehlführer, User:Chmehl",
+  "license": "CC BY 2.5",
+  "link": "https://commons.wikimedia.org/wiki/File:MC_Drei-Finger-Faultier.jpg"
+ },
+ "sunfish": {
+  "src": "dex/sunfish.jpg",
+  "by": "Per-Ola Norman",
+  "license": "Public domain",
+  "link": "https://commons.wikimedia.org/wiki/File:Sunfish2.jpg"
+ },
+ "toucan": {
+  "src": "dex/toucan.jpg",
+  "by": "Pablo",
+  "license": "CC BY 4.0",
+  "link": "https://commons.wikimedia.org/wiki/File:Ramphastos_toco_407212656.jpg"
+ },
+ "treefrog": {
+  "src": "dex/treefrog.jpg",
+  "by": "Visviva",
+  "license": "Public domain",
+  "link": "https://commons.wikimedia.org/wiki/File:Hyla_japonica_dark_concrete.jpg"
  }
 };

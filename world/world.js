@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261107r';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107r';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107r';
-import { IslandSound } from './sound.js?v=20261107r';
-import { ROSTER } from './fauna.js?v=20261107r';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107r';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107r';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107r';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261107s';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107s';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107s';
+import { IslandSound } from './sound.js?v=20261107s';
+import { ROSTER } from './fauna.js?v=20261107s';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107s';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107s';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107s';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);

@@ -1,7 +1,7 @@
 // 섬 식구 늘리기 (2026-11-05): 구역마다 10종. 사람을 해치는 동물(곰 · 사자 · 하마 · 뱀 · 해파리 · 가오리 …)은 넣지 않아요.
 // zoo3d.js 의 그림 도구를 그대로 써요: 네 발 동물은 quad(), 작은 동물 · 새 · 거북 · 바다 친구는 여기서 새 틀로 빚어요.
 // 모든 동물은 +z 를 보고 발이 y=0. 돌려주는 st = { root, walk(0~1), update(t, dt) }.
-import { THREE, COATS, quad, eye, plain, tube, ell, M, J, V, SPECIES } from './zoo3d.js?v=20261107r';
+import { THREE, COATS, quad, eye, plain, tube, ell, M, J, V, SPECIES } from './zoo3d.js?v=20261107s';
 const { sin, cos, PI, abs, min, max, pow } = Math;
 
 // ───────── 네 발 동물: 몸길이 L · 어깨 높이 H 만 주면 나머지 비율은 알맞게, 다른 곳만 o 로 ─────────
