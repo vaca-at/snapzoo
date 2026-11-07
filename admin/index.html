@@ -121,9 +121,9 @@ const auth = getAuth(initializeApp({ apiKey: 'AIzaSyA3CxawUPIfGeBWyffsNbCSM3ymjK
 const ADMIN_EMAILS = ['bellachord@gmail.com', 'anstjsdud@sen.go.kr'], isAdminEmail = (e) => ADMIN_EMAILS.includes(String(e || '').toLowerCase());
 
 async function load() {
-  if (!auth.currentUser) return showLogin();
+  if (!auth.currentUser && !handTok) return showLogin();
   let r;
-  try { r = await fetch(`${RELAY}/admin/stats`, { headers: { Authorization: `Bearer ${await auth.currentUser.getIdToken()}` } }); }
+  try { r = await fetch(`${RELAY}/admin/stats`, { headers: { Authorization: `Bearer ${await idTok()}` } }); }
   catch { $('#err').textContent = await whyDown(); showLogin(); return; }
   if (r.status >= 500) { $('#err').textContent = await whyDown(); showLogin(); return; }
   if (r.status === 401) { $('#err').textContent = '관리자 구글 계정으로 다시 로그인해 주세요.'; showLogin(); return; }
@@ -136,10 +136,22 @@ async function whyDown() {
   const ok = await fetch(`${RELAY}/counts?kind=island`, { cache: 'no-store' }).then((x) => x.ok).catch(() => false);
   const kst = new Date(Date.now() + 9 * 36e5), h = kst.getUTCHours(), m = kst.getUTCMinutes(), left = ((24 + 9 - h) % 24 || 24) * 60 - m, hh = Math.floor(left / 60), mm = left % 60;
   if (!ok) return '중계 서버에 닿지 않아요. 인터넷 연결을 확인하거나 잠시 뒤에 다시 열어 주세요.';
-  return `오늘 Cloudflare 무료 사용량을 다 써서 방문 숫자 칸이 잠시 멈췄어요. 한국 시간 오전 9시에 다시 열려요 (${hh ? hh + '시간 ' : ''}${mm}분 남음). 게임은 그대로 할 수 있어요.`;
+  return `방문 숫자 칸이 잠시 대답하지 않아요. Cloudflare 사용량 한도에 걸렸다면 한국 시간 오전 9시에 다시 열려요 (${hh ? hh + '시간 ' : ''}${mm}분 남음). 게임은 그대로 할 수 있어요.`;
+}
+// 관리자 허브(moontr.site/admin) 창 안에서 열리면, 허브에 로그인해 둔 관리자 증표를 받아 써요 (구글 창을 또 띄우지 않아요)
+let handTok = '', handAt = 0;
+const idTok = async () => auth.currentUser ? auth.currentUser.getIdToken() : handTok;
+if (window.parent !== window) {
+  window.addEventListener('message', (e) => {
+    if (e.origin !== 'https://moontr.site' || e.data?.t !== 'moontr-token') return;
+    const first = !handTok; handTok = e.data.idToken; handAt = Date.now();
+    if (first && !auth.currentUser) load();
+  });
+  const ask = () => window.parent.postMessage({ t: 'moontr-need-token' }, 'https://moontr.site');
+  ask(); setInterval(ask, 40 * 60 * 1000);   // 증표는 1시간만 쓸 수 있어서 40분마다 새로 받아요
 }
 function showLogin() { $('#dash').hidden = true; $('#login').hidden = false; }
-onAuthStateChanged(auth, async (u) => { if (u && !isAdminEmail(u.email)) { await signOut(auth); $('#err').textContent = '관리자 계정이 아니에요. 관리자 구글 계정으로 골라 주세요.'; return showLogin(); } if (u) load(); else showLogin(); });
+onAuthStateChanged(auth, async (u) => { if (u && !isAdminEmail(u.email)) { await signOut(auth); $('#err').textContent = '관리자 계정이 아니에요. 관리자 구글 계정으로 골라 주세요.'; return showLogin(); } if (u) load(); else if (!handTok) showLogin(); });
 
 function bars(el, keys, vals) {
   const max = Math.max(5, ...vals), W = 560, H = 220, P = 26, bw = (W - P) / 14, nice = Math.ceil(max / 5) * 5; let svg = '';
@@ -167,13 +179,13 @@ function renderIsland(s) {
 const HELP = 'https://moontr-help.bellachord.workers.dev'; let hCur = null;
 const esc = (x) => String(x ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const when = (t) => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
-const hcall = async (path, opt = {}) => { const r = await fetch(HELP + path, { ...opt, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await auth.currentUser.getIdToken() } }); if (!r.ok) throw new Error('서버 ' + r.status); return r.json(); };
+const hcall = async (path, opt = {}) => { const r = await fetch(HELP + path, { ...opt, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await idTok() } }); if (!r.ok) throw new Error('서버 ' + r.status); return r.json(); };
 async function loadHelp() {
   try {
     const r = await hcall('/admin/threads'), L = r.threads.filter((t) => t.app === 'snapzoo'), n = L.filter((t) => t.unreadOp).length;
     $('#helpN').textContent = `${L.length}개 대화${n ? ` · 새 글 ${n}` : ''}`;
     $('#hlist').innerHTML = L.length ? L.map((t) => `<button type="button" data-uid="${t.uid}" class="${hCur === t.uid ? 'on' : ''}">${esc(t.name || '닉네임 없음')}${t.unreadOp ? '<i>새 글</i>' : ''}<small>${esc(t.last || '')} · ${when(t.updatedAt)}</small></button>`).join('') : '<p class="muted" style="padding:10px">아직 문의가 없어요</p>';
-  } catch (e) { $('#hlist').innerHTML = `<p class="err" style="padding:10px">문의를 불러오지 못했어요. ${/5\d\d|Failed|Load/.test(e.message) ? '오늘 Cloudflare 무료 사용량을 다 써서 잠시 멈췄을 수 있어요. 한국 시간 오전 9시에 다시 열려요.' : esc(e.message)}</p>`; }
+  } catch (e) { $('#hlist').innerHTML = `<p class="err" style="padding:10px">문의를 불러오지 못했어요. ${/5\d\d|Failed|Load/.test(e.message) ? 'Cloudflare 사용량 한도에 걸렸다면 한국 시간 오전 9시에 다시 열려요.' : esc(e.message)}</p>`; }
 }
 async function openHelp(uid) {
   hCur = uid; $('#hreply').hidden = false; const r = await hcall(`/admin/thread?app=snapzoo&uid=${uid}`);

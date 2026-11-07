@@ -93,8 +93,11 @@ export class Net {
   send(st, now) {
     this.last = st;
     if (!this.ws || this.ws.readyState !== 1 || document.hidden) return;
+    // 위치는 움직였을 때만 보내요. 가만히 있으면 안 보내요 (친구가 있을 때만 1분에 한 번 '여기 있어요').
+    // 방에 나 혼자면 받을 사람이 없으니 5초에 한 번만 (새 친구가 들어오면 바로 한 번 보내요)
     const j = JSON.stringify(st), alone = !this.peers?.size, same = j === this.lastJson;
-    if (now - this.lastSent < (alone ? (same ? 30000 : 5000) : (same ? 15000 : 250))) return;
+    if (same && (alone || now - this.lastSent < 60000)) return;
+    if (now - this.lastSent < (alone ? 5000 : 250)) return;
     this.lastJson = j; this.lastSent = now; this.ws.send(JSON.stringify({ t: 'st', d: st }));
   }
 
