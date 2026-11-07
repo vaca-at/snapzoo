@@ -19,7 +19,8 @@ const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const smooth = (a, b, t) => { t = clamp((t - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const lerp = (a, b, k) => a + (b - a) * k;
-const MOBILE = matchMedia('(pointer: coarse)').matches || innerWidth < 700;
+const IPAD = /iPad|Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;   // 키보드 · 트랙패드를 붙인 아이패드도 가볍게
+const MOBILE = matchMedia('(pointer: coarse)').matches || innerWidth < 700 || IPAD;
 let seed = 11;
 const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
@@ -60,7 +61,12 @@ function rawH(x, z) {
   h += de * (2.4 * Math.sin(x * 0.09 + z * 0.04) + 1.6 * Math.sin(x * 0.05 - z * 0.07));   // 사막 모래 언덕
   h -= smooth(250, 318, Math.hypot(x, z * 0.95)) * 42;                          // 섬 가장자리
   h -= smooth(165, 250, z - 0.6 * x) * 32;                                      // 남서쪽 바다 · 강 하구
-  return h;
+  return terrace(h);
+}
+// 산을 계단처럼: 높이 30 까지는 그대로, 정글은 완만한 평지(30~44), 짧은 비탈을 오르면 꼭대기 눈밭 평지(108~114)
+function terrace(h) {
+  if (h <= 30) return h;
+  return 30 + 10 * smooth(30, 56, h) + 4 * smooth(56, 88, h) + 64 * smooth(88, 124, h) + 6 * smooth(124, 195, h);
 }
 function height(x, z) {
   let h = rawH(x, z);
@@ -695,8 +701,10 @@ function showHint(ev) {
   const tip = ev.ratio < 0.22 ? '➕ 조금 더 가까이' : ev.ratio > 0.85 ? '➖ 너무 가까워요' : ev.center < 26 ? '가운데로 맞춰요' : !ev.moment ? '👋 인사하면 반겨 줘요' : ev.o.moment;
   $('#fhint').textContent = `${ev.o.name} · ${ev.total}점 · ${tip}`;
 }
+let lastShot = -1e9;   // 연타 금지: 1초에 한 번만 찍혀요
 function shoot() {
   if (mode !== 'photo' || raiseT > 0) return;
+  const nowT = performance.now(); if (nowT - lastShot < 1000) return; lastShot = nowT;
   const ev0 = evaluate();
   if (!ev0) { const t = $('#toast'); t.querySelector('img').removeAttribute('src'); t.querySelector('span').innerHTML = '<b>동물이 네모 안에 없어요</b><small>동물을 가운데에 담고 찰칵!</small>'; t.classList.add('on'); clearTimeout(shoot.tt); shoot.tt = setTimeout(() => t.classList.remove('on'), 1800); return; }
   me.st.snapT = 0.18;
@@ -716,7 +724,8 @@ function shoot() {
     else { badge = `최고 사진은 ${old.score}점이에요`; old.shots++; }
     saveDex(); if (spot) { MY.coins += 30; saveMy(); updCoins(); } if (isNew) checkTitles();
   }
-  document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => {
+  // 글꼴을 오래 기다리지 않아요 (사파리에서 대답이 늦어도 결과는 떠야 해요)
+  Promise.race([document.fonts.load('40px OngleipUnz').catch(() => {}), new Promise((r) => setTimeout(r, 800))]).then(() => {
     const c = document.createElement('canvas'); c.width = 1080; c.height = 1010; const g = c.getContext('2d');
     g.fillStyle = camOf().frame; g.fillRect(0, 0, 1080, 1010);
     for (let i = 0; i < 1400; i++) { g.fillStyle = `rgba(120,100,70,${Math.random() * 0.05})`; g.fillRect(Math.random() * 1080, Math.random() * 1010, 2, 2); }
@@ -726,15 +735,22 @@ function shoot() {
     g.fillStyle = '#7a6a5a'; g.font = '38px OngleipUnz, sans-serif'; g.fillText(sp ? `${spot ? '📍 ' + spot.name : zone} · ${score}점${sp.moment ? ' · ' + sp.moment : ''}` : '조용한 한때', 54, 930);
     g.font = '24px OngleipUnz, sans-serif'; g.fillStyle = 'rgba(90,70,50,.55)'; g.textAlign = 'right'; g.fillText('Snapzoo · snapzoo.site', 1032, 985); g.textAlign = 'left';   // 공유할 때 보이는 작은 표시
     g.textAlign = 'right'; g.font = '32px OngleipUnz, sans-serif'; g.fillText(`${at.getFullYear()}. ${at.getMonth() + 1}. ${at.getDate()}`, 1032, 930);
-    c.toBlob(async (blob) => {
-      if (!blob) return;
-      await addPhoto({ blob, zone, seen: sp ? [sp.name] : [], animal: sp?.id || '', score });
-      if (sp && (isNew || badge === '최고 사진 바꿈!')) await addPhoto({ id: `best-${sp.id}`, blob, zone, seen: [sp.name], animal: sp.id, score });
-      const t = $('#toast'), u = URL.createObjectURL(blob); t.querySelector('img').src = u;
-      t.querySelector('span').innerHTML = sp ? `<b>${sp.name} ${starHTML(stars)} ${score}점</b><small>${badge} · 🪙 +${earn}${spot ? ` · 📍 ${spot.name} +30` : ''}</small>` : '<b>찰칵!</b><small>동물은 안 찍혔어요</small>';
-      t.classList.add('on'); clearTimeout(shoot.tt); shoot.tt = setTimeout(() => { t.classList.remove('on'); URL.revokeObjectURL(u); }, 3200);
+    // 결과(폴라로이드 · 점수 · 도감)를 먼저 보여 주고, 앨범 저장은 그 뒤에 해요. 저장이 막혀도 결과는 떠요
+    const done = async (blob, src) => {
+      const t = $('#toast'); t.querySelector('img').src = src;
+      const msg = sp ? `<b>${sp.name} ${starHTML(stars)} ${score}점</b><small>${badge} · 🪙 +${earn}${spot ? ` · 📍 ${spot.name} +30` : ''}</small>` : '<b>찰칵!</b><small>동물은 안 찍혔어요</small>';
+      t.querySelector('span').innerHTML = msg;
+      t.classList.add('on'); clearTimeout(shoot.tt); shoot.tt = setTimeout(() => { t.classList.remove('on'); if (src.startsWith('blob:')) URL.revokeObjectURL(src); }, 4500);
       if (isNew) snd.chime();
-    }, 'image/jpeg', 0.9);
+      let ok = !!blob;
+      if (blob) {
+        ok = await addPhoto({ blob, zone, seen: sp ? [sp.name] : [], animal: sp?.id || '', score });
+        if (sp && (isNew || badge === '최고 사진 바꿈!')) await addPhoto({ id: `best-${sp.id}`, blob, zone, seen: [sp.name], animal: sp.id, score });
+      }
+      if (!ok) t.querySelector('span').innerHTML = `${msg}<small>앨범에 저장하지 못했어요 (사파리 개인 정보 보호 탭이면 일반 탭으로 열어 주세요)</small>`;
+    };
+    try { c.toBlob((blob) => { if (blob) done(blob, URL.createObjectURL(blob)); else done(null, c.toDataURL('image/jpeg', 0.9)); }, 'image/jpeg', 0.9); }
+    catch { done(null, c.toDataURL('image/jpeg', 0.9)); }
   });
 }
 // 📖 도감: 열두 식구, 종마다 가장 잘 찍은 사진 한 장
@@ -919,12 +935,9 @@ $('#ctx').onclick = () => {
   }
 };
 
-// ───────── 😊 감정 표현 (친구에게 보여요) ─────────
+// ───────── 😊 감정 표현: 단추는 뺐어요 (2026-11-07). 예전 판 친구가 보낸 표현은 이름표에 그대로 떠요 ─────────
 const EMOS = ['😊', '👍', '❤️', '😂', '🙏', '😮'];
 let emoN = 0, emoI = 0;
-$('#emoBtn').onclick = (e) => { e.stopPropagation(); $('#emo').classList.toggle('on'); };
-$('#emo').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; emoI = +b.dataset.i; emoN = (emoN + 1) % 1000; showEmo($('#meEmo'), EMOS[emoI]); $('#emo').classList.remove('on'); });
-addEventListener('pointerdown', (e) => { if (!e.target.closest('#emo, #emoBtn')) $('#emo').classList.remove('on'); });
 function showEmo(el, ch) { el.textContent = ch; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('pop'), 2600); }
 
 // ───────── 🏅 도감 칭호: 구역 식구를 다 찍으면 칭호 + 코인 ─────────
