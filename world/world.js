@@ -6,13 +6,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107e';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107e';
-import { IslandSound } from './sound.js?v=20261107e';
-import { ROSTER } from './fauna.js?v=20261107e';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107e';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js?v=20261107e';
-import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107e';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107f';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107f';
+import { IslandSound } from './sound.js?v=20261107f';
+import { ROSTER } from './fauna.js?v=20261107f';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107f';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js?v=20261107f';
+import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107f';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -604,13 +604,13 @@ function herdOf(zone) {
 }
 // 마을가기: 산꼭대기에서는 케이블카, 섬에서는 배로 돌아와요
 $('#home').onclick = () => { if (curZone === 'arctic') $('#cable').onclick(); else if (curZone === 'isle') rideFerry(); else travelTo('🏘 마을로 돌아가는 중', () => VIL.clone().add(V.set(0, 0, 8))); };
-$('#goHome').onclick = () => enterHome();   // 마을에서는 '마을가기' 자리에 '집으로'
+$('#goHome').onclick = () => enterHome();   // 어디서든 맨 위 단추로 집 안에 들어가요
 $('#goSav').onclick = () => travelTo('🦁 초원으로 가는 중', () => YARD.savanna.pos.clone());
 $('#goDes').onclick = () => travelTo('🏜️ 사막으로 가는 중', () => YARD.desert.pos.clone());
 // 지금 있는 구역의 단추는 숨겨요 (마을에선 '마을로'가 없어요). 산꼭대기에선 케이블카가 '마을로 내려가기'
 function updMoves(z) {
   // 다섯 단계: 마을(+마을 바닷가) → 초원 → 사막 → 산꼭대기 → 섬(+섬 바닷가). 지금 있는 곳의 단추만 숨겨요
-  $('#home').hidden = z === 'village'; $('#goHome').hidden = z !== 'village'; $('#goSav').hidden = z === 'savanna'; $('#goDes').hidden = z === 'desert'; $('#cable').hidden = z === 'arctic'; $('#ferry').hidden = z === 'isle';
+  $('#home').hidden = z === 'village'; $('#goSav').hidden = z === 'savanna'; $('#goDes').hidden = z === 'desert'; $('#cable').hidden = z === 'arctic'; $('#ferry').hidden = z === 'isle';
 }
 
 
