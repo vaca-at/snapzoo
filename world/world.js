@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108c';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108c';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108c';
-import { IslandSound } from './sound.js?v=20261108c';
-import { ROSTER } from './fauna.js?v=20261108c';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261108c';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108c';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108c';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108e';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108e';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108e';
+import { IslandSound } from './sound.js?v=20261108e';
+import { ROSTER } from './fauna.js?v=20261108e';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261108e';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108e';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108e';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -1080,15 +1080,42 @@ addEventListener('pagehide', saveMy);
 
 // ───────── 🔥 모닥불 · 🪑 통나무 의자 (마을 · 산꼭대기): 앉아서 쉬어요 ─────────
 const SEATS = [], FIRES = [];
-function campfire(c, faceTo) {
-  const g = new THREE.Group(); g.position.set(c.x, height(c.x, c.z), c.z); scene.add(g);
-  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2, st = new THREE.Mesh(new THREE.DodecahedronGeometry(0.18, 1), toon('#8a8478')); st.position.set(Math.sin(a) * 0.62, 0.08, Math.cos(a) * 0.62); st.scale.y = 0.6; g.add(st); }
-  for (let i = 0; i < 4; i++) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.9, 10), toon('#6a4a30')); w.rotation.set(Math.PI / 2 - 0.5, i * Math.PI / 2, 0); w.position.y = 0.2; g.add(w); }
-  const flames = []; for (let i = 0; i < 3; i++) { const f = new THREE.Mesh(new THREE.ConeGeometry(0.2 - i * 0.05, 0.7 - i * 0.12, 12), new THREE.MeshBasicMaterial({ color: ['#ff8a2a', '#ffb83a', '#fff0a0'][i], transparent: true, opacity: 0.9, fog: false })); f.position.y = 0.45 - i * 0.02; g.add(f); flames.push(f); }
-  const light = new THREE.PointLight('#ff9a4a', 6, 14, 1.6); light.position.y = 0.9; g.add(light);
-  FIRES.push({ g, flames, light });
-  for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + 0.4, x = c.x + Math.sin(a) * 1.9, z = c.z + Math.cos(a) * 1.9, y = height(x, z);
-    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.18, 1.1, 14), toon('#8a5e3a')); log.rotation.set(0, a, Math.PI / 2); log.position.set(x, y + 0.17, z); log.castShadow = log.receiveShadow = true; scene.add(log);
+// 🔥 모닥불: 둥근 돌 테 · 재 · 원뿔로 세운 장작(자른 면은 밝게) · 겹겹 불꽃 · 숯불 · 날아오르는 불티, 둘레에 통나무 벤치 넷
+const emberTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,240,190,1)'); gr.addColorStop(0.35, 'rgba(255,160,60,.75)'); gr.addColorStop(1, 'rgba(255,120,40,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const flameGeo = (r, h) => { const pts = []; for (let i = 0; i <= 14; i++) { const t = i / 14; pts.push(new THREE.Vector2(Math.max(0.001, r * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.15)), 0.75) * (1 - t * 0.35)), t * h)); } return new THREE.LatheGeometry(pts, 18); };
+function campfire(c) {
+  const g = new THREE.Group(), y0 = height(c.x, c.z); g.position.set(c.x, y0, c.z); scene.add(g);
+  const sr = (i) => (Math.sin(i * 12.9898 + c.x * 0.1) * 43758.5453) % 1, rr = (i) => Math.abs(sr(i));
+  // 바닥: 흙 자리 · 재
+  const pad = new THREE.Mesh(new THREE.CircleGeometry(1.05, 28), toon('#7a6248')); pad.rotation.x = -Math.PI / 2; pad.position.y = 0.012; g.add(pad);
+  const ash = new THREE.Mesh(new THREE.CircleGeometry(0.5, 24), toon('#3a3430')); ash.rotation.x = -Math.PI / 2; ash.position.y = 0.02; g.add(ash);
+  // 돌 테: 크기 · 빛깔이 조금씩 다른 둥근 돌 열두 개
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 + rr(i) * 0.2, sz = 0.16 + rr(i + 3) * 0.07, st = new THREE.Mesh(new THREE.IcosahedronGeometry(sz, 1), toon(['#6e6a64', '#5e5a54', '#7a756c', '#545049'][i % 4])); st.position.set(Math.sin(a) * 0.66, sz * 0.45, Math.cos(a) * 0.72); st.scale.set(1.15, 0.62, 0.95); st.rotation.set(rr(i + 5) * 2, a, rr(i + 7)); st.castShadow = true; g.add(st); }
+  // 장작: 가운데로 기대어 원뿔처럼 (껍질은 진하게, 끝 자른 면은 밝게)
+  for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + 0.3, w = new THREE.Group(); g.add(w); w.rotation.y = a;
+    const L = 0.78, log = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.05, L, 9), toon(i % 2 ? '#5a3c26' : '#6a4a30')); log.position.set(0, L * 0.36, 0.26); log.rotation.x = -0.68; w.add(log);
+    const cut = new THREE.Mesh(new THREE.CircleGeometry(0.049, 10), toon('#d8b07a')); cut.position.set(0, 0.04, 0.5); cut.rotation.x = -0.68 + Math.PI / 2; w.add(cut);
+    const char = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), new THREE.MeshBasicMaterial({ color: '#ff7a2a', fog: false })); char.position.set(0, 0.5, -0.02); char.scale.set(0.7, 0.5, 0.7); w.add(char); }
+  // 숯불: 바닥에서 은은하게
+  const embers = []; for (let i = 0; i < 9; i++) { const a = rr(i + 11) * 6.28, r = 0.12 + rr(i + 13) * 0.3, e = new THREE.Mesh(new THREE.SphereGeometry(0.035 + rr(i) * 0.02, 6, 5), new THREE.MeshBasicMaterial({ color: '#ff8a3a', fog: false })); e.position.set(Math.sin(a) * r, 0.04, Math.cos(a) * r); g.add(e); embers.push(e); }
+  // 불꽃: 바깥 빨강 → 주황 → 안쪽 노랑, 물방울 모양 셋 + 작은 혀 둘
+  const flames = [];
+  [[0.3, 1.25, '#ff5a1f', 0.8], [0.22, 1.0, '#ff9a2a', 0.88], [0.13, 0.7, '#ffe680', 0.95]].forEach(([r, h, col, op], n) => { const f = new THREE.Mesh(flameGeo(r, h), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false, fog: false })); f.position.y = 0.12; f.renderOrder = 2 + n; g.add(f); flames.push(f); });
+  for (const s2 of [-1, 1]) { const f = new THREE.Mesh(flameGeo(0.1, 0.5), new THREE.MeshBasicMaterial({ color: '#ff8a2a', transparent: true, opacity: 0.85, depthWrite: false, fog: false })); f.position.set(s2 * 0.13, 0.1, s2 * 0.05); f.rotation.z = -s2 * 0.25; g.add(f); flames.push(f); }
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: emberTex, color: '#ffb060', transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); halo.scale.setScalar(2.2); halo.position.y = 0.5; g.add(halo);
+  // 불티: 위로 날아올라 사라져요
+  const sparks = []; for (let i = 0; i < 12; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: emberTex, color: '#ffc070', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); sp.scale.setScalar(0.07); g.add(sp); sparks.push({ sp, t: rr(i + 21) * 2, sp0: 0.5 + rr(i + 23) * 0.6, a: rr(i + 25) * 6.28 }); }
+  const light = new THREE.PointLight('#ff9a4a', 6, 14, 1.6); light.position.y = 1.4; g.add(light);
+  FIRES.push({ g, flames, light, embers, sparks, halo });
+  // 🪵 통나무 벤치 넷: 껍질 통나무 위에 평평하게 깎은 앉는 판, 양쪽 그루터기 받침
+  for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + 0.4, x = c.x + Math.sin(a) * 1.95, z = c.z + Math.cos(a) * 1.95, y = height(x, z);
+    const b = new THREE.Group(); b.position.set(x, y, z); b.rotation.y = a + Math.PI / 2; scene.add(b);
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.2, 1.25, 14), toon('#7a5234')); trunk.rotation.z = Math.PI / 2; trunk.position.y = 0.2; b.add(trunk);
+    for (const e of [-1, 1]) { const ring = new THREE.Mesh(new THREE.CircleGeometry(0.185, 14), toon('#d8b07a')); ring.position.set(e * 0.626, 0.2, 0); ring.rotation.y = e * Math.PI / 2; b.add(ring);
+      const core = new THREE.Mesh(new THREE.RingGeometry(0.07, 0.085, 14), toon('#b08850')); core.position.set(e * 0.628, 0.2, 0); core.rotation.y = e * Math.PI / 2; b.add(core);
+      const stump = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.12, 10), toon('#5a3c26')); stump.position.set(e * 0.42, 0.04, 0); b.add(stump); }
+    const top = new THREE.Mesh(new RoundedBoxGeometry(1.2, 0.05, 0.3, 2, 0.02), toon('#c8945a')); top.position.y = 0.36; b.add(top);
+    b.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     SEATS.push({ pos: new THREE.Vector3(x, y, z), face: Math.atan2(c.x - x, c.z - z), fire: c }); }
 }
 
@@ -1164,7 +1191,7 @@ function updCtx() {
   else { ctxA = null; }   // 동물 곁 '먹이 주기' 단추는 뺐어요
   ctxKind = kind; $('#ctx').hidden = !kind; if ($('#ctx').textContent !== label) $('#ctx').textContent = label;
 }
-function sitDown(seat) { bump('sit'); sitting = seat; me.target = null; me.pos.copy(seat.pos); me.face = seat.face; me.st.sit = 1; me.st.seat = 0.3; toastMsg('모닥불 곁에 앉았어요', '움직이면 일어나요 · 타닥타닥 불소리를 들어 보세요'); snd.fire = 1; }
+function sitDown(seat) { bump('sit'); sitting = seat; me.target = null; me.pos.copy(seat.pos); me.face = seat.face; me.st.sit = 1; me.st.seat = 0.37; toastMsg('모닥불 곁에 앉았어요', '움직이면 일어나요 · 타닥타닥 불소리를 들어 보세요'); snd.fire = 1; }
 function standUp() { if (!sitting) return; sitting = null; me.st.sit = 0; me.lie = false; snd.fire = 0; }
 // 동물 돌보기: pet = true 쓰다듬기, false 먹이 주기 (안 정하면 먹은 뒤엔 쓰다듬기)
 function careAnimal(a, pet = a.fedT > 0) {
@@ -1917,7 +1944,14 @@ function frame() {
   const fogNear = z0 === 'jungle' ? 30 : z0 === 'arctic' ? 60 : 120, fogFar = z0 === 'jungle' ? 260 : z0 === 'arctic' ? 420 : 720;
   updWeather(T, dt, z0);
   scene.fog.near = lerp(scene.fog.near, fogNear * wx.fogK, 0.02); scene.fog.far = lerp(scene.fog.far, fogFar * wx.fogK, 0.02);
-  FIRES.forEach((f, i) => { const k = 0.85 + Math.sin(T * 11 + i) * 0.08 + Math.sin(T * 23 + i * 2) * 0.06; f.flames.forEach((m, j) => { m.scale.set(1, k + j * 0.05, 1); m.rotation.y = T * (1 + j); }); f.light.intensity = (4 + tod.night * 10) * k; });
+  FIRES.forEach((f, i) => { const k = 0.85 + Math.sin(T * 11 + i) * 0.08 + Math.sin(T * 23 + i * 2) * 0.06;
+    f.flames.forEach((m, j) => { const w = 1 + Math.sin(T * (7 + j * 3) + j) * 0.06; m.scale.set(w, k * (1 + Math.sin(T * (9 + j * 2) + j * 1.7) * 0.08), w); m.rotation.y = T * (0.6 + j * 0.3); m.rotation.x = Math.sin(T * 2.3 + j) * 0.05; });
+    f.light.intensity = (2.2 + tod.night * 7) * k;   // 낮엔 은은하게 (바닥이 하얗게 날아가지 않게)
+    if (f.g.position.distanceToSquared(camera.position) < 3600) {   // 가까이 있을 때만 불티 · 숯불을 움직여요
+      f.halo.material.opacity = 0.4 + 0.25 * k * (0.5 + tod.night * 0.5);
+      f.embers.forEach((e, j) => { e.material.color.setHSL(0.06, 1, 0.45 + 0.15 * Math.sin(T * 3 + j * 1.3)); });
+      f.sparks.forEach((p) => { p.t += dt * p.sp0; if (p.t > 1.6) { p.t = 0; p.a = Math.random() * 6.28; } const r = 0.08 + p.t * 0.12; p.sp.position.set(Math.sin(p.a + p.t * 2) * r, 0.5 + p.t * 1.1, Math.cos(p.a + p.t * 2) * r); p.sp.material.opacity = Math.max(0, 1 - p.t / 1.6); });
+    } });
   SPOTS.forEach((sp, i) => { sp.ring.material.opacity = 0.35 + Math.sin(T * 2 + i) * 0.15; { const dc = Math.hypot(sp.pos.x - camera.position.x, sp.pos.z - camera.position.z); sp.beam.material.opacity = 0.2 * clamp((dc - 8) / 22, 0, 1); sp.beam.visible = dc > 8; }  /* 금빛 기둥: 가까이 오면 흐려져요 (카메라가 기둥 안에 들어가면 화면이 뿌옇게 덮였어요) */ sp.g.visible = !me.inHome && Math.hypot(sp.pos.x - me.pos.x, sp.pos.z - me.pos.z) < 300; });
   // 📍 포토 스팟 알림: 가까워지면 한 번, 안에 들어오면 한 번
   if (!me.inHome && !me.riding) for (const sp of SPOTS) {
