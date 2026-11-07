@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261107s';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107s';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107s';
-import { IslandSound } from './sound.js?v=20261107s';
-import { ROSTER } from './fauna.js?v=20261107s';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107s';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107s';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107s';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261107t';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107t';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261107t';
+import { IslandSound } from './sound.js?v=20261107t';
+import { ROSTER } from './fauna.js?v=20261107t';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107t';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107t';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107t';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -601,7 +601,7 @@ $('#cable').onclick = () => {
 // 🏘 마을로 · 🦁 초원으로 · 🏜️ 사막으로: 로딩 화면처럼 노을 사진 위에 '○○로 가는 중' + 진행선이 차오른 뒤 도착
 // ☰ 메뉴 서랍: 도감 · 앨범 · 꾸미기 · 설정 · 이동. 하나를 누르면 닫혀요
 // 창은 하나만: 상점 · 캐릭터 · 도감 · 앨범 · 꾸미기 · 어디로 · 설정 · 메뉴
-function closePanels() { closeCloset(); closeDex(); closeAlbum(); closeManual(); ['#deco', '#settings'].forEach((q) => $(q).classList.remove('on')); closeActs(); }
+function closePanels() { closeCloset(); closeDex(); closeAlbum(); closeManual(); ['#deco', '#settings', '#servers'].forEach((q) => $(q).classList.remove('on')); closeActs(); }
 function closeDrawer() { $('#drawer').classList.remove('on'); $('#drawer').setAttribute('aria-hidden', 'true'); $('#drawerBtn').setAttribute('aria-expanded', 'false'); }
 $('#drawerBtn').onclick = (e) => { e.stopPropagation(); const on = !$('#drawer').classList.contains('on'); if (!on) return closeDrawer(); closePanels(); $('#drawer').classList.add('on'); $('#drawer').setAttribute('aria-hidden', 'false'); $('#drawerBtn').setAttribute('aria-expanded', 'true'); };
 $('#drawer').addEventListener('click', (e) => { if (e.target.closest('button') && e.target.closest('button').id !== 'setBtn') closeDrawer(); });
@@ -957,6 +957,9 @@ $('#snapBtn').onclick = () => {
     if (!(await addPhoto({ blob, kind: 'screen', zone: ZONES[me.inHome ? 'home' : curZone || 'village'][0], seen: [], animal: '', score: 0 }))) t.querySelector('span').innerHTML = '<b>스크린샷</b><small>앨범에 저장하지 못했어요</small>';
   }, 'image/jpeg', 0.9);
 };
+// 💬 문의하기: moontr.site/help.js (AI 가 먼저 답하고 관리자도 답해요). 닉네임을 같이 보내요
+window.moontrHelpName = () => myName;
+$('#helpChatBtn').onclick = () => { closeDrawer(); window.moontrHelp?.open(); };
 $('#albumBtn').onclick = () => ($('#album').classList.contains('on') ? closeAlbum() : (closeDex(), openAlbum()));
 $('#albumX').onclick = closeAlbum;
 $('#vX').onclick = () => $('#viewer').classList.remove('on');
@@ -1635,7 +1638,17 @@ const net = new IslandNet({
   onStatus() { showPeople(); },
   onFull() { toastMsg('지금 방이 모두 찼어요', '혼자서 섬을 계속 둘러볼 수 있어요'); },
 });
-function showPeople() { const n = friends.size; $('#people').textContent = `${myTitle()}${myName}${net.online ? (n ? ` · 친구 ${n}명과 함께` : ' · 섬에 혼자예요') : net.full ? ' · 방이 모두 찼어요' : ''}`; }
+// 이름 · 서버(섬 방 N번, 지금 인원 / 20명). 누르면 서버 고르기
+function showPeople() { const n = friends.size; $('#people').textContent = `${myTitle()}${myName}${net.online ? ` · 서버 ${net.room} (${n + 1}/${NET_CAP}명)` : net.full ? ' · 서버가 모두 찼어요' : ' · 혼자 둘러보는 중'}`; }
+async function openServers() {
+  closePanels(); closeDrawer(); const box = $('#servers'); box.classList.add('on'); $('#srvList').innerHTML = '<p class="empty">서버 인원을 불러오는 중…</p>';
+  const c = await net.counts(); if (!c) { $('#srvList').innerHTML = '<p class="empty">서버에 닿지 않아요. 잠시 뒤에 다시 열어 주세요</p>'; return; }
+  $('#srvList').innerHTML = c.map((k, i) => { const n = i + 1, mine = net.online && net.room === n, full = k >= NET_CAP && !mine; return `<button type="button" data-srv="${n}" class="${mine ? 'on' : ''}" ${full ? 'disabled' : ''}><b>서버 ${n}</b><span><i style="width:${Math.min(100, k / NET_CAP * 100)}%"></i></span><small>${k} / ${NET_CAP}명${mine ? ' · 지금 여기' : full ? ' · 가득' : ''}</small></button>`; }).join('');
+}
+$('#people').addEventListener('click', openServers);
+$('#srvX').onclick = () => $('#servers').classList.remove('on');
+$('#srvList').addEventListener('click', async (e) => { const b = e.target.closest('[data-srv]'); if (!b || b.disabled) return; const n = +b.dataset.srv; if (net.online && net.room === n) { $('#servers').classList.remove('on'); return; }
+  const ok = await net.moveTo(n); $('#servers').classList.remove('on'); toastMsg(ok ? `서버 ${n}(으)로 옮겨요` : `서버 ${n}이 꽉 찼어요`, ok ? '그 서버의 친구들이 보여요' : '다른 서버를 골라 주세요'); });
 showPeople(); setTimeout(() => net.join(), 1500);   // 첫 그림이 나온 뒤에 붙어요
 addEventListener('pagehide', () => net.close());
 function updateFriends(dt) {

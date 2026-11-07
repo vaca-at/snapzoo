@@ -42,6 +42,10 @@ export class IslandNet {
     } catch { this.h.onStatus?.(); clearTimeout(this.retry); this.retry = setTimeout(() => this.join(), 20000); return false; }   // 섬이 무거워 처음엔 늦을 수 있어요: 20초 뒤 다시
     this.tries = 0; this.open(n); return true;
   }
+  // 서버(섬 방)마다 지금 인원: [n1 … n10] (못 읽으면 null)
+  async counts() { if (!RELAY) return null; try { return (await fetch(`${RELAY}/counts?kind=island`, { cache: 'no-store', signal: AbortSignal.timeout(8000) }).then((r) => r.json())).counts || null; } catch { return null; } }
+  // 내가 고른 서버로 옮겨요 (꽉 찼으면 false)
+  async moveTo(n) { const c = await this.counts(); if (c && c[n - 1] >= CAP) return false; this.tries = 0; this.full = false; this.open(n); return true; }
   open(n, attempt = 0) {
     this.close(true); this.room = n;
     let ws; try { ws = new WebSocket(`${RELAY.replace(/^http/, 'ws')}/ws?room=island-${n}&k=${TAB_KEY}`); } catch { return; }
