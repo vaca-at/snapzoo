@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261107v';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107v';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261107v';
-import { IslandSound } from './sound.js?v=20261107v';
-import { ROSTER } from './fauna.js?v=20261107v';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107v';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107v';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107v';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261107w';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107w';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261107w';
+import { IslandSound } from './sound.js?v=20261107w';
+import { ROSTER } from './fauna.js?v=20261107w';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107w';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107w';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107w';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -1388,14 +1388,13 @@ function updBugs(T, dt) {
     b.g.position.set(x, height(x, z) + 1.1 + Math.sin(t * 2.3) * 0.4, z); b.g.rotation.y = t; const f = Math.sin(T * 16 + b.ph) * 0.9; b.wings[0].rotation.z = f; b.wings[1].rotation.z = -f;
   }
 }
-// 🙌 동작 단추: 누르면 다섯 가지가 펼쳐져요. 춤 · 뛰기는 내 화면에서만 보여요
+// 🙌 동작 단추: 누르면 그 자리에서 할 수 있는 동작이 펼쳐져요
 document.querySelectorAll('#actMenu button, #homeActs button').forEach((b) => { b.querySelector('span').innerHTML = ICON[b.dataset.a] || ''; });
 // ✕ ➕ ➖ ‹ › 글자 단추를 직접 그린 기호로 바꿔요
 document.querySelectorAll('button').forEach((b) => { const t = b.textContent.trim(); if (SYM[t] && b.children.length === 0) b.innerHTML = SYM[t]; });
 // 집 안: 쉬기 · 소파 · 책 읽기 · 차 마시기 단추를 바로 눌러요 (걸어가서 해요)
 $('#homeActs').addEventListener('click', (e) => { const k = e.target.closest('button')?.dataset.a; if (k && HS[k]) homeDo(k); });
 function closeActs() { $('#actMenu').classList.remove('on'); $('#actBtn').setAttribute('aria-expanded', 'false'); }
-// 마을: 연날리기 · 곤충잡기 / 마을 밖: 춤추기 · 뛰기
 // 모닥불 곁: 앉기 · 마시멜로 굽기 · 불꽃놀이 · 연날리기 / 그 밖(2026-11-07 쓰다듬기 · 먹이 · 셀카는 뺐어요): 마을은 앉기 · 연날리기 · 곤충잡기, 마을 밖은 앉기
 const nearFire = () => FIRES.find((f) => Math.hypot(f.g.position.x - me.pos.x, f.g.position.z - me.pos.z) < 7);
 function paintActs() {
@@ -1524,13 +1523,10 @@ const BADGES = [
   { id: 'dex3', icon: '📖', name: '도감 시작', cap: '동물 3종 모으기', ok: (c) => c.dex >= 3 },
   { id: 'dex10', icon: '📚', name: '도감 수집가', cap: '동물 10종 모으기', ok: (c) => c.dex >= 10 },
   { id: 'night', icon: '🌙', name: '밤 친구', cap: '밤에만 나오는 동물 찍기', ok: (c) => c.night >= 1 },
-  { id: 'feed', icon: '🥕', name: '첫 먹이', cap: '동물에게 먹이 주기', ok: (c) => c.feed >= 1 },
-  { id: 'feed20', icon: '🧺', name: '먹이 담당', cap: '먹이 20번 주기', ok: (c) => c.feed >= 20 },
-  { id: 'pet', icon: '🤲', name: '다정한 손', cap: '동물 10번 쓰다듬기', ok: (c) => c.pet >= 10 },
   { id: 'wave', icon: '👋', name: '인사왕', cap: '인사 20번 하기', ok: (c) => c.wave >= 20 },
   { id: 'sit', icon: '🪑', name: '쉬어 가기', cap: '앉아서 쉬기', ok: (c) => c.sit >= 1 },
-  { id: 'dance', icon: '💃', name: '섬의 춤꾼', cap: '춤 5번 추기', ok: (c) => c.dance >= 5 },
-  { id: 'jump', icon: '🤸', name: '폴짝폴짝', cap: '20번 뛰기', ok: (c) => c.jump >= 20 },
+  { id: 'marsh', icon: '🍡', name: '마시멜로 요리사', cap: '모닥불에서 마시멜로 5번 굽기', ok: (c) => c.marsh >= 5 },
+  { id: 'fwork', icon: '🎆', name: '불꽃놀이 대장', cap: '모닥불 곁에서 불꽃놀이 3번', ok: (c) => c.fwork >= 3 },
   { id: 'exV', ex: 1, icon: '🏘', name: '마을 산책', cap: '강가 마을 걷기', ok: (c) => c.seen.village },
   { id: 'exB', ex: 1, icon: '⛵', name: '바다 나들이', cap: '배 타고 바다에 나가기', ok: (c) => c.seen.sea },
   { id: 'exS', ex: 1, icon: '🦁', name: '초원 탐험', cap: '초원에 가기', ok: (c) => c.seen.savanna },

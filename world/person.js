@@ -1,7 +1,7 @@
 // 주인공 · 친구 사람 (2026-11-05 결정): 사람 시안 A(극장판 자연형) · B(꼬마 2.5등신) 를 섞어 체형 셋.
 //  체형 1 = 키 큰(극장판) · 2 = 보통 · 3 = 꼬마(가장 작음, 처음 시작). 번호는 꾸미기 화면 순서예요. 성별 · 옷(LOOKS) · 모자(HATS) 는 꾸미기에서.
 // 돌려주는 st 는 예전 walker 와 같아요: { root, walk, rate, waveT, aim, aimK, snapT, update(t, dt), look, g, hat, body }
-import { THREE, LOOKS, J } from './zoo3d.js?v=20261107v';
+import { THREE, LOOKS, J } from './zoo3d.js?v=20261107w';
 const { sin, cos, PI, abs, max, min } = Math;
 
 // 비율 (미터). 2 는 1 과 3 의 가운데
