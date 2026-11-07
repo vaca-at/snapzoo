@@ -124,11 +124,19 @@ async function load() {
   if (!auth.currentUser) return showLogin();
   let r;
   try { r = await fetch(`${RELAY}/admin/stats`, { headers: { Authorization: `Bearer ${await auth.currentUser.getIdToken()}` } }); }
-  catch { $('#err').textContent = '중계 서버에 닿지 않아요. 잠시 뒤에 다시 열어 주세요.'; showLogin(); return; }
+  catch { $('#err').textContent = await whyDown(); showLogin(); return; }
+  if (r.status >= 500) { $('#err').textContent = await whyDown(); showLogin(); return; }
   if (r.status === 401) { $('#err').textContent = '관리자 구글 계정으로 다시 로그인해 주세요.'; showLogin(); return; }
   const s = await r.json();
   $('#login').hidden = true; $('#dash').hidden = false;
   render(s);
+}
+// 서버가 대답하지 않을 때 까닭을 알려 줘요: 아예 안 닿는지, 방문 숫자 칸만 멈췄는지(Cloudflare 무료 사용량을 다 쓰면 한국 시간 오전 9시에 다시 열려요)
+async function whyDown() {
+  const ok = await fetch(`${RELAY}/counts?kind=island`, { cache: 'no-store' }).then((x) => x.ok).catch(() => false);
+  const kst = new Date(Date.now() + 9 * 36e5), h = kst.getUTCHours(), m = kst.getUTCMinutes(), left = ((24 + 9 - h) % 24 || 24) * 60 - m, hh = Math.floor(left / 60), mm = left % 60;
+  if (!ok) return '중계 서버에 닿지 않아요. 인터넷 연결을 확인하거나 잠시 뒤에 다시 열어 주세요.';
+  return `오늘 Cloudflare 무료 사용량을 다 써서 방문 숫자 칸이 잠시 멈췄어요. 한국 시간 오전 9시에 다시 열려요 (${hh ? hh + '시간 ' : ''}${mm}분 남음). 게임은 그대로 할 수 있어요.`;
 }
 function showLogin() { $('#dash').hidden = true; $('#login').hidden = false; }
 onAuthStateChanged(auth, async (u) => { if (u && !isAdminEmail(u.email)) { await signOut(auth); $('#err').textContent = '관리자 계정이 아니에요. 관리자 구글 계정으로 골라 주세요.'; return showLogin(); } if (u) load(); else showLogin(); });
@@ -165,7 +173,7 @@ async function loadHelp() {
     const r = await hcall('/admin/threads'), L = r.threads.filter((t) => t.app === 'snapzoo'), n = L.filter((t) => t.unreadOp).length;
     $('#helpN').textContent = `${L.length}개 대화${n ? ` · 새 글 ${n}` : ''}`;
     $('#hlist').innerHTML = L.length ? L.map((t) => `<button type="button" data-uid="${t.uid}" class="${hCur === t.uid ? 'on' : ''}">${esc(t.name || '닉네임 없음')}${t.unreadOp ? '<i>새 글</i>' : ''}<small>${esc(t.last || '')} · ${when(t.updatedAt)}</small></button>`).join('') : '<p class="muted" style="padding:10px">아직 문의가 없어요</p>';
-  } catch (e) { $('#hlist').innerHTML = `<p class="err" style="padding:10px">문의를 불러오지 못했어요 (${esc(e.message)})</p>`; }
+  } catch (e) { $('#hlist').innerHTML = `<p class="err" style="padding:10px">문의를 불러오지 못했어요. ${/5\d\d|Failed|Load/.test(e.message) ? '오늘 Cloudflare 무료 사용량을 다 써서 잠시 멈췄을 수 있어요. 한국 시간 오전 9시에 다시 열려요.' : esc(e.message)}</p>`; }
 }
 async function openHelp(uid) {
   hCur = uid; $('#hreply').hidden = false; const r = await hcall(`/admin/thread?app=snapzoo&uid=${uid}`);
