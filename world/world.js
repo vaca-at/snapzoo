@@ -645,13 +645,12 @@ function enterPhoto() {
   me.face = aim.yaw; controls.enabled = false; document.body.classList.add('photo', 'raising'); $('#finder').setAttribute('aria-hidden', 'false');
   animals.forEach((a) => a.tag.classList.remove('on')); hideHint(); snd.start(); updZoom();
 }
-function exitPhoto() { if (mode !== 'photo') return; mode = 'walk'; me.g.visible = true; me.st.aim = 0; controls.enabled = true; document.body.classList.remove('photo', 'raising'); $('#finder').setAttribute('aria-hidden', 'true'); }
+function exitPhoto() { if (mode !== 'photo') return; mode = 'walk'; $('#toast').classList.remove('on'); me.g.visible = true; me.st.aim = 0; controls.enabled = true; document.body.classList.remove('photo', 'raising'); $('#finder').setAttribute('aria-hidden', 'true'); }
 $('#shot').onclick = enterPhoto;
 // 📱 게임 화면이 확대되지 않게 (사파리는 viewport 설정을 안 따라요): 두 손가락 · 두 번 톡톡 막기
 ['gesturestart', 'gesturechange', 'gestureend', 'dblclick'].forEach((n) => document.addEventListener(n, (e) => e.preventDefault(), { passive: false }));
 { let lastTap = 0; document.addEventListener('touchend', (e) => { const t = Date.now(); if (t - lastTap < 350 && !e.target.closest('button, a, input, select, textarea, label')) e.preventDefault(); lastTap = t; }, { passive: false }); }
 $('#fExit').onclick = exitPhoto;
-$('#fFr').onclick = () => { withFriends = !withFriends; $('#fFr').setAttribute('aria-pressed', String(withFriends)); };
 $('#fShot').onclick = () => { wantShot = true; };
 const updZoom = () => { $('#zLab').textContent = `${zoom.toFixed(1)}×`; };
 const setZoom = (z) => { zoom = clamp(Math.round(z * 10) / 10, 1, camOf().zoom); updZoom(); };   // 사진기마다 최대 배율
@@ -712,7 +711,7 @@ function updatePhoto(dt) {
 function evaluate() {
   const fr = $('#frame').getBoundingClientRect(); if (!fr.width) return null;
   const fcx = fr.left + fr.width / 2, fcy = fr.top + fr.height / 2, f = new THREE.Vector3(); fcam.getWorldDirection(f);
-  const tanH = Math.tan(THREE.MathUtils.degToRad(fcam.fov) / 2); let best = null;
+  const tanH = Math.tan(THREE.MathUtils.degToRad(fcam.fov) / 2); let best = null; const all = [];
   for (const o of subjects()) {
     const depth = V.copy(o.c).sub(fcam.position).dot(f); if (depth < 0.5) continue;
     V.copy(o.c).project(fcam); const px = (V.x + 1) / 2 * innerWidth, py = (1 - V.y) / 2 * innerHeight, dx = px - fcx, dy = py - fcy;
@@ -722,8 +721,9 @@ function evaluate() {
     const ratio = (o.h / (2 * depth * tanH) * innerHeight) / fr.height;
     const size = ratio > 1.05 ? 0 : Math.round(SCORE.size * Math.max(0, 1 - Math.abs(ratio - 0.45) / 0.33));
     const moment = o.moment ? SCORE.moment : 0, total = center + size + moment;
-    if (!best || total > best.total) best = { o, center, size, moment, total, ratio };
+    all.push({ o, total }); if (!best || total > best.total) best = { o, center, size, moment, total, ratio };
   }
+  if (best) best.all = all;
   return best;
 }
 const SCORE = { center: 40, size: 30, moment: 30 };
@@ -746,14 +746,24 @@ function shoot() {
   $('#flash').classList.add('on'); requestAnimationFrame(() => setTimeout(() => $('#flash').classList.remove('on'), 60)); snd.shutter();
   shots = (shots + 1) % 1000;   // 친구들 화면에 '📷' 이 잠깐 떠요
   let badge = '', isNew = false;
-  let earn = 0; const spot = spotHere();
+  let earn = 0, note = ''; const spot = spotHere(), friends2 = [];
+  // 🪙 코인 규칙 (2026-11-07): 새 도감 20 + 점수/10 · 최고 점수 넘김 5 + 점수/10 · 같거나 낮으면 10 (같은 동물 1분에 한 번) · 두 마리 이상 +20 (1분에 한 번) · 포토 스팟 +30 (스팟마다 하루 한 번)
   if (sp) {
-    const old = dex[sp.id];
-    earn = Math.max(1, Math.round(score / 10)) + (old ? 0 : 20) + (old && score > old.score ? 5 : 0); MY.coins += earn; saveMy(); updCoins();
-    if (!old) { badge = '📖 새 도감 등록!'; isNew = true; dex[sp.id] = { score, stars, shots: 1, at: Date.now() }; }
-    else if (score > old.score) { badge = '최고 사진 바꿈!'; Object.assign(old, { score, stars, shots: old.shots + 1, at: Date.now() }); }
-    else { badge = `최고 사진은 ${old.score}점이에요`; old.shots++; }
-    saveDex(); if (spot) { MY.coins += 30; saveMy(); updCoins(); } if (isNew) checkTitles();
+    const old = dex[sp.id], nowT2 = Date.now(), day = new Date().toDateString(); MY.payT ||= {};
+    if (!old) { badge = '📖 새 도감 등록!'; isNew = true; dex[sp.id] = { score, stars, shots: 1, at: nowT2 }; earn = 20 + Math.round(score / 10); }
+    else if (score > old.score) { badge = '최고 사진 바꿈!'; Object.assign(old, { score, stars, shots: old.shots + 1, at: nowT2 }); earn = 5 + Math.round(score / 10); }
+    else { old.shots++; if (nowT2 - (MY.payT[sp.id] || 0) >= 60000) { MY.payT[sp.id] = nowT2; earn = 10; badge = `최고 사진은 ${old.score}점이에요`; } else { badge = `최고 ${old.score}점을 넘거나 1분 뒤에 코인을 받아요`; } }
+    // 네모 안의 다른 동물도 도감에 올려요 (두세 마리까지)
+    const seenIds = new Set([sp.id]);
+    for (const x of [...(ev.all || [])].sort((a, b) => b.total - a.total)) {
+      if (seenIds.has(x.o.id) || seenIds.size >= 3) continue; seenIds.add(x.o.id); friends2.push(x.o);
+      const d2 = dex[x.o.id], s2 = x.total;
+      if (!d2) { dex[x.o.id] = { score: s2, stars: starsOf(s2), shots: 1, at: nowT2 }; earn += 20 + Math.round(s2 / 10); isNew = true; badge = '📖 새 도감 등록!'; }
+      else { d2.shots++; if (s2 > d2.score) Object.assign(d2, { score: s2, stars: starsOf(s2), at: nowT2 }); }
+    }
+    if ((ev.all || []).length >= 2 && nowT2 - (MY.payT.duo || 0) >= 60000) { MY.payT.duo = nowT2; earn += 20; note = ' · 두 마리 +20'; }
+    if (spot) { MY.spotDay ||= {}; if (MY.spotDay[spot.name] !== day) { MY.spotDay[spot.name] = day; earn += 30; } }
+    MY.coins += earn; saveMy(); updCoins(); saveDex(); if (isNew) checkTitles();
     if (stars >= 3) bump('star3');
   }
   bump('shot');
@@ -771,13 +781,13 @@ function shoot() {
     // 결과(폴라로이드 · 점수 · 도감)를 먼저 보여 주고, 앨범 저장은 그 뒤에 해요. 저장이 막혀도 결과는 떠요
     const done = async (blob, src) => {
       const t = $('#toast'); t.querySelector('img').src = src;
-      const msg = sp ? `<b>${sp.name} ${starHTML(stars)} ${score}점</b><small>${badge} · 🪙 +${earn}${spot ? ` · 📍 ${spot.name} +30` : ''}</small>` : '<b>찰칵!</b><small>동물은 안 찍혔어요</small>';
+      const msg = sp ? `<b>${[sp.name, ...friends2.map((o) => o.name)].join(' · ')} ${starHTML(stars)} ${score}점</b><small>${badge}${earn ? ` · 🪙 +${earn}` : ''}${note}${spot ? ` · 📍 ${spot.name}` : ''}</small>` : '<b>찰칵!</b><small>동물은 안 찍혔어요</small>';
       t.querySelector('span').innerHTML = msg;
       t.classList.add('on'); clearTimeout(shoot.tt); shoot.tt = setTimeout(() => { t.classList.remove('on'); if (src.startsWith('blob:')) URL.revokeObjectURL(src); }, 4500);
       if (isNew) snd.chime();
       let ok = !!blob;
       if (blob) {
-        ok = await addPhoto({ blob, zone, seen: sp ? [sp.name] : [], animal: sp?.id || '', score });
+        ok = await addPhoto({ blob, zone, seen: sp ? [sp.name, ...friends2.map((o) => o.name)] : [], animal: sp?.id || '', also: friends2.map((o) => o.id), score });
         if (sp && (isNew || badge === '최고 사진 바꿈!')) await addPhoto({ id: `best-${sp.id}`, blob, zone, seen: [sp.name], animal: sp.id, score });
       }
       if (!ok) t.querySelector('span').innerHTML = `${msg}<small>앨범에 저장하지 못했어요 (사파리 개인 정보 보호 탭이면 일반 탭으로 열어 주세요)</small>`;
@@ -826,7 +836,7 @@ async function openPics(want) {
   const all = await listPhotos(), out = []; let at = -1;
   for (const [id, name] of DEX) {
     if (!dex[id]) continue; if (id === want) at = out.length;
-    let mine = all.filter((p) => p.animal === id && !String(p.id).startsWith('best-')); if (!mine.length) mine = all.filter((p) => p.id === `best-${id}`);
+    let mine = all.filter((p) => (p.animal === id || (p.also || []).includes(id)) && !String(p.id).startsWith('best-')); if (!mine.length) mine = all.filter((p) => p.id === `best-${id}`);
     mine.forEach((p, n) => out.push({ src: URL.createObjectURL(p.blob), cap: `${name} · 내 사진 ${n + 1}` }));
     const ph = DEX_PHOTOS[id]; if (ph) out.push({ src: `world/${ph.src || 'dex/' + id + '.jpg'}`, cap: `${name} · 실제 사진 (${ph.by})` });
   }
@@ -1060,6 +1070,29 @@ for (const [p, s, t] of [[PIER.main, -1, '🚢 섬 가는 배'], [PIER.isle, 1, 
   document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => { const x = c.getContext('2d'); x.fillStyle = 'rgba(63,115,160,.95)'; x.beginPath(); x.roundRect(6, 8, 500, 96, 28); x.fill(); x.fillStyle = '#fff6e6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(t, 256, 58); tex.needsUpdate = true; });
   const dock = new THREE.Mesh(new RoundedBoxGeometry(2.4, 0.3, 9, 2, 0.08), toon('#9a7048')); dock.position.set(p.x + PIER.ux * s * 4, Math.max(0.5, p.y), p.z + PIER.uz * s * 4); dock.rotation.y = Math.atan2(PIER.ux, PIER.uz); dock.castShadow = true; scene.add(dock);
 }
+// 🏕 모이는 곳: 마을처럼 둥근 광장 · 모닥불 · 작은 집 · 등불
+const GATHER = [{ name: '🏘 마을 광장', pos: VIL.clone().add(V.set(0, 0, 8)) }];
+function plaza(c, label) {
+  const y = height(c.x, c.z), g = new THREE.Group(); g.position.set(c.x, y, c.z); scene.add(g);
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(9.5, 10, 0.5, 48), toon('#b8ac96')); disc.position.y = 0; disc.receiveShadow = true; g.add(disc);
+  for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, x = Math.sin(a) * 8.6, z = Math.cos(a) * 8.6; const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.2, 8), toon('#5a4a3a')); post.position.set(x, 1.2, z); g.add(post); const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), new THREE.MeshBasicMaterial({ color: '#ffe0a0' })); lamp.position.set(x, 2.35, z); g.add(lamp); }
+  const hs = house(4.8, 4.2, 3, '#a8604a', '#f6eee0'); hs.position.set(0, 0.1, -13.5); g.add(hs);
+  campfire(new THREE.Vector3(c.x, 0, c.z));
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 112; const tex = new THREE.CanvasTexture(cv), sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.scale.set(4.4, 1, 1); sp.position.set(0, 4.2, 0); g.add(sp);
+  document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => { const x = cv.getContext('2d'); x.fillStyle = 'rgba(90,70,50,.92)'; x.beginPath(); x.roundRect(6, 8, 500, 96, 28); x.fill(); x.fillStyle = '#fff6e6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 256, 58); tex.needsUpdate = true; });
+  GATHER.push({ name: label, pos: new THREE.Vector3(c.x + 4, 0, c.z + 4) });
+}
+plaza(new THREE.Vector3(ISLE.x + PIER.ux * 30, 0, ISLE.z + PIER.uz * 30), '🏝 섬 광장');
+{ let c = null; for (let r = 18; r < 46 && !c; r += 2) for (let i = 0; i < 16 && !c; i++) { const a = i / 16 * Math.PI * 2, x = TOPS.x + Math.sin(a) * r, z = TOPS.z + Math.cos(a) * r; if (height(x, z) > 106 && riverNear(x, z).d > 15) c = new THREE.Vector3(x, 0, z); } plaza(c || TOPS.clone().add(V.set(-22, 0, 18)), '🏔 꼭대기 광장'); }
+// 📍 어디로 갈까: 포토 스팟 · 모이는 곳 목록, 누르면 바로 가요
+function openPlaces() {
+  const row = (name, pos, done) => `<div class="dk"><span>${done ? '✅ ' : ''}${name} <small>${Math.round(Math.hypot(pos.x - me.pos.x, pos.z - me.pos.z))} m</small></span><button type="button" data-gx="${pos.x}" data-gz="${pos.z}" data-gn="${name}">가기</button></div>`;
+  $('#placeList').innerHTML = `<h3>📍 포토 스팟</h3><p class="note">안에서 동물을 찍으면 🪙 +30 (스팟마다 하루 한 번)</p>${SPOTS.map((sp) => row(sp.name, sp.pos, (MY.spots || {})[sp.name])).join('')}<h3>🏕 모이는 곳</h3>${GATHER.map((g) => row(g.name, g.pos)).join('')}`;
+  $('#places').classList.add('on');
+}
+$('#placeBtn').onclick = () => { if (me.inHome) { toastMsg('집에서 나간 뒤에 갈 수 있어요', '문 앞 매트로 가면 나가요'); return; } openPlaces(); };
+$('#placeX').onclick = () => $('#places').classList.remove('on');
+$('#placeList').addEventListener('click', (e) => { const b = e.target.closest('[data-gx]'); if (!b) return; $('#places').classList.remove('on'); const q = new THREE.Vector3(+b.dataset.gx, 0, +b.dataset.gz); travelTo(`${b.dataset.gn} 가는 중`, () => q); });
 const nearPier = () => [PIER.main, PIER.isle].find((p) => Math.hypot(p.x - me.pos.x, p.z - me.pos.z) < 7);
 function rideFerry() {
   if (me.riding || me.inHome) return; exitPhoto(); standUp();
@@ -1383,19 +1416,19 @@ function updateFriends(dt) {
 }
 
 // ───────── 작은 지도 (한 번 그려 두고 내 점만 움직여요) ─────────
-const mini = $('#mini'), mg = mini.getContext('2d'), MW = mini.width;
+const mini = $('#mini'), mg = mini.getContext('2d'), MW = mini.width, MAP_W = 800, MAP_CX = -60, MAP_CZ = 60;   // 갈라파고스 섬까지 동그란 지도 안에 들어오게
 const miniBase = document.createElement('canvas'); miniBase.width = miniBase.height = MW;
 { const g = miniBase.getContext('2d'), img = g.createImageData(MW, MW), cz = { sea: [74, 150, 200], arctic: [240, 245, 250], jungle: [63, 122, 58], savanna: [205, 183, 99], desert: [226, 182, 121], isle: [150, 150, 96] };
-  for (let j = 0; j < MW; j++) for (let i = 0; i < MW; i++) { const x = (i / MW - 0.5) * SIZE, z = (j / MW - 0.5) * SIZE, y = height(x, z); const c = riverNear(x, z).d < 4 && y > 0 ? [90, 170, 220] : cz[zoneAt(x, z, y)]; const o = (j * MW + i) * 4; img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255; }
+  for (let j = 0; j < MW; j++) for (let i = 0; i < MW; i++) { const x = MAP_CX + (i / MW - 0.5) * MAP_W, z = MAP_CZ + (j / MW - 0.5) * MAP_W, y = height(x, z); const c = riverNear(x, z).d < 4 && y > 0 ? [90, 170, 220] : cz[zoneAt(x, z, y)]; const o = (j * MW + i) * 4; img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255; }
   g.putImageData(img, 0, 0); }
-const toMini = (p) => [(p.x / SIZE + 0.5) * MW, (p.z / SIZE + 0.5) * MW];
+const toMini = (p) => [((p.x - MAP_CX) / MAP_W + 0.5) * MW, ((p.z - MAP_CZ) / MAP_W + 0.5) * MW];
 function drawMini() {
   mg.save(); mg.clearRect(0, 0, MW, MW); mg.beginPath(); mg.arc(MW / 2, MW / 2, MW / 2, 0, Math.PI * 2); mg.clip();
   mg.drawImage(miniBase, 0, 0);
   const [vx, vz] = toMini(VIL); mg.fillStyle = '#c8553d'; mg.fillRect(vx - 5, vz - 5, 10, 10);
   for (const f of friends.values()) { if (f.d.k) continue; const [fx, fz] = toMini(f.to); mg.fillStyle = '#f2c84a'; mg.beginPath(); mg.arc(fx, fz, 5, 0, Math.PI * 2); mg.fill(); }
   for (const sp of SPOTS) { const [sx, sz] = toMini(sp.pos), seen = (MY.spots || {})[sp.name]; mg.fillStyle = seen ? '#fff3d6' : '#ffb400'; mg.strokeStyle = '#6a3a10'; mg.lineWidth = 2; mg.beginPath(); mg.moveTo(sx, sz + 8); mg.arc(sx, sz - 3, 6, Math.PI * 0.85, Math.PI * 0.15); mg.closePath(); mg.fill(); mg.stroke(); }   // 📍 핀: 안 가 본 곳은 진한 금색
-  const [px, pz] = toMini(me.pos); mg.fillStyle = '#fff'; mg.strokeStyle = '#24302a'; mg.lineWidth = 3; mg.beginPath(); mg.arc(px, pz, 7, 0, Math.PI * 2); mg.fill(); mg.stroke();
+  const [px, pz] = toMini(me.inHome ? HOME.door : me.pos), pulse = 11 + Math.sin(performance.now() / 260) * 3; mg.strokeStyle = 'rgba(232,50,40,.7)'; mg.lineWidth = 3; mg.beginPath(); mg.arc(px, pz, pulse, 0, Math.PI * 2); mg.stroke(); mg.fillStyle = '#e83228'; mg.strokeStyle = '#fff'; mg.lineWidth = 3; mg.beginPath(); mg.arc(px, pz, 7, 0, Math.PI * 2); mg.fill(); mg.stroke();   // 나 = 빨간 점 + 맥박 고리
   mg.restore();
 }
 
