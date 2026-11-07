@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, lookIcon, hairIcon } from './icons.js?v=20261107n';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107n';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107n';
-import { IslandSound } from './sound.js?v=20261107n';
-import { ROSTER } from './fauna.js?v=20261107n';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107n';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107n';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107n';
+import { ICON, BADGE_ICON, lookIcon, hairIcon } from './icons.js?v=20261107o';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107o';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107o';
+import { IslandSound } from './sound.js?v=20261107o';
+import { ROSTER } from './fauna.js?v=20261107o';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107o';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107o';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107o';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -88,7 +88,7 @@ function height(x, z) {
 // ───────── 구역 ─────────
 const ZONES = {
   arctic: ['북극 · 산꼭대기 눈밭', '펭귄과 북극곰이 사는 하얀 꼭대기예요'],
-  jungle: ['정글 · 안개 낀 산허리', '빽빽한 숲, 안개가 내려앉아요'],
+  jungle: ['밀림 · 안개 낀 산허리', '빽빽한 숲, 안개가 내려앉아요'],
   savanna: ['초원 · 넓은 들', '코끼리 · 기린 · 얼룩말이 풀을 뜯어요'],
   desert: ['사막 · 비 그늘 쪽', '산이 비를 막아 메마른 모래 언덕이에요'],
   sea: ['바다 · 강 하구', '강물이 바다와 만나요. 돌고래가 뛰어요'],
@@ -590,13 +590,15 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 let limitT = 0;
 // 받침이 있으면 '과', 없으면 '와' (을 · 를 · 이 · 가 고를 때도 씀)
 const josa = (w) => { const c = w.charCodeAt(w.length - 1) - 0xac00; return c >= 0 && c <= 11171 && c % 28 ? '과' : '와'; };
+// 알림 · 찍은 사진은 화면 어디든 누르면 바로 꺼져요
+addEventListener('pointerdown', () => $('#toast').classList.remove('on'), true);
 function toastMsg(b, sm) { const t = $('#toast'); t.querySelector('img').removeAttribute('src'); t.querySelector('span').innerHTML = `<b>${b}</b><small>${sm}</small>`; t.classList.add('on'); clearTimeout(toastMsg.tt); toastMsg.tt = setTimeout(() => t.classList.remove('on'), 2400); }
 let travelling = false;
 // 도착하면 그곳 동물 1~3마리가 내 앞쪽에 보이게 불러와요 (이미 곁에 있으면 그만큼 덜 불러요)
 function bringAnimals() {
   if (me.inHome) return; const x = me.pos.x, z = me.pos.z, y = height(x, z), isl = isleD(x, z) < ISLE.r + 40;
   const zone = Math.hypot(x - VIL.x, z - VIL.z) < 30 ? 'village' : y < 2.8 && onBeach(x, z, isl) ? (isl ? 'islesea' : 'sea') : isl ? 'isle' : zoneAt(x, z, y);
-  const L = animals.filter((a) => a.zone === zone && !a.night && a.move !== 'fly' && a.move !== 'swim').sort((p, q) => p.pos.distanceTo(me.pos) - q.pos.distanceTo(me.pos));
+  const L = animals.filter((a) => a.zone === zone && !a.night && !a.spot && a.move !== 'fly' && a.move !== 'swim').sort((p, q) => p.pos.distanceTo(me.pos) - q.pos.distanceTo(me.pos));
   const dx = x - camera.position.x, dz = z - camera.position.z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl;
   const ahead = (a) => Math.hypot(a.pos.x - x, a.pos.z - z) < 13 && (a.pos.x - x) * ux + (a.pos.z - z) * uz > 2;   // 내 앞쪽에 보이는 동물만 세요
   let need = Math.max(0, 2 + (rnd() < 0.5 ? 1 : 0) - L.filter(ahead).length); if (!need) return;
@@ -627,10 +629,11 @@ $('#home').onclick = () => { if (curZone === 'arctic') $('#cable').onclick(); el
 $('#goHome').onclick = () => enterHome();   // 어디서든 맨 위 단추로 집 안에 들어가요
 $('#goSav').onclick = () => travelTo('초원으로 가는 중', () => YARD.savanna.pos.clone());
 $('#goDes').onclick = () => travelTo('사막으로 가는 중', () => YARD.desert.pos.clone());
+$('#goJun').onclick = () => travelTo('밀림으로 가는 중', () => YARD.jungle.pos.clone());
 // 지금 있는 구역의 단추는 숨겨요 (마을에선 '마을로'가 없어요). 산꼭대기에선 케이블카가 '마을로 내려가기'
 function updMoves(z) {
-  // 다섯 단계: 마을(+마을 바닷가) → 초원 → 사막 → 산꼭대기 → 섬(+섬 바닷가). 지금 있는 곳의 단추만 숨겨요
-  $('#home').hidden = z === 'village'; $('#goSav').hidden = z === 'savanna'; $('#goDes').hidden = z === 'desert'; $('#cable').hidden = z === 'arctic'; $('#ferry').hidden = z === 'isle';
+  // 여섯 단계: 마을(+마을 바닷가) → 초원 → 사막 → 밀림 → 산꼭대기 → 섬(+섬 바닷가). 지금 있는 곳의 단추만 숨겨요
+  $('#home').hidden = z === 'village'; $('#goSav').hidden = z === 'savanna'; $('#goDes').hidden = z === 'desert'; $('#goJun').hidden = z === 'jungle'; $('#cable').hidden = z === 'arctic'; $('#ferry').hidden = z === 'isle';
 }
 
 
@@ -666,7 +669,7 @@ $('#sAmb').oninput = (e) => { SET.amb = +e.target.value; snd.setVolume('amb', SE
 // 도감 · 사진 순서: 마을 → 마을 바닷가 → 초원 → 사막 → 정글 → 산꼭대기 → 섬 → 섬 바닷가
 const ZORDER = ['village', 'sea', 'savanna', 'desert', 'jungle', 'arctic', 'isle', 'islesea'];
 const DEX = ROSTER.map(([zone, id, name, , , , , , night]) => [id, name, zone, night]).sort((a, b) => ZORDER.indexOf(a[2]) - ZORDER.indexOf(b[2]));
-const ZLAB = { village: '마을', sea: '마을 바닷가', savanna: '초원', desert: '사막', jungle: '정글', arctic: '산꼭대기', isle: '섬', islesea: '섬 바닷가' };
+const ZLAB = { village: '마을', sea: '마을 바닷가', savanna: '초원', desert: '사막', jungle: '밀림', arctic: '산꼭대기', isle: '섬', islesea: '섬 바닷가' };
 let dex = (() => { try { return JSON.parse(localStorage.getItem('snapzoo-island-dex') || '{}'); } catch { return {}; } })();
 const saveDex = () => { try { localStorage.setItem('snapzoo-island-dex', JSON.stringify(dex)); } catch {} };
 const starsOf = (sc) => (sc >= 85 ? 3 : sc >= 60 ? 2 : sc > 0 ? 1 : 0);
@@ -768,10 +771,10 @@ function showHint(ev) {
   const tip = ev.ratio < 0.22 ? '조금 더 가까이' : ev.ratio > 0.85 ? '너무 가까워요' : ev.center < 26 ? '가운데로 맞춰요' : !ev.moment ? '인사하면 반겨 줘요' : ev.o.moment;
   $('#fhint').textContent = `${ev.o.name} · ${ev.total}점 · ${tip}`;
 }
-let lastShot = -1e9;   // 연타 금지: 1초에 한 번만 찍혀요
+let lastShot = -1e9;   // 연타 금지: 0.4초에 한 번만 찍혀요
 function shoot() {
   if (mode !== 'photo' || raiseT > 0) return;
-  const nowT = performance.now(); if (nowT - lastShot < 1000) return; lastShot = nowT;
+  const nowT = performance.now(); if (nowT - lastShot < 400) return; lastShot = nowT;
   const ev0 = evaluate();
   if (!ev0) { const t = $('#toast'); t.querySelector('img').removeAttribute('src'); t.querySelector('span').innerHTML = '<b>동물이 네모 안에 없어요</b><small>동물을 가운데에 담고 찰칵!</small>'; t.classList.add('on'); clearTimeout(shoot.tt); shoot.tt = setTimeout(() => t.classList.remove('on'), 1800); return; }
   me.st.snapT = 0.18;
@@ -804,7 +807,7 @@ function shoot() {
   }
   bump('shot');
   // 글꼴을 오래 기다리지 않아요 (사파리에서 대답이 늦어도 결과는 떠야 해요)
-  Promise.race([document.fonts.load('40px OngleipUnz').catch(() => {}), new Promise((r) => setTimeout(r, 800))]).then(() => {
+  Promise.race([document.fonts.load('40px OngleipUnz').catch(() => {}), new Promise((r) => setTimeout(r, 200))]).then(() => {
     const c = document.createElement('canvas'); c.width = 1080; c.height = 1010; const g = c.getContext('2d');
     g.fillStyle = camOf().frame; g.fillRect(0, 0, 1080, 1010);
     for (let i = 0; i < 1400; i++) { g.fillStyle = `rgba(120,100,70,${Math.random() * 0.05})`; g.fillRect(Math.random() * 1080, Math.random() * 1010, 2, 2); }
@@ -819,7 +822,7 @@ function shoot() {
       const t = $('#toast'); t.querySelector('img').src = src;
       const msg = sp ? `<b>${[sp.name, ...friends2.map((o) => o.name)].join(' · ')} ${starHTML(stars)} ${score}점</b><small>${badge}${earn ? ` · 🪙 +${earn}` : ''}${note}${spot ? ` · ${spot.name}` : ''}</small>` : '<b>찰칵!</b><small>동물은 안 찍혔어요</small>';
       t.querySelector('span').innerHTML = msg;
-      t.classList.add('on'); clearTimeout(shoot.tt); shoot.tt = setTimeout(() => { t.classList.remove('on'); if (src.startsWith('blob:')) URL.revokeObjectURL(src); }, 4500);
+      t.classList.add('on'); clearTimeout(shoot.tt); shoot.tt = setTimeout(() => { t.classList.remove('on'); if (src.startsWith('blob:')) URL.revokeObjectURL(src); }, 2200);
       if (isNew) snd.chime();
       let ok = !!blob;
       if (blob) {
@@ -836,7 +839,7 @@ function shoot() {
 // 사진이 무서운 어린이도 볼 수 있게 도감은 글자만. 사진은 [📷 사진 보기] 를 눌렀을 때만 (2026-11-07)
 let dexTab = 'dex';
 let dexCat = 'all';
-const DCATS = [['all', '전체'], ['village', '마을'], ['sea', '마을 바닷가'], ['savanna', '초원'], ['desert', '사막'], ['jungle', '정글'], ['arctic', '산꼭대기'], ['isle', '섬'], ['islesea', '섬 바닷가'], ['bug', '곤충']];
+const DCATS = [['all', '전체'], ['village', '마을'], ['sea', '마을 바닷가'], ['savanna', '초원'], ['desert', '사막'], ['jungle', '밀림'], ['arctic', '산꼭대기'], ['isle', '섬'], ['islesea', '섬 바닷가'], ['bug', '곤충']];
 let dexPic = false; try { dexPic = localStorage.getItem('snapzoo-dex-pic') === '1'; } catch {}
 let dexThumbs = [];
 // 사진 보기를 켜면 동물마다 사진 칸. 내가 찍은 사진이 있으면 그것, 없으면 실제 사진
@@ -1038,26 +1041,36 @@ function campfire(c, faceTo) {
 campfire(VIL.clone().add(V.set(6.5, 0, -5)));
 campfire(TOPS.clone().add(V.set(-7, 0, 6)));
 
-// ───────── 📍 포토 스팟: 경치 좋은 곳 여섯. 둥근 빛 안에서 찍으면 보너스 ─────────
+// ───────── 📍 포토 스팟: 경치 좋은 곳 여덟. 둥근 빛 안에서 찍으면 보너스. 곳마다 그 구역 동물 네 종이 곁에 살아요 ─────────
 const SPOTS = [];
-function addSpot(name, p) {
+// 기둥 곁에 동물이 없으면 찍을 수가 없어서, 그 구역의 낮 동물 네 종을 둘레 5~8.5 m 에 살게 해요 (멀리 가지 않아요)
+function settleAt(sp, zone) {
+  const eye = sp.pos.clone(); eye.y += 1.4; const kinds = new Set(), L = animals.filter((a) => a.zone === zone && !a.night && !a.spot && a.move !== 'fly' && a.move !== 'swim').sort((p, q) => p.pos.distanceTo(sp.pos) - q.pos.distanceTo(sp.pos));
+  let n = 0;
+  for (const a of L) { if (n >= 4) break; if (kinds.has(a.id)) continue;
+    for (let i = 0; i < 60; i++) { const ang = n * 1.57 + i * 0.5, r = 5 + (i % 6) * 1.3 + (i >= 30 ? 4 : 0), x = sp.pos.x + Math.sin(ang) * r, z = sp.pos.z + Math.cos(ang) * r, y = height(x, z);
+      if (!okFor(a, x, z) || Math.abs(y - sp.pos.y) > 3 || !seenFrom(eye, new THREE.Vector3(x, y + 0.6, z))) continue;
+      a.pos.set(x, y, z); a.home = a.pos.clone(); a.leash = 7; a.spot = sp.name; a.target = null; a.wait = 2 + rnd() * 4; a.g.position.copy(a.pos); kinds.add(a.id); n++; break; } }
+  sp.lives = n;
+}
+function addSpot(name, p, zone) {
   if (!p) return; const y = height(p.x, p.z), g = new THREE.Group(); g.position.set(p.x, Math.max(y, 0.05) + 0.06, p.z); scene.add(g);
   const ring = new THREE.Mesh(new THREE.RingGeometry(2.6, 3.0, 48), new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.55, depthWrite: false, fog: false })); ring.rotation.x = -Math.PI / 2; g.add(ring);
   const c = document.createElement('canvas'); c.width = 512; c.height = 128; const x = c.getContext('2d'); x.fillStyle = 'rgba(18,14,12,.6)'; x.beginPath(); x.roundRect(8, 16, 496, 96, 40); x.fill(); x.fillStyle = '#fff3d6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.fillText('' + name, 256, 84);
   const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })); sign.scale.set(4, 1, 1); sign.position.y = 3.4; g.add(sign);
   // 멀리서도 보이는 금빛 기둥
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.5, 46, 16, 1, true), new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide, fog: false })); beam.position.y = 23; g.add(beam);
-  SPOTS.push({ name, pos: new THREE.Vector3(p.x, y, p.z), g, ring, sign, tex: c });
+  SPOTS.push({ name, pos: new THREE.Vector3(p.x, y, p.z), g, ring, sign, tex: c }); settleAt(SPOTS.at(-1), zone);
 }
 document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => {
-  addSpot('강가 모닥불', VIL.clone().add(V.set(6.5, 0, -1.5)));
-  addSpot('돌고래 해변', (POOLS.get('seashore') || [])[0]);
-  addSpot('노을 물웅덩이', YARD.savanna.spot);
-  addSpot('붉은 메사 언덕', YARD.desert.spot);
-  addSpot('안개 숲 빈터', (POOLS.get('jungle') || [])[0]);
-  addSpot('산꼭대기 전망대', YARD.arctic.spot);
-  addSpot('화산 전망대', YARD.isle.spot);
-  addSpot('거북이 바닷가', (POOLS.get('isleseashore') || [])[0]);
+  addSpot('강가 모닥불', VIL.clone().add(V.set(6.5, 0, -1.5)), 'village');
+  addSpot('돌고래 해변', (POOLS.get('seashore') || [])[0], 'sea');
+  addSpot('노을 물웅덩이', YARD.savanna.spot, 'savanna');
+  addSpot('붉은 메사 언덕', YARD.desert.spot, 'desert');
+  addSpot('안개 숲 빈터', (POOLS.get('jungle') || [])[0], 'jungle');
+  addSpot('산꼭대기 전망대', YARD.arctic.spot, 'arctic');
+  addSpot('화산 전망대', YARD.isle.spot, 'isle');
+  addSpot('거북이 바닷가', (POOLS.get('isleseashore') || [])[0], 'islesea');
 });
 const spotHere = () => SPOTS.find((sp) => Math.hypot(sp.pos.x - me.pos.x, sp.pos.z - me.pos.z) < 3.2);
 
@@ -1158,6 +1171,7 @@ function findYard(zone, base) {
 const YARD = {};
 YARD.savanna = plaza(findYard('savanna', (POOLS.get('savanna') || [VIL])[0]), '초원 마당', true);
 YARD.desert = plaza(findYard('desert', (POOLS.get('desert') || [VIL])[1] || (POOLS.get('desert') || [VIL])[0]), '사막 마당', true);
+YARD.jungle = plaza(findYard('jungle', (POOLS.get('jungle') || [VIL])[1] || (POOLS.get('jungle') || [VIL])[0]), '밀림 마당', true);
 { let c = null; for (let r = 16; r < 46 && !c; r += 2) for (let i = 0; i < 16 && !c; i++) { const a = i / 16 * Math.PI * 2, x = TOPS.x + Math.sin(a) * r, z = TOPS.z + Math.cos(a) * r; if (height(x, z) > 106 && riverNear(x, z).d > 15) c = new THREE.Vector3(x, 0, z); } YARD.arctic = plaza(c || TOPS.clone().add(V.set(-22, 0, 18)), '꼭대기 광장'); }
 YARD.isle = plaza(new THREE.Vector3(ISLE.x + PIER.ux * 36, 0, ISLE.z + PIER.uz * 36), '섬 광장');
 const nearPier = () => [PIER.main, PIER.isle].find((p) => Math.hypot(p.x - me.pos.x, p.z - me.pos.z) < 7);
@@ -1350,7 +1364,7 @@ let emoN = 0, emoI = 0;
 function showEmo(el, ch) { el.textContent = ch; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('pop'), 2600); }
 
 // ───────── 🏅 도감 칭호: 구역 식구를 다 찍으면 칭호 + 코인 ─────────
-const TITLES = { village: '🏘 마을 산책가', sea: '🌊 바다 친구', savanna: '🦁 초원 사진가', desert: '🏜️ 사막 여행자', jungle: '🌴 정글 탐험가', arctic: '🐧 눈꽃 사진가', isle: '🏝 섬 탐험가', islesea: '🐢 섬 바다 친구', all: '🌏 섬 도감 박사' };
+const TITLES = { village: '🏘 마을 산책가', sea: '🌊 바다 친구', savanna: '🦁 초원 사진가', desert: '🏜️ 사막 여행자', jungle: '🌴 밀림 탐험가', arctic: '🐧 눈꽃 사진가', isle: '🏝 섬 탐험가', islesea: '🐢 섬 바다 친구', all: '🌏 섬 도감 박사' };
 function checkTitles() {
   MY.titles ||= []; const got = [];
   for (const z of Object.keys(ZLAB)) { if (MY.titles.includes(z)) continue; const ids = DEX.filter((d) => d[2] === z).map((d) => d[0]); if (ids.length && ids.every((id) => dex[id])) { MY.titles.push(z); got.push(z); } }
@@ -1378,7 +1392,7 @@ const BADGES = [
   { id: 'exB', ex: 1, icon: '⛵', name: '바다 나들이', cap: '배 타고 바다에 나가기', ok: (c) => c.seen.sea },
   { id: 'exS', ex: 1, icon: '🦁', name: '초원 탐험', cap: '초원에 가기', ok: (c) => c.seen.savanna },
   { id: 'exD', ex: 1, icon: '🏜️', name: '사막 탐험', cap: '사막에 가기', ok: (c) => c.seen.desert },
-  { id: 'exJ', ex: 1, icon: '🌴', name: '정글 탐험', cap: '정글에 가기', ok: (c) => c.seen.jungle },
+  { id: 'exJ', ex: 1, icon: '🌴', name: '밀림 탐험', cap: '밀림에 가기', ok: (c) => c.seen.jungle },
   { id: 'exA', ex: 1, icon: '🏔', name: '꼭대기 등정', cap: '산꼭대기 눈밭 가기', ok: (c) => c.seen.arctic },
   { id: 'exI', ex: 1, icon: '🏝', name: '섬 상륙', cap: '갈라파고스 섬 가기', ok: (c) => c.seen.isle },
   { id: 'exH', ex: 1, icon: '🏠', name: '우리 집', cap: '집에 들어가기', ok: (c) => c.seen.home },
@@ -1622,7 +1636,7 @@ function frame() {
     else if (dMe < 9 && !called && !(a.leave > 0) && !a.target) a.face = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z);
     else if (a.wait > 0 && !called) a.wait -= dt;
     else {
-      if (!a.target) a.target = a.speed ? a.home.clone().add(V.set((rnd() - 0.5) * 22, 0, (rnd() - 0.5) * 22)) : a.pos.clone();
+      if (!a.target) { const lw = a.leash || 22; a.target = a.speed ? a.home.clone().add(V.set((rnd() - 0.5) * lw, 0, (rnd() - 0.5) * lw)) : a.pos.clone(); }
       const dx = a.target.x - a.pos.x, dz = a.target.z - a.pos.z, d = Math.hypot(dx, dz);
       if (d < 0.6) { a.target = null; a.wait = called ? 5 : 3 + rnd() * 6; if (called) { a.call = 0; a.heart = 5; a.visit = true; } }
       else { a.face = Math.atan2(dx, dz); want = a.speed * (called ? 1.4 : 1) * smooth(0, 2.5, d); }
