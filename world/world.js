@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108f';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108f';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108f';
-import { IslandSound } from './sound.js?v=20261108f';
-import { ROSTER } from './fauna.js?v=20261108f';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261108f';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108f';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108f';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108g';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108g';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108g';
+import { IslandSound } from './sound.js?v=20261108g';
+import { ROSTER } from './fauna.js?v=20261108g';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261108g';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108g';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108g';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -1436,7 +1436,7 @@ function closeActs() { $('#actMenu').classList.remove('on'); $('#actBtn').setAtt
 // 모닥불 곁: 앉기 · 마시멜로 굽기 · 불꽃놀이 · 연날리기 / 그 밖(2026-11-07 쓰다듬기 · 먹이 · 셀카는 뺐어요): 마을은 앉기 · 연날리기 · 곤충잡기, 마을 밖은 앉기
 const nearFire = () => FIRES.find((f) => Math.hypot(f.g.position.x - me.pos.x, f.g.position.z - me.pos.z) < 7);
 function paintActs() {
-  const w = new Set(); if (me.inHome) w.add('home'); else { if (nearFire()) w.add('fire'); if (!w.size) w.add(curZone === 'village' ? 'village' : 'out'); }
+  const w = new Set(); if (me.inHome) w.add('home'); else { if (nearFire()) w.add('fire'); if (curZone === 'village') w.add('village'); else if (!w.size) w.add('out');   // 마을에서는 모닥불 곁이어도 곤충잡기가 보여요 }
   document.querySelectorAll('#actMenu [data-v]').forEach((b) => { b.hidden = !b.dataset.v.split(' ').some((v) => w.has(v)); });
 }
 // 🔥 마시멜로: 모닥불 의자에 앉아 막대 끝 마시멜로를 노릇노릇하게 구워요 (6초)
