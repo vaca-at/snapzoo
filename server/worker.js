@@ -54,10 +54,10 @@ export default {
       const who = await verifyFirebase((req.headers.get('Authorization') || '').replace(/^Bearer /, '').trim());
       if (!who || !ADMIN_EMAILS.includes(who.email)) return json(req, { error: 'unauthorized' }, 401);
       const islands = await Promise.all(Array.from({ length: ISLANDS }, (_, i) => env.ROOMS.get(env.ROOMS.idFromName(`island-${i + 1}`)).fetch('https://room/count').then((r) => r.json()).then((j) => j.n).catch(() => 0)));
-      const s = await stats().fetch('https://stats/read').then((r) => r.json());
+      const s = await stats().fetch('https://stats/read').then((r) => r.json()), isl = await stats().fetch('https://stats/iread').then((r) => r.json());
       const rooms = await Promise.all(Array.from({ length: SERVER_COUNT }, (_, i) =>
         env.ROOMS.get(env.ROOMS.idFromName(`station-${i + 1}`)).fetch('https://room/count').then((r) => r.json()).then((j) => j.n).catch(() => 0)));
-      return json(req, { ...s, rooms, islands, islandCap: ISLAND_CAP, online: rooms.reduce((a, b) => a + b, 0) + islands.reduce((a, b) => a + b, 0), now: Date.now() });
+      return json(req, { ...s, isl, rooms, islands, islandCap: ISLAND_CAP, online: rooms.reduce((a, b) => a + b, 0) + islands.reduce((a, b) => a + b, 0), now: Date.now() });
     }
     // 서버별 인원 (숫자만). ?kind=island 이면 어른용 섬 방
     if (url.pathname === '/counts') {

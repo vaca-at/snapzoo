@@ -40,6 +40,13 @@ button, input { font: inherit; }
 .login { max-width: 380px; margin: 12vh auto 0; background: var(--card); border: 2px solid var(--ink); border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 12px; }
 .login input { min-height: 48px; border-radius: 12px; border: 2px solid var(--line); padding: 0 14px; background: var(--bg); color: var(--ink); }
 .err { color: var(--coral); min-height: 1.2em; margin: 0; font-size: 14px; }
+.big { font-size: 22px; margin: 18px 0 10px; }
+.dtable { display: grid; grid-template-columns: 1fr repeat(4, auto); gap: 4px 14px; font-variant-numeric: tabular-nums; } .dtable b { font-weight: 600; color: var(--soft); font-size: 13px; } .dtable span { text-align: right; } .dtable b:first-child, .dtable span:nth-child(5n+1) { text-align: left; }
+.help2 { display: grid; grid-template-columns: 280px 1fr; gap: 10px; margin-top: 8px; } @media (max-width: 720px) { .help2 { grid-template-columns: 1fr; } }
+.hlist { max-height: 420px; overflow-y: auto; border: 1.5px solid var(--line); border-radius: 12px; } .hlist button { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 9px 11px; font: inherit; cursor: pointer; } .hlist button.on { background: var(--bg); } .hlist small { display: block; color: var(--soft); } .hlist i { font-style: normal; background: var(--coral); color: #fff; border-radius: 99px; padding: 0 6px; font-size: 12px; margin-left: 6px; }
+.hthread { border: 1.5px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; min-height: 260px; max-height: 420px; } .hmsgs { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.hm { max-width: 82%; padding: 7px 11px; border-radius: 12px; white-space: pre-wrap; word-break: break-word; border: 1px solid var(--line); } .hm.user { align-self: flex-start; background: var(--card); } .hm.ai { align-self: flex-end; background: #ece8f8; color: #2a2440; } .hm.op { align-self: flex-end; background: #e4f2e6; color: #1f3a26; } .hm em { display: block; font-style: normal; font-size: 12px; opacity: .7; }
+#hreply { display: flex; gap: 8px; padding: 8px; border-top: 1px solid var(--line); } #hreply textarea { flex: 1; min-height: 56px; border-radius: 10px; border: 1.5px solid var(--line); padding: 8px; font: inherit; background: var(--bg); color: var(--ink); }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .tile { background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
 .tile b { font-family: var(--display); font-weight: 400; font-size: 32px; font-variant-numeric: tabular-nums; line-height: 1.1; }
@@ -82,13 +89,22 @@ button, input { font: inherit; }
       <h1>스냅주 관리자 <small id="updated">불러오는 중…</small></h1>
       <div><button class="btn" id="refresh" type="button">새로고침</button> <button class="btn" id="out" type="button">나가기</button></div>
     </header>
+    <h2 class="big">스냅주 섬 (snapzoo.site)</h2>
+    <div class="tiles" id="itiles"></div>
+    <div class="row2">
+      <section class="panel"><h2>최근 14일 방문</h2><svg class="chart" id="idays" viewBox="0 0 560 220" role="img" aria-label="섬 최근 14일 방문"></svg></section>
+      <section class="panel"><h2>오늘 시간대</h2><div class="hours" id="ihours"></div><p class="muted">한국 시간 기준 · 진할수록 많이 들어왔어요</p></section>
+    </div>
+    <section class="panel"><h2>최근 14일 · 날마다 <small class="muted">(방문 · 서버 접속 · 평균 머문 시간 · 동시접속 최고)</small></h2><div class="dtable" id="itable"></div></section>
+    <section class="panel"><h2>섬 서버 10개 지금 인원 <small class="muted">(서버 하나 20명까지)</small></h2><div class="servers" id="islands"></div></section>
+    <section class="panel"><h2>문의 채팅 <small class="muted" id="helpN"></small></h2><p class="muted">게임 메뉴의 '문의하기'에 남긴 글이에요. AI 가 먼저 답한 내용도 같이 보여요. 여기서 답하면 사용자 문의 창에 '관리자' 답으로 떠요.</p><div class="help2"><div id="hlist" class="hlist"></div><div class="hthread"><div id="hmsgs" class="hmsgs"><p class="muted">왼쪽에서 대화를 골라 주세요</p></div><form id="hreply" hidden><textarea id="htxt" placeholder="답장을 적어 주세요"></textarea><button class="btn primary" type="submit">보내기</button></form></div></div></section>
+    <h2 class="big">아이용 동물 왕국 정거장</h2>
     <div class="tiles" id="tiles"></div>
     <div class="row2">
       <section class="panel"><h2>최근 14일 방문</h2><svg class="chart" id="days" viewBox="0 0 560 220" role="img" aria-label="최근 14일 방문 막대 그래프"></svg></section>
       <section class="panel"><h2>오늘 시간대</h2><div class="hours" id="hours"></div><p class="muted">한국 시간 기준 · 진할수록 많이 들어왔어요</p></section>
     </div>
-    <section class="panel"><h2>섬 서버 10개 지금 인원 <small class="muted">(서버 하나 20명까지)</small></h2><div class="servers" id="islands"></div></section>
-    <section class="panel"><h2>아이용 정거장 서버 12개 <small class="muted">(서버 하나 100명까지)</small></h2><div class="servers" id="servers"></div></section>
+    <section class="panel"><h2>정거장 서버 12개 <small class="muted">(서버 하나 100명까지)</small></h2><div class="servers" id="servers"></div></section>
   </main>
 </div>
 
@@ -117,7 +133,49 @@ async function load() {
 function showLogin() { $('#dash').hidden = true; $('#login').hidden = false; }
 onAuthStateChanged(auth, async (u) => { if (u && !isAdminEmail(u.email)) { await signOut(auth); $('#err').textContent = '관리자 계정이 아니에요. 관리자 구글 계정으로 골라 주세요.'; return showLogin(); } if (u) load(); else showLogin(); });
 
+function bars(el, keys, vals) {
+  const max = Math.max(5, ...vals), W = 560, H = 220, P = 26, bw = (W - P) / 14, nice = Math.ceil(max / 5) * 5; let svg = '';
+  for (let i = 0; i <= 4; i++) { const y = 10 + (H - 40) * (1 - i / 4); svg += `<line x1="${P}" x2="${W}" y1="${y}" y2="${y}"/><text x="${P - 6}" y="${y + 4}" text-anchor="end">${Math.round(nice * i / 4)}</text>`; }
+  vals.forEach((v, i) => { const h = (H - 40) * v / nice, x = P + i * bw + 4, y = H - 30 - h;
+    svg += `<rect class="bar ${i === 13 ? 'today' : ''}" x="${x}" y="${y}" width="${bw - 8}" height="${Math.max(0, h)}" rx="4"><title>${keys[i]} · ${v}명</title></rect>`;
+    if (v) svg += `<text class="val" x="${x + (bw - 8) / 2}" y="${y - 4}" text-anchor="middle">${v}</text>`;
+    if (i % 2 === 1 || i === 13) svg += `<text x="${x + (bw - 8) / 2}" y="${H - 12}" text-anchor="middle">${i === 13 ? '오늘' : keys[i].slice(5).replace('-', '/')}</text>`; });
+  el.innerHTML = svg;
+}
+const mins = (sec, n) => (n ? `${Math.max(1, Math.round(sec / n / 60))}분` : '-');
+// 섬 기록: 방문 · 서버 접속 · 머문 시간(평균) · 동시접속 최고 · 시간대 (숫자만, 누가 왔는지는 남기지 않아요)
+function renderIsland(s) {
+  const I = s.isl || {}, keys = [...Array(14)].map((_, i) => { const d = new Date(s.today + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - (13 - i)); return d.toISOString().slice(0, 10); });
+  const D = I.days || {}, J = I.joins || {}, SS = I.staySec || {}, SN = I.stayN || {}, PK = I.peaks || {}, day = s.today;
+  const week = keys.slice(7).reduce((a, k) => a + (D[k] || 0), 0), allSec = Object.values(SS).reduce((a, b) => a + b, 0), allN = Object.values(SN).reduce((a, b) => a + b, 0);
+  $('#itiles').innerHTML = [['지금 접속', (s.islands || []).reduce((a, b) => a + b, 0), 'live'], ['오늘 방문', D[day] || 0], ['오늘 서버 접속', J[day] || 0], ['오늘 평균 머문 시간', mins(SS[day] || 0, SN[day] || 0)], ['오늘 동시접속 최고', PK[day] || 0], ['최근 7일 방문', week], ['전체 방문', I.total || 0], ['전체 평균 머문 시간', mins(allSec, allN)], ['역대 동시접속 최고', I.best?.n || 0]]
+    .map(([l, v, c]) => `<div class="tile ${c || ''}"><span class="muted">${l}</span><b>${typeof v === 'number' ? fmt(v) : v}</b></div>`).join('');
+  bars($('#idays'), keys, keys.map((k) => D[k] || 0));
+  const hrs = (I.hours || {})[day] || Array(24).fill(0), hm = Math.max(1, ...hrs);
+  $('#ihours').innerHTML = hrs.map((n, h) => `<div style="--k:${(n / hm).toFixed(2)}" title="${h}시 · ${n}명"><span>${h}</span></div>`).join('');
+  $('#itable').innerHTML = '<b>날짜</b><b>방문</b><b>서버 접속</b><b>머문 시간</b><b>최고</b>' + keys.slice().reverse().map((k) => `<span>${k.slice(5).replace('-', '/')}</span><span>${fmt(D[k] || 0)}</span><span>${fmt(J[k] || 0)}</span><span>${mins(SS[k] || 0, SN[k] || 0)}</span><span>${fmt(PK[k] || 0)}</span>`).join('');
+}
+// 문의 채팅 (moontr-help 서버, 스냅주 대화만)
+const HELP = 'https://moontr-help.bellachord.workers.dev'; let hCur = null;
+const esc = (x) => String(x ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const when = (t) => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+const hcall = async (path, opt = {}) => { const r = await fetch(HELP + path, { ...opt, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await auth.currentUser.getIdToken() } }); if (!r.ok) throw new Error('서버 ' + r.status); return r.json(); };
+async function loadHelp() {
+  try {
+    const r = await hcall('/admin/threads'), L = r.threads.filter((t) => t.app === 'snapzoo'), n = L.filter((t) => t.unreadOp).length;
+    $('#helpN').textContent = `${L.length}개 대화${n ? ` · 새 글 ${n}` : ''}`;
+    $('#hlist').innerHTML = L.length ? L.map((t) => `<button type="button" data-uid="${t.uid}" class="${hCur === t.uid ? 'on' : ''}">${esc(t.name || '닉네임 없음')}${t.unreadOp ? '<i>새 글</i>' : ''}<small>${esc(t.last || '')} · ${when(t.updatedAt)}</small></button>`).join('') : '<p class="muted" style="padding:10px">아직 문의가 없어요</p>';
+  } catch (e) { $('#hlist').innerHTML = `<p class="err" style="padding:10px">문의를 불러오지 못했어요 (${esc(e.message)})</p>`; }
+}
+async function openHelp(uid) {
+  hCur = uid; $('#hreply').hidden = false; const r = await hcall(`/admin/thread?app=snapzoo&uid=${uid}`);
+  $('#hmsgs').innerHTML = r.msgs.map((m) => `<div class="hm ${m.from}"><em>${m.from === 'user' ? '사용자' : m.from === 'ai' ? 'AI 답변' : '관리자'} · ${when(m.at)}</em>${esc(m.text)}</div>`).join('');
+  $('#hmsgs').scrollTop = $('#hmsgs').scrollHeight; loadHelp();
+}
+$('#hlist').onclick = (e) => { const b = e.target.closest('[data-uid]'); if (b) openHelp(b.dataset.uid); };
+$('#hreply').onsubmit = async (e) => { e.preventDefault(); const text = $('#htxt').value.trim(); if (!text || !hCur) return; await hcall('/admin/reply', { method: 'POST', body: JSON.stringify({ app: 'snapzoo', uid: hCur, text }) }); $('#htxt').value = ''; openHelp(hCur); };
 function render(s) {
+  renderIsland(s); loadHelp();
   const today = s.days[s.today] || { visits: 0, peak: 0, hours: Array(24).fill(0) };
   const keys = [...Array(14)].map((_, i) => { const d = new Date(s.today + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - (13 - i)); return d.toISOString().slice(0, 10); });
   const week = keys.slice(7).reduce((a, k) => a + (s.days[k]?.visits || 0), 0);
