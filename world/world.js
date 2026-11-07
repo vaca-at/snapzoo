@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON } from './icons.js?v=20261107m';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107m';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107m';
-import { IslandSound } from './sound.js?v=20261107m';
-import { ROSTER } from './fauna.js?v=20261107m';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107m';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js?v=20261107m';
-import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107m';
+import { ICON, BADGE_ICON, lookIcon, hairIcon } from './icons.js?v=20261107n';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107n';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107n';
+import { IslandSound } from './sound.js?v=20261107n';
+import { ROSTER } from './fauna.js?v=20261107n';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107n';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107n';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107n';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -342,7 +342,11 @@ const MY = (() => { const d = { g: 'f', body: START_BODY, look: myLook, hat: 0, 
 const saveMy = () => { try { localStorage.setItem(LOOK_KEY, JSON.stringify(MY)); } catch {} };
 if (MY.body === undefined) MY.body = START_BODY; MY.cam ||= 'basic'; MY.own.cams ||= ['basic']; MY.today ||= { day: '', sec: 0 };
 const camOf = () => CAMERAS.find((c) => c.id === MY.cam) || CAMERAS[0];
-const ME3 = makeWalker(MY.look, { g: MY.g, hat: MY.hat, body: MY.body, cam: MY.cam });
+// 머리색 · 액세서리: 예전 기록은 입던 옷의 머리색을 그대로 이어받아요
+if (MY.hair === undefined) { const h = HAIRS.findIndex((x) => x.c === LOOKS[MY.look % LOOKS.length].hair); MY.hair = h < 0 ? 2 : h; }
+MY.acc ||= 0; MY.own.hairs ||= [0, 1, 2, 3, 4]; if (!MY.own.hairs.includes(MY.hair)) MY.own.hairs.push(MY.hair); MY.own.accs ||= [0];
+const myWear = () => ({ g: MY.g, hat: MY.hat, body: MY.body, cam: MY.cam, hair: MY.hair, acc: MY.acc });
+const ME3 = makeWalker(MY.look, myWear());
 const me = { g: ME3.root, st: ME3, pos: VIL.clone().add(V.set(0, 0, 8)), target: null, face: 0, riding: null, t: 0 };
 me.pos.y = height(me.pos.x, me.pos.z);
 scene.add(me.g);
@@ -539,7 +543,7 @@ canvas.addEventListener('pointerdown', (e) => { closePanels(); down = [e.clientX
 canvas.addEventListener('pointerup', (e) => {
   if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6 || me.riding || mode === 'photo') return;
   ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
-  if (me.inHome) { const q = new THREE.Vector3(); if (ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -ROOM.y), q)) { me.target = q; showMark(q); } return; }
+  if (me.inHome) { const q = new THREE.Vector3(); if (ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -ROOM.y), q)) { if (moveId) { moveTo(q); return; } me.target = q; showMark(q); } return; }
   const hit = ray.intersectObject(ground)[0];
   if (hit) { me.target = hit.point.clone(); showMark(hit.point); hideHint(); }
 });
@@ -607,7 +611,7 @@ function travelTo(label, where) {
   const t0 = performance.now(), dur = 1800; let moved = false;
   const step = (now) => {
     const k = Math.min(1, (now - t0) / dur); $('#travelBar').style.width = `${Math.round((1 - Math.pow(1 - k, 2)) * 100)}%`;
-    if (k > 0.55 && !moved) { moved = true; const old = me.pos.clone(); me.pos.copy(where()); me.pos.y = me.inHome ? ROOM.y : height(me.pos.x, me.pos.z); V.copy(me.pos).sub(old); camera.position.add(V); controls.target.copy(me.pos).add(V.set(0, 1.1, 0)); layGrass(me.pos.x, me.pos.z); }
+    if (k > 0.55 && !moved) { moved = true; const old = me.pos.clone(); me.pos.copy(where()); me.pos.y = me.inHome ? ROOM.y : height(me.pos.x, me.pos.z); V.copy(me.pos).sub(old); camera.position.add(V); controls.target.copy(me.pos).add(V.set(0, 1.1, 0)); if (me.inHome) camera.position.set(ROOM.x + 1, ROOM.y + 7.2, ROOM.z + 6.4); layGrass(me.pos.x, me.pos.z); }   // 집 안은 문 쪽 위에서 방 전체가 보이게
     if (k < 1) requestAnimationFrame(step); else { bringAnimals(); setTimeout(() => { $('#travel').classList.remove('on'); travelling = false; }, 250); }
   };
   requestAnimationFrame(step);
@@ -923,12 +927,14 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape') { if ($('#viewer').
 
 
 
-// ───────── 👤 꾸미기 · 🛍 상점: 성별 · 옷 여덟 벌 · 모자 여섯. 안 가진 건 사진으로 모은 코인으로 사요 ─────────
-const PRICE = { look: 800, hat: [0, 1000, 800, 1500, 2000, 0] };   // 🪙 1초에 1개씩 모여요 (하루 최대 3600)
+// ───────── 👤 꾸미기 · 🛍 상점: 성별 · 옷 · 모자 · 액세서리 · 머리색. 안 가진 건 사진으로 모은 코인으로 사요 ─────────
+const PRICE = { look: 800, hat: [0, 1000, 800, 1500, 2000, 0, 900, 3000, 2200, 1400, 1400, 1000, 1600, 1500, 1500, 1800, 2000, 1000] };   // 🪙 1초에 1개씩 모여요 (하루 최대 3600)
 const SW = ['#6f7d4c', '#4f6a8a', '#a8604a', '#d8b062', '#7a5a8a', '#3f6a5a', '#c8907a', '#5a5a62'];
+const LOOK_NAMES = ['풀빛 옷', '바다빛 옷', '벽돌빛 옷', '모래빛 옷', '포도빛 옷', '숲빛 옷', '살구빛 옷', '잿빛 옷'];
+const lookName = (i) => LOOKS[i].name || LOOK_NAMES[i], lookPrice = (i) => LOOKS[i].price || PRICE.look, lookColor = (i) => SW[i] || LOOKS[i].shirt;
 function updCoins() { const left = Math.max(0, 3600 - (MY.today?.sec || 0)); $('#coins').textContent = `🪙 ${MY.coins}${left ? '' : ' · 오늘 다 모았어요'}`; $('#ccoins').textContent = `🪙 ${MY.coins} · 오늘 ${Math.floor((MY.today?.sec || 0) / 60)}분 / 60분`; }
 function remakeMe() {
-  const ns = makeWalker(MY.look, { g: MY.g, hat: MY.hat, body: MY.body, cam: MY.cam }); ns.root.position.copy(me.g.position); ns.root.rotation.y = me.g.rotation.y; ns.root.visible = me.g.visible;
+  const ns = makeWalker(MY.look, myWear()); ns.root.position.copy(me.g.position); ns.root.rotation.y = me.g.rotation.y; ns.root.visible = me.g.visible;
   scene.remove(me.g); scene.add(ns.root); me.g = ns.root; me.st = ns;
 }
 let pendingBuy = null;
@@ -941,37 +947,42 @@ function drawCloset() {
   const g = (v, t) => `<button type="button" data-g="${v}" class="${MY.g === v ? 'on' : ''}">${t}</button>`;
   $('#cGender').innerHTML = g('f', '여자') + g('m', '남자');
   $('#cBody').innerHTML = BODIES.map((b, i) => `<button type="button" data-body="${i}" class="${MY.body === i ? 'on' : ''}">${i + 1} · ${b.name}</button>`).join('');
-  $('#cLooks').innerHTML = SW.map((c, i) => card(`data-look="${i}"`, `<i class="swatch" style="background:${c}"></i>`, `옷 ${i + 1}`, '', MY.own.looks.includes(i), MY.look === i, PRICE.look, pendingBuy === 'look' + i)).join('');
+  $('#cLooks').innerHTML = LOOKS.map((L, i) => card(`data-look="${i}"`, lookIcon(L, MY.g !== 'm'), lookName(i), '', MY.own.looks.includes(i), MY.look === i, lookPrice(i), pendingBuy === 'look' + i)).join('');
   $('#cHats').innerHTML = HATS.map((n, i) => card(`data-hat="${i}"`, ICON['hat' + i], n, '', MY.own.hats.includes(i), MY.hat === i, PRICE.hat[i], pendingBuy === 'hat' + i)).join('');
+  $('#cAcc').innerHTML = ACCS.map((a, i) => card(`data-acc="${i}"`, ICON['acc' + i], a.name, '', MY.own.accs.includes(i), MY.acc === i, a.price, pendingBuy === 'acc' + i)).join('');
+  $('#cHair').innerHTML = HAIRS.map((h, i) => card(`data-hair="${i}"`, hairIcon(h.c), h.name, '', MY.own.hairs.includes(i), MY.hair === i, h.price, pendingBuy === 'hair' + i)).join('');
   $('#cCams').innerHTML = CAMERAS.map((c) => card(`data-cam="${c.id}"`, ICON['cam_' + c.id], c.name, c.desc, MY.own.cams.includes(c.id), MY.cam === c.id, c.price, pendingBuy === 'cam' + c.id)).join('');
   MY.own.furn ||= []; MY.own.walls ||= ['cream']; const hm = MY.home ||= { wall: 'cream', items: [], pics: [] };
-  $('#cFurn').innerHTML = FURN.map(([id, , n, pr]) => card(`data-furn="${id}"`, ICON[id], n, '집 안 꾸미기에서 놓아요', MY.own.furn.includes(id), false, pr, pendingBuy === 'f' + id)).join('');
+  $('#cFurn').innerHTML = FURN.map(([id, , n, pr]) => card(`data-furn="${id}"`, ICON[id], n, '사면 우리 집에 놓여요', MY.own.furn.includes(id), false, pr, pendingBuy === 'f' + id)).join('');
   $('#cWalls').innerHTML = WALLS.map(([id, n, c, pr]) => card(`data-wall="${id}"`, `<i class="swatch sq" style="background:${c}"></i>`, n, '', MY.own.walls.includes(id), hm.wall === id, pr, pendingBuy === 'w' + id)).join('');
 }
 function closetTap(kind, i) {
-  const own = MY.own[kind === 'look' ? 'looks' : kind === 'cam' ? 'cams' : 'hats'], price = kind === 'look' ? PRICE.look : kind === 'cam' ? CAMERAS.find((c) => c.id === i).price : PRICE.hat[i], key = kind + i;
+  const own = MY.own[{ look: 'looks', cam: 'cams', hat: 'hats', hair: 'hairs', acc: 'accs' }[kind]], price = kind === 'look' ? lookPrice(i) : kind === 'cam' ? CAMERAS.find((c) => c.id === i).price : kind === 'hair' ? HAIRS[i].price : kind === 'acc' ? ACCS[i].price : PRICE.hat[i], key = kind + i;
   if (!own.includes(i)) {
     if (MY.coins < price) { $('#cMsg').textContent = `코인이 ${price - MY.coins}개 모자라요. 섬에 머무는 1초마다 1개씩 모여요 (하루 최대 3600)`; return; }
     if (pendingBuy !== key) { pendingBuy = key; $('#cMsg').textContent = `🪙 ${price}코인으로 살까요? 한 번 더 누르면 사요`; drawCloset(); return; }
     MY.coins -= price; own.push(i); pendingBuy = null; bump('buy'); $('#cMsg').textContent = '샀어요! 바로 입어 볼게요'; snd.chime();
   } else { pendingBuy = null; $('#cMsg').textContent = ''; }
-  if (kind === 'look') MY.look = i; else if (kind === 'cam') { MY.cam = i; setZoom(zoom); } else MY.hat = i;
+  if (kind === 'look') MY.look = i; else if (kind === 'cam') { MY.cam = i; setZoom(zoom); } else if (kind === 'hair') MY.hair = i; else if (kind === 'acc') MY.acc = i; else MY.hat = i;
   saveMy(); remakeMe(); drawCloset();
 }
-function homeBuy(key, price, have, give) {
+function homeBuy(key, price, have, give, msg = '샀어요!') {
   if (have) { give(); return; }
   if (MY.coins < price) { $('#cMsg').textContent = `코인이 ${price - MY.coins}개 모자라요`; return; }
   if (pendingBuy !== key) { pendingBuy = key; $('#cMsg').textContent = `🪙 ${price}코인으로 살까요? 한 번 더 누르면 사요`; drawCloset(); return; }
-  MY.coins -= price; pendingBuy = null; give(); bump('buy'); $('#cMsg').textContent = '샀어요! 집에서 볼 수 있어요'; snd.chime();
+  MY.coins -= price; pendingBuy = null; give(); bump('buy'); $('#cMsg').textContent = msg; snd.chime();
 }
 $('#closet').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
-  if (b.dataset.furn) { const f = FURN.find((x) => x[0] === b.dataset.furn); homeBuy('f' + f[0], f[3], MY.own.furn.includes(f[0]), () => { if (!MY.own.furn.includes(f[0])) MY.own.furn.push(f[0]); saveMy(); }); drawCloset(); return; }
-  if (b.dataset.wall) { const w = WALLS.find((x) => x[0] === b.dataset.wall); homeBuy('w' + w[0], w[3], MY.own.walls.includes(w[0]), () => { if (!MY.own.walls.includes(w[0])) MY.own.walls.push(w[0]); MY.home.wall = w[0]; saveMy(); if (me.inHome) drawHomeItems(); }); drawCloset(); return; }
+  if (b.dataset.tab) { pendingBuy = null; $('#cMsg').textContent = ''; drawCloset(); document.querySelectorAll('#cTabs button').forEach((x) => x.classList.toggle('on', x === b)); document.querySelectorAll('#closet .sec').forEach((x) => x.classList.toggle('cur', x.dataset.sec === b.dataset.tab)); $('#closet .cbody').scrollTop = 0; return; }
+  if (b.dataset.furn) { const f = FURN.find((x) => x[0] === b.dataset.furn); homeBuy('f' + f[0], f[3], MY.own.furn.includes(f[0]), () => { if (!MY.own.furn.includes(f[0])) { MY.own.furn.push(f[0]); placeFurn(f[0]); } saveMy(); if (me.inHome) drawHomeItems(); }, '샀어요! 우리 집에 놓았어요. 집 안 꾸미기 단추로 자리를 옮겨요'); drawCloset(); return; }
+  if (b.dataset.wall) { const w = WALLS.find((x) => x[0] === b.dataset.wall); homeBuy('w' + w[0], w[3], MY.own.walls.includes(w[0]), () => { if (!MY.own.walls.includes(w[0])) MY.own.walls.push(w[0]); MY.home.wall = w[0]; saveMy(); if (me.inHome) drawHomeItems(); }, '샀어요! 벽지를 바꿨어요'); drawCloset(); return; }
   if (b.dataset.g) { MY.g = b.dataset.g; saveMy(); remakeMe(); drawCloset(); }
   else if (b.dataset.body) { MY.body = +b.dataset.body; saveMy(); remakeMe(); drawCloset(); }
   else if (b.dataset.look) closetTap('look', +b.dataset.look);
   else if (b.dataset.hat) closetTap('hat', +b.dataset.hat);
+  else if (b.dataset.hair) closetTap('hair', +b.dataset.hair);
+  else if (b.dataset.acc) closetTap('acc', +b.dataset.acc);
   else if (b.dataset.cam) closetTap('cam', b.dataset.cam);
 });
 // 👤 캐릭터 = 닉네임 · 성별 · 체형 · 가진 것 입기, 🛍 상점 = 사기 (같은 창을 두 모양으로)
@@ -1158,11 +1169,15 @@ function rideFerry() {
 $('#ferry').onclick = rideFerry;
 station(STA, '케이블카 타는 곳'); station(TOPS, '마을로 내려가는 곳');
 // 🏠 우리 집: 마을 동쪽 집의 문. 안은 하늘 높이 따로 만든 방이에요 (벽은 안쪽 면만 그려서 밖에서 들여다보여요)
+let doorM = null;   // 카메라가 문 바깥에 있으면 방이 가리지 않게 문을 숨겨요
 const ROOM = new THREE.Vector3(0, 320, 0), room = new THREE.Group(), homeItems = new THREE.Group(), wallMat = new THREE.MeshStandardMaterial({ color: '#f6e8d2', side: THREE.BackSide, roughness: 0.9 });
 const HOME = { door: new THREE.Vector3(VIL.x + 11.4, 0, VIL.z) }; HOME.door.y = height(HOME.door.x, HOME.door.z);
 // 🏠 집 꾸미기: 가구 · 벽지는 상점에서 사고, 🎨 꾸미기에서 놓아요. 사진은 벽에 여섯 장까지 (이 기기에 저장)
 const FURN = [['plant', '🪴', '화분', 300], ['lamp', '💡', '스탠드', 400], ['teddy', '🧸', '곰 인형', 500], ['round', '⭕', '동그란 깔개', 500], ['desk', '🖥', '책상', 700], ['fish', '🐠', '어항', 900], ['piano', '🎹', '피아노', 1500], ['fire', '🔥', '벽난로', 1800]];
 const WALLS = [['cream', '크림', '#f6e8d2', 0], ['mint', '민트', '#cfe8dc', 300], ['sky', '하늘', '#cfe2f2', 300], ['pink', '분홍', '#f6d8dc', 300], ['wood', '나무', '#c8a47a', 600], ['night', '밤하늘', '#3f4e72', 800]];
+// 가구를 사면 저절로 놓이는 자리 (x, z, 돌림). 집 안 꾸미기에서 옮길 수 있어요
+const FSPOT = { plant: [-4.3, -0.4, 0], lamp: [-1.7, -3.5, 0], teddy: [1.5, -3.4, 0], round: [-2.4, 1.2, 0], desk: [1.9, 3.5, Math.PI], fish: [3.6, 3.55, Math.PI], piano: [-1.9, 3.5, Math.PI], fire: [-3.6, 3.6, Math.PI] };
+const placeFurn = (id) => { const H = MY.home ||= { wall: 'cream', items: [], pics: [] }, [x, z, r] = FSPOT[id] || [0, 1, 0]; H.items = H.items.filter((i) => i.id !== id); H.items.push({ id, x, z, r }); };
 const PICS = [[-4.1, 2.35], [-3, 2.35], [-1.9, 2.35], [1.8, 2.35], [2.9, 2.35], [4, 2.35]];
 const HS = {
   bed: { x: -3.2, z: -1.9, face: 0, label: '침대에서 쉬기' }, sofa: { x: 3.2, z: -2.9, face: 0, label: '소파에 앉기' },
@@ -1178,7 +1193,7 @@ const HS = {
   B(0.6, 0.45, 0.6, '#a8784a', 3.2, 0.25, 0.75);   // 의자
   B(2.6, 2.4, 0.4, '#8a5e3a', 0, 1.2, -3.78); for (let r = 0; r < 3; r++) for (let i = 0; i < 9; i++) B(0.2, 0.5, 0.26, ['#c8553d', '#4f7aa8', '#d9a33a', '#6b8f4a', '#7a5a8a'][(i + r * 2) % 5], -1.0 + i * 0.25, 0.55 + r * 0.72, -3.55);   // 책장
   B(3.6, 0.03, 2.6, '#d8b062', 0, 0.03, 0.6);   // 깔개
-  B(1.3, 2.2, 0.1, '#7a4e32', 0, 1.1, 3.96); const mat = B(1.8, 0.03, 1, '#6b8f4a', 0, 0.03, 3.3);   // 문 · 나가는 매트
+  doorM = B(1.3, 2.2, 0.1, '#7a4e32', 0, 1.1, 3.96); const mat = B(1.8, 0.03, 1, '#6b8f4a', 0, 0.03, 3.3);   // 문 · 나가는 매트
   for (const x of [-3, 3]) { const w = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.2), new THREE.MeshBasicMaterial({ color: '#a8d8f0' })); w.position.set(x, 1.9, 3.97); w.rotation.y = Math.PI; room.add(w); }
   B(0.06, 0.06, 3.2, '#7a5a40', -4.7, 2.3, 1.6);   // 옷걸이 봉
   for (const y of [1.2, 2]) B(0.34, 0.06, 3.6, '#8a5e3a', 4.8, y, 1.5);   // 진열 선반
@@ -1199,17 +1214,18 @@ function makeFurn(id) {
   return g;
 }
 const texLoader = new THREE.TextureLoader();
+let homeTk = 0;
 async function drawHomeItems() {
-  homeItems.clear(); const H = MY.home ||= { wall: 'cream', items: [], pics: [] };
+  const tk = ++homeTk; homeItems.clear(); const H = MY.home ||= { wall: 'cream', items: [], pics: [] };
   wallMat.color.set((WALLS.find((w) => w[0] === H.wall) || WALLS[0])[2]);
   for (const it of H.items) { const g = makeFurn(it.id); g.position.set(it.x, 0, it.z); g.rotation.y = it.r || 0; homeItems.add(g); }
   for (const [i, id] of H.pics.entries()) {
-    const ph = await getPhoto(id), slot = PICS[i]; if (!ph?.blob || !slot) continue;
+    const ph = await getPhoto(id), slot = PICS[i]; if (tk !== homeTk) return; if (!ph?.blob || !slot) continue;
     const fr = new THREE.Mesh(new THREE.BoxGeometry(1, 0.94, 0.04), toon('#7a5a40')); fr.position.set(slot[0], slot[1], -3.96); homeItems.add(fr);
     const pic = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.84), new THREE.MeshBasicMaterial({ map: texLoader.load(URL.createObjectURL(ph.blob)) })); pic.position.set(slot[0], slot[1], -3.93); homeItems.add(pic);
   }
-  MY.own.looks.forEach((i, n) => { const m = new THREE.Mesh(new RoundedBoxGeometry(0.1, 0.85, 0.42, 2, 0.04), toon(SW[i])); m.position.set(-4.7, 1.82, 0.2 + n * 0.4); homeItems.add(m); });
-  MY.own.hats.filter((i) => HATS[i] && i !== 5).forEach((i, n) => { const sp = iconSprite('hat' + i); sp.position.set(4.75, 2.3, 0.1 + n * 0.6); homeItems.add(sp); });
+  MY.own.looks.slice(-8).forEach((i, n) => { const m = new THREE.Mesh(new RoundedBoxGeometry(0.1, 0.85, 0.42, 2, 0.04), toon(lookColor(i))); m.position.set(-4.7, 1.82, 0.2 + n * 0.4); homeItems.add(m); });
+  MY.own.hats.filter((i) => HATS[i] && i !== 5).slice(-6).forEach((i, n) => { const sp = iconSprite('hat' + i); sp.position.set(4.75, 2.3, 0.1 + n * 0.6); homeItems.add(sp); });
   MY.own.cams.forEach((id, n) => { const sp = iconSprite('cam_' + id); sp.position.set(4.75, 1.5, 0.1 + n * 0.6); homeItems.add(sp); });
 }
 function homeDo(k) {
@@ -1224,7 +1240,7 @@ function homeDo(k) {
 async function openDeco() {
   if (!$('#deco').classList.contains('on')) closePanels();
   const H = MY.home ||= { wall: 'cream', items: [], pics: [] }, own = MY.own.furn || [];
-  $('#decoFurn').innerHTML = own.length ? own.map((id) => { const f = FURN.find((x) => x[0] === id), on = H.items.some((i) => i.id === id); return `<div class="dk"><span class="dki">${ICON[id]}${f[2]}</span><button type="button" data-put="${id}">${on ? '내 앞으로 옮기기' : '내 앞에 놓기'}</button>${on ? `<button type="button" data-turn="${id}">돌리기</button><button type="button" data-off="${id}">치우기</button>` : ''}</div>`; }).join('') : '<p class="empty">상점의 가구에서 사면 여기서 놓을 수 있어요</p>';
+  $('#decoFurn').innerHTML = own.length ? own.map((id) => { const f = FURN.find((x) => x[0] === id), on = H.items.some((i) => i.id === id); return `<div class="dk"><span class="dki">${ICON[id]}${f[2]}</span>${on ? `<button type="button" data-move="${id}">자리 옮기기</button><button type="button" data-off="${id}">치우기</button>` : `<button type="button" data-put="${id}">다시 놓기</button>`}</div>`; }).join('') : '<p class="empty">상점에서 가구를 사면 집에 저절로 놓여요</p>';
   const list = (await listPhotos()).filter((p) => !String(p.id).startsWith('best-')).slice(0, 24); decoUrls.forEach((u) => URL.revokeObjectURL(u)); decoUrls = [];
   $('#decoPics').innerHTML = list.length ? list.map((p) => { const u = URL.createObjectURL(p.blob); decoUrls.push(u); return `<button type="button" data-pic="${p.id}" class="${H.pics.includes(p.id) ? 'on' : ''}" aria-label="사진 걸기"><img src="${u}" alt=""></button>`; }).join('') : '<p class="empty">사진을 찍으면 벽에 걸 수 있어요</p>';
   $('#decoN').textContent = `${H.pics.length} / ${PICS.length}장`; $('#deco').classList.add('on');
@@ -1233,17 +1249,25 @@ let decoUrls = [];
 $('#decoX').onclick = () => $('#deco').classList.remove('on');
 $('#deco').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return; const H = MY.home, d = b.dataset;
-  if (d.put) { H.items = H.items.filter((i) => i.id !== d.put); H.items.push({ id: d.put, x: clamp(me.pos.x - ROOM.x + Math.sin(me.face) * 1.4, -4.4, 4.4), z: clamp(me.pos.z - ROOM.z + Math.cos(me.face) * 1.4, -3.4, 3.4), r: me.face + Math.PI }); }
-  else if (d.turn) { const it = H.items.find((i) => i.id === d.turn); if (it) it.r = (it.r || 0) + Math.PI / 2; }
+  if (d.move) { startMove(d.move); return; }
+  if (d.put) placeFurn(d.put);
   else if (d.off) H.items = H.items.filter((i) => i.id !== d.off);
   else if (d.pic) { if (H.pics.includes(d.pic)) H.pics = H.pics.filter((x) => x !== d.pic); else if (H.pics.length < PICS.length) H.pics.push(d.pic); else { toastMsg('벽이 꽉 찼어요', '걸린 사진을 눌러 내린 뒤 걸어 주세요'); return; } }
   else return; saveMy(); drawHomeItems(); openDeco();
 });
+// 🪑 자리 옮기기: 창을 닫고 바닥을 누른 곳으로 가구를 옮겨요
+let moveId = null;
+function startMove(id) { moveId = id; $('#deco').classList.remove('on'); $('#moveT').textContent = `바닥을 누르면 ${FURN.find((f) => f[0] === id)[2]}이(가) 옮겨 가요`; document.body.classList.add('placing'); }
+function endMove() { moveId = null; document.body.classList.remove('placing'); }
+function moveTo(q) { const it = MY.home.items.find((i) => i.id === moveId); if (!it) return; it.x = clamp(q.x - ROOM.x, -4.4, 4.4); it.z = clamp(q.z - ROOM.z, -3.6, 3.6); saveMy(); drawHomeItems(); showMark(q); }
+$('#mvTurn').onclick = () => { const it = MY.home.items.find((i) => i.id === moveId); if (it) { it.r = (it.r || 0) + Math.PI / 2; saveMy(); drawHomeItems(); } };
+$('#mvDone').onclick = () => { endMove(); openDeco(); };
+$('#decoBtn').onclick = () => { endMove(); openDeco(); };
 function enterHome() {
-  travelTo('집으로 들어가는 중', () => { standUp(); me.inHome = true; room.visible = true; drawHomeItems(); document.body.classList.add('inhome'); controls.maxDistance = 7; me.face = Math.PI; return ROOM.clone().add(V.set(0, 0, 2.6)); });
+  travelTo('집으로 들어가는 중', () => { standUp(); me.inHome = true; room.visible = true; const H = MY.home ||= { wall: 'cream', items: [], pics: [] }; if (!H.auto) { H.auto = 1; (MY.own.furn || []).forEach((id) => { if (!H.items.some((i) => i.id === id)) placeFurn(id); }); saveMy(); } drawHomeItems(); document.body.classList.add('inhome'); controls.maxDistance = 9; me.face = Math.PI; return ROOM.clone().add(V.set(0, 0, 1.8)); });
 }
 function exitHome() {
-  travelTo('마당으로 나가는 중', () => { standUp(); me.inHome = false; room.visible = false; document.body.classList.remove('inhome'); controls.maxDistance = 320; me.face = -Math.PI / 2; return HOME.door.clone().add(V.set(-1.6, 0, 0)); });
+  travelTo('마당으로 나가는 중', () => { standUp(); endMove(); me.inHome = false; room.visible = false; document.body.classList.remove('inhome'); controls.maxDistance = 320; me.face = -Math.PI / 2; return HOME.door.clone().add(V.set(-1.6, 0, 0)); });
 }
 // 🪁 연: 내 뒤 하늘에 떠서 따라와요 (내 화면에서만 보여요)
 const kite = { t: 0, g: new THREE.Group() };
@@ -1438,10 +1462,11 @@ addEventListener('keydown', (e) => { if (e.code === 'KeyH' && e.target === docum
 
 // ───────── 섬 친구들 (메타버스): 같은 섬 방의 친구가 각자 옷으로 걸어 다녀요 ─────────
 const friends = new Map();
+const friendWear = (d) => ({ g: d.g ? 'm' : 'f', hat: d.h || 0, body: d.b ?? START_BODY, cam: CAMERAS[d.c || 0]?.id, hair: d.hc ?? -1, acc: d.a || 0 });
 function friendOf(id, d) {
   let f = friends.get(id);
   if (!f) {
-    const st = makeWalker(d.l || 0, { g: d.g ? 'm' : 'f', hat: d.h || 0, body: d.b ?? START_BODY, cam: CAMERAS[d.c || 0]?.id }); scene.add(st.root);
+    const st = makeWalker(d.l || 0, friendWear(d)); scene.add(st.root);
     const tag = document.createElement('div'); tag.className = 'tag friend'; document.body.append(tag);
     f = { st, tag, to: new THREE.Vector3(d.x, d.y, d.z), r: d.r, d, p: d.p, snapT: 0, name: d.n };
     st.root.position.copy(f.to); friends.set(id, f);
@@ -1451,8 +1476,8 @@ function friendOf(id, d) {
 function dropFriend(id) { const f = friends.get(id); if (!f) return; scene.remove(f.st.root); f.tag.remove(); friends.delete(id); }
 const net = new IslandNet({
   onState(id, d) { let f = friendOf(id, d); if (d.n) f.name = d.n; if (d.ec !== undefined && d.ec !== f.ec) { if (f.ec !== undefined) { f.emoT = 2.6; f.emo = EMOS[d.e || 0]; } f.ec = d.ec; } f.st.sit = d.s ? 1 : 0; f.st.seat = 0.3;
-    if (f.st.look !== (d.l || 0) || f.st.g !== (d.g ? 'm' : 'f') || f.st.hat !== (d.h || 0) || f.st.body !== (d.b ?? START_BODY) || f.st.cam !== (CAMERAS[d.c || 0]?.id)) {   // 친구가 옷을 갈아입었어요
-      const ns = makeWalker(d.l || 0, { g: d.g ? 'm' : 'f', hat: d.h || 0, body: d.b ?? START_BODY, cam: CAMERAS[d.c || 0]?.id }); ns.root.position.copy(f.st.root.position); ns.root.rotation.y = f.st.root.rotation.y; scene.remove(f.st.root); scene.add(ns.root); f.st = ns; } if (d.p !== f.p) { f.p = d.p; f.snapT = 2.2; f.st.aim = 1; f.st.snapT = 0.2; clearTimeout(f.aimT); f.aimT = setTimeout(() => (f.st.aim = 0), 1600); } if (d.w !== f.w) { if (f.w !== undefined) { f.st.waveT = 2.4; f.waveT = 2.4; } f.w = d.w; } f.d = d; f.name = d.n; f.to.set(d.x, d.y, d.z); f.r = d.r; },
+    if (f.st.look !== (d.l || 0) || f.st.g !== (d.g ? 'm' : 'f') || f.st.hat !== (d.h || 0) || f.st.body !== (d.b ?? START_BODY) || f.st.cam !== (CAMERAS[d.c || 0]?.id) || f.st.hair !== (d.hc ?? -1) || f.st.acc !== (d.a || 0)) {   // 친구가 옷을 갈아입었어요
+      const ns = makeWalker(d.l || 0, friendWear(d)); ns.root.position.copy(f.st.root.position); ns.root.rotation.y = f.st.root.rotation.y; scene.remove(f.st.root); scene.add(ns.root); f.st = ns; } if (d.p !== f.p) { f.p = d.p; f.snapT = 2.2; f.st.aim = 1; f.st.snapT = 0.2; clearTimeout(f.aimT); f.aimT = setTimeout(() => (f.st.aim = 0), 1600); } if (d.w !== f.w) { if (f.w !== undefined) { f.st.waveT = 2.4; f.waveT = 2.4; } f.w = d.w; } f.d = d; f.name = d.n; f.to.set(d.x, d.y, d.z); f.r = d.r; },
   onLeave: dropFriend,
   onReset() { [...friends.keys()].forEach(dropFriend); },
   onStatus() { showPeople(); },
@@ -1658,6 +1683,7 @@ function frame() {
 
   // 구역 · 안개 · 눈
   const z0 = me.pos.distanceTo(VIL) < 26 ? 'village' : zoneAt(me.pos.x, me.pos.z);
+  if (me.inHome) doorM.visible = camera.position.z < ROOM.z + 3.9;
   setZone(me.inHome ? 'home' : z0); if (z0 !== updMoves.z) { updMoves.z = z0; updMoves(z0); }
   const fogNear = z0 === 'jungle' ? 30 : z0 === 'arctic' ? 60 : 120, fogFar = z0 === 'jungle' ? 260 : z0 === 'arctic' ? 420 : 720;
   updWeather(T, dt, z0);
@@ -1686,7 +1712,7 @@ function frame() {
   updateFriends(dt);
   if ($('#meEmo').classList.contains('pop')) { V.copy(me.pos); V.y += [2.0, 1.75, 1.45][MY.body]; V.project(camera); $('#meEmo').style.transform = `translate(${(V.x * 0.5 + 0.5) * innerWidth}px, ${(-V.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`; }
   const np = me.inHome ? HOME.door : me.pos;   // 집 안에 있으면 친구에게는 문 앞으로 보여요
-  net.send({ n: myName, x: +np.x.toFixed(2), z: +np.z.toFixed(2), y: +np.y.toFixed(2), r: +me.g.rotation.y.toFixed(2), m: moving ? 1 : 0, k: me.riding ? 1 : 0, l: MY.look, g: MY.g === 'm' ? 1 : 0, h: MY.hat, b: MY.body, c: Math.max(0, CAMERAS.findIndex((c) => c.id === MY.cam)), p: shots, w: waves, s: sitting ? 1 : 0, e: emoI, ec: emoN }, performance.now());
+  net.send({ n: myName, x: +np.x.toFixed(2), z: +np.z.toFixed(2), y: +np.y.toFixed(2), r: +me.g.rotation.y.toFixed(2), m: moving ? 1 : 0, k: me.riding ? 1 : 0, l: MY.look, g: MY.g === 'm' ? 1 : 0, h: MY.hat, hc: MY.hair, a: MY.acc, b: MY.body, c: Math.max(0, CAMERAS.findIndex((c) => c.id === MY.cam)), p: shots, w: waves, s: sitting ? 1 : 0, e: emoI, ec: emoN }, performance.now());
   // 소리: 구역 · 물가(강 · 바다) 가까움
   if ((frame.st = (frame.st || 0) + dt) > 0.5) { frame.st = 0; const rv = riverNear(me.pos.x, me.pos.z), w = Math.max(rv.i >= 0 ? 1 - rv.d / 30 : 0, me.pos.y < 6 ? 1 - me.pos.y / 6 : 0); snd.setPlace(z0 === 'village' ? 'village' : z0, Math.max(0, w)); }
   if (mode === 'photo') updatePhoto(dt);

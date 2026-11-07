@@ -277,9 +277,26 @@ const LOOKS = [
   { skirt: '#3f6a5a', shirt: '#f8f2e8', hair: '#6a4a30', band: '#f2c84a', bag: '#7a4a2e' },
   { skirt: '#c8907a', shirt: '#faf6ee', hair: '#2e2420', band: '#3f6a5a', bag: '#9a6a42' },
   { skirt: '#5a5a62', shirt: '#efe8dc', hair: '#4a3024', band: '#c84a3e', bag: '#6a4a32' },
+  // 8번부터는 모양이 다른 옷이에요. kind 에 따라 person.js 가 모양을 입혀요 (순서를 바꾸면 산 옷이 뒤바뀌니 늘 맨 뒤에 붙여요)
+  // low: 'skirt' = 치마 · 'pants' = 바지 (없으면 성별 따라), long: 긴소매, price: 상점 값
+  { name: '파랑 줄무늬 티', kind: 'stripe', pat: '#4f7aa8', skirt: '#3f5a7a', shirt: '#f7f3ea', hair: '#3b2a22', band: '#c84a3e', bag: '#6a4a32', price: 900 },
+  { name: '빨강 줄무늬 티', kind: 'stripe', pat: '#c8553d', skirt: '#4a4a52', shirt: '#f7f3ea', hair: '#3b2a22', band: '#e0a53a', bag: '#6a4a32', price: 900 },
+  { name: '땡땡이 잠옷', kind: 'dots', pat: '#ffffff', low: 'pants', long: true, skirt: '#9ac0e0', shirt: '#9ac0e0', hair: '#3b2a22', band: '#9ac0e0', bag: '#9ac0e0', price: 1000 },
+  { name: '회색 후드티', kind: 'hood', long: true, skirt: '#3f4a5a', shirt: '#a8acb2', hair: '#3b2a22', band: '#8a8e94', bag: '#8a8e94', price: 1100 },
+  { name: '분홍 후드티', kind: 'hood', long: true, skirt: '#f2ece0', shirt: '#f0a8bc', hair: '#3b2a22', band: '#d8889e', bag: '#d8889e', price: 1100 },
+  { name: '멜빵바지', kind: 'overall', low: 'pants', skirt: '#4f78a8', shirt: '#f6d8a0', hair: '#3b2a22', band: '#4f78a8', bag: '#4f78a8', price: 1200 },
+  { name: '노랑 원피스', kind: 'dress', low: 'skirt', skirt: '#f2c84a', shirt: '#f2c84a', hair: '#3b2a22', band: '#ffffff', bag: '#f2c84a', price: 1300 },
+  { name: '하늘 원피스', kind: 'dress', low: 'skirt', skirt: '#8ac8e8', shirt: '#8ac8e8', hair: '#3b2a22', band: '#ffffff', bag: '#8ac8e8', price: 1300 },
+  { name: '사육사 조끼', kind: 'vest', low: 'pants', skirt: '#8a7a54', shirt: '#f2ece0', hair: '#3b2a22', band: '#6b7a44', bag: '#6a4a32', price: 1400 },
+  { name: '노란 우비', kind: 'rain', low: 'pants', long: true, skirt: '#4f6a8a', shirt: '#f2c82a', hair: '#3b2a22', band: '#d8a818', bag: '#f2c82a', price: 1500 },
+  { name: '세일러 교복', kind: 'sailor', skirt: '#2f3f62', shirt: '#fbf8f0', hair: '#3b2a22', band: '#2f3f62', bag: '#2f3f62', price: 1600 },
+  { name: '멋쟁이 정장', kind: 'suit', low: 'pants', long: true, skirt: '#30384a', shirt: '#30384a', hair: '#3b2a22', band: '#c84a3e', bag: '#30384a', price: 1800 },
+  { name: '분홍 한복', kind: 'hanbok', long: true, skirt: '#e8789a', shirt: '#fbf0d8', hair: '#3b2a22', band: '#c8405a', bag: '#fbf0d8', price: 2200 },
+  { name: '파랑 한복', kind: 'hanbok', long: true, skirt: '#4f7ac8', shirt: '#f2ece0', hair: '#3b2a22', band: '#2f4f98', bag: '#f2ece0', price: 2200 },
 ];
 // 모자 (꾸미기 · 상점): 0 밀짚모자 · 1 챙 모자 · 2 털모자 · 3 사파리 모자 · 4 꽃 화관 · 5 없음
-const HATS = ['밀짚모자', '챙 모자', '털모자', '사파리 모자', '꽃 화관', '모자 없이'];
+//  6번부터는 새 모자 (늘 맨 뒤에 붙여요)
+const HATS = ['밀짚모자', '챙 모자', '털모자', '사파리 모자', '꽃 화관', '모자 없이', '베레모', '왕관', '마법사 모자', '토끼 머리띠', '고양이 머리띠', '리본 머리띠', '산타 모자', '헤드폰', '요리사 모자', '버섯 모자', '해적 모자', '야구 모자'];
 // opts: { g: 'f' | 'm' (여 · 남), hat: 모자 번호 }
 function walker(look = 0, opts = {}) {
   const L = LOOKS[look % LOOKS.length], root = new THREE.Group(), SK = '#f6dcc4', HAIR = L.hair, SH = L.shirt, SKIRT = L.skirt, MALE = opts.g === 'm', HAT = opts.hat ?? 0;

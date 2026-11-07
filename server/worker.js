@@ -148,7 +148,7 @@ export function cleanState(d) {
 export function cleanIsland(d) {
   if (!d || typeof d !== 'object' || !NAMES.has(d.n)) return null;
   return { n: d.n, x: num(d.x, 345), z: num(d.z, 345), y: Math.max(-5, num(d.y, 260)), r: num(d.r, 7), m: d.m ? 1 : 0, k: d.k ? 1 : 0,
-    l: Number.isInteger(d.l) && d.l >= 0 && d.l < 8 ? d.l : 0, p: Number.isInteger(d.p) && d.p >= 0 && d.p < 1000 ? d.p : 0, w: Number.isInteger(d.w) && d.w >= 0 && d.w < 1000 ? d.w : 0, g: d.g ? 1 : 0, h: Number.isInteger(d.h) && d.h >= 0 && d.h < 6 ? d.h : 0, b: Number.isInteger(d.b) && d.b >= 0 && d.b < 3 ? d.b : 2, c: Number.isInteger(d.c) && d.c >= 0 && d.c < 6 ? d.c : 0, s: d.s ? 1 : 0, e: Number.isInteger(d.e) && d.e >= 0 && d.e < 6 ? d.e : 0, ec: Number.isInteger(d.ec) && d.ec >= 0 && d.ec < 1000 ? d.ec : 0 };
+    l: Number.isInteger(d.l) && d.l >= 0 && d.l < 64 ? d.l : 0, p: Number.isInteger(d.p) && d.p >= 0 && d.p < 1000 ? d.p : 0, w: Number.isInteger(d.w) && d.w >= 0 && d.w < 1000 ? d.w : 0, g: d.g ? 1 : 0, h: Number.isInteger(d.h) && d.h >= 0 && d.h < 64 ? d.h : 0, hc: Number.isInteger(d.hc) && d.hc >= 0 && d.hc < 64 ? d.hc : undefined, a: Number.isInteger(d.a) && d.a >= 0 && d.a < 64 ? d.a : 0, b: Number.isInteger(d.b) && d.b >= 0 && d.b < 3 ? d.b : 2, c: Number.isInteger(d.c) && d.c >= 0 && d.c < 6 ? d.c : 0, s: d.s ? 1 : 0, e: Number.isInteger(d.e) && d.e >= 0 && d.e < 6 ? d.e : 0, ec: Number.isInteger(d.ec) && d.ec >= 0 && d.ec < 1000 ? d.ec : 0 };
 }
 
 export class Room extends DurableObject {
