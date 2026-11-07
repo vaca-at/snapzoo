@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js';
-import { IslandNet, myName, myLook } from './net.js';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js';
 import { IslandSound } from './sound.js';
 import { ROSTER } from './fauna.js';
 import { DEX_PHOTOS } from './dexphotos.js';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
@@ -619,6 +619,9 @@ function enterPhoto() {
 }
 function exitPhoto() { if (mode !== 'photo') return; mode = 'walk'; me.g.visible = true; me.st.aim = 0; controls.enabled = true; document.body.classList.remove('photo', 'raising'); $('#finder').setAttribute('aria-hidden', 'true'); }
 $('#shot').onclick = enterPhoto;
+// 📱 게임 화면이 확대되지 않게 (사파리는 viewport 설정을 안 따라요): 두 손가락 · 두 번 톡톡 막기
+['gesturestart', 'gesturechange', 'gestureend', 'dblclick'].forEach((n) => document.addEventListener(n, (e) => e.preventDefault(), { passive: false }));
+{ let lastTap = 0; document.addEventListener('touchend', (e) => { const t = Date.now(); if (t - lastTap < 350 && !e.target.closest('input, select, textarea')) e.preventDefault(); lastTap = t; }, { passive: false }); }
 $('#fExit').onclick = exitPhoto;
 $('#fFr').onclick = () => { withFriends = !withFriends; $('#fFr').setAttribute('aria-pressed', String(withFriends)); };
 $('#fShot').onclick = () => { wantShot = true; };
@@ -723,7 +726,9 @@ function shoot() {
     else if (score > old.score) { badge = '최고 사진 바꿈!'; Object.assign(old, { score, stars, shots: old.shots + 1, at: Date.now() }); }
     else { badge = `최고 사진은 ${old.score}점이에요`; old.shots++; }
     saveDex(); if (spot) { MY.coins += 30; saveMy(); updCoins(); } if (isNew) checkTitles();
+    if (stars >= 3) bump('star3');
   }
+  bump('shot');
   // 글꼴을 오래 기다리지 않아요 (사파리에서 대답이 늦어도 결과는 떠야 해요)
   Promise.race([document.fonts.load('40px OngleipUnz').catch(() => {}), new Promise((r) => setTimeout(r, 800))]).then(() => {
     const c = document.createElement('canvas'); c.width = 1080; c.height = 1010; const g = c.getContext('2d');
@@ -754,18 +759,44 @@ function shoot() {
   });
 }
 // 📖 도감: 열두 식구, 종마다 가장 잘 찍은 사진 한 장
-let dexUrls = [];
-async function openDex() {
-  dexUrls.forEach((u) => URL.revokeObjectURL(u)); dexUrls = [];
-  const got = DEX.filter(([id]) => dex[id]).length; $('#dexN').textContent = `${got} / ${DEX.length}`;
+// 사진이 무서운 어린이도 볼 수 있게 도감은 글자만. 사진은 [📷 사진 보기] 를 눌렀을 때만 (2026-11-07)
+let dexTab = 'dex';
+function drawDex() {
+  const got = DEX.filter(([id]) => dex[id]).length, bs = BADGES.filter((b) => (MY.badges || []).includes(b.id)).length;
+  $('#dexN').textContent = dexTab === 'dex' ? `${got} / ${DEX.length}` : `${bs} / ${BADGES.length}`;
   $('#dexTitles').innerHTML = Object.entries(TITLES).map(([z, t]) => `<span class="tt ${(MY.titles || []).includes(z) ? 'on' : ''}">${t}</span>`).join('');
-  const cards = DEX.map(([id, name, zone, night]) => {
-    const d = dex[id], ph = DEX_PHOTOS[id], img = ph ? `<img src="world/${ph.src || 'dex/' + id + '.jpg'}" alt="${name} 실제 사진" loading="lazy">` : '?';
-    return `<div class="dcard ${d ? '' : 'none'}"><div class="ph">${img}${d ? '' : '<span class="q">?</span>'}</div><b>${name}${d ? ' ' + starHTML(d.stars) : ''}</b><small>${d ? `내 사진 ${d.score}점 · ${d.shots}장` : `${ZLAB[zone]}${night ? ' · 🌙 밤에만' : ''} 어딘가`}</small></div>`;
-  });
-  $('#dexGrid').innerHTML = cards.join('');
+  document.querySelectorAll('#dexTabs [data-t]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.t === dexTab)));
+  $('#dexGrid').className = dexTab === 'dex' ? 'text' : 'badges';
+  $('#dexGrid').innerHTML = dexTab === 'dex'
+    ? DEX.map(([id, name, zone, night]) => { const d = dex[id]; return `<div class="dcard ${d ? '' : 'none'}"><b>${name}${d ? ' ' + starHTML(d.stars) : ''}</b><small>${d ? `내 사진 ${d.score}점 · ${d.shots}장` : `${ZLAB[zone]}${night ? ' · 🌙 밤에만' : ''} 어딘가`}</small></div>`; }).join('')
+    : BADGES.map((b) => `<div class="bdg ${(MY.badges || []).includes(b.id) ? 'got' : ''}"><i>${b.icon}</i><b>${b.name}</b><small>${b.cap}</small></div>`).join('');
+}
+async function openDex() {
+  checkBadges(); drawDex();
   $('#dex').classList.add('on'); $('#dex').setAttribute('aria-hidden', 'false'); $('#dexX').focus({ preventScroll: true });
 }
+$('#dexTabs').addEventListener('click', (e) => { const t = e.target.closest('[data-t]')?.dataset.t; if (t) { dexTab = t; drawDex(); } });
+// 📷 모은 동물 사진 크게 보기: 내가 찍은 가장 좋은 사진 + 실제 동물 사진, 옆으로 넘겨요
+let dvList = [], dvI = 0;
+function dvShow() {
+  const x = dvList[dvI]; $('#dvImg').src = x.src; $('#dvImg').alt = x.cap;
+  $('#dvCap').textContent = `${x.cap} (${dvI + 1} / ${dvList.length})`;
+}
+function dvFlip(n) { dvI = (dvI + n + dvList.length) % dvList.length; dvShow(); }
+function dvClose() { $('#dexView').classList.remove('on'); dvList.forEach((x) => { if (x.src.startsWith('blob:')) URL.revokeObjectURL(x.src); }); dvList = []; }
+$('#dexPics').onclick = async () => {
+  const out = [];
+  for (const [id, name] of DEX) {
+    if (!dex[id]) continue;
+    const mine = await getPhoto(`best-${id}`); if (mine?.blob) out.push({ src: URL.createObjectURL(mine.blob), cap: `${name} · 내 사진` });
+    const ph = DEX_PHOTOS[id]; if (ph) out.push({ src: `world/${ph.src || 'dex/' + id + '.jpg'}`, cap: `${name} · 실제 사진 (${ph.by})` });
+  }
+  if (!out.length) { toastMsg('아직 모은 사진이 없어요', '동물을 찍으면 여기서 볼 수 있어요'); return; }
+  dvList = out; dvI = 0; dvShow(); $('#dexView').classList.add('on');
+};
+$('#dvPrev').onclick = () => dvFlip(-1); $('#dvNext').onclick = () => dvFlip(1); $('#dvX').onclick = dvClose;
+{ let x0 = null; $('#dexView').addEventListener('pointerdown', (e) => { x0 = e.clientX; }); $('#dexView').addEventListener('pointerup', (e) => { if (x0 !== null && Math.abs(e.clientX - x0) > 50) dvFlip(e.clientX < x0 ? 1 : -1); x0 = null; }); }
+addEventListener('keydown', (e) => { if (!$('#dexView').classList.contains('on')) return; if (e.key === 'Escape') dvClose(); if (e.key === 'ArrowLeft') dvFlip(-1); if (e.key === 'ArrowRight') dvFlip(1); });
 function closeDex() { $('#dex').classList.remove('on'); $('#dex').setAttribute('aria-hidden', 'true'); }
 $('#dexBtn').onclick = () => ($('#dex').classList.contains('on') ? closeDex() : (closeAlbum(), openDex()));
 $('#dexX').onclick = closeDex;
@@ -818,7 +849,7 @@ function closetTap(kind, i) {
   if (!own.includes(i)) {
     if (MY.coins < price) { $('#cMsg').textContent = `코인이 ${price - MY.coins}개 모자라요. 섬에 머무는 1초마다 1개씩 모여요 (하루 최대 3600)`; return; }
     if (pendingBuy !== key) { pendingBuy = key; $('#cMsg').textContent = `🪙 ${price}코인으로 살까요? 한 번 더 누르면 사요`; drawCloset(); return; }
-    MY.coins -= price; own.push(i); pendingBuy = null; $('#cMsg').textContent = '🛍 샀어요! 바로 입어 볼게요'; snd.chime();
+    MY.coins -= price; own.push(i); pendingBuy = null; bump('buy'); $('#cMsg').textContent = '🛍 샀어요! 바로 입어 볼게요'; snd.chime();
   } else { pendingBuy = null; $('#cMsg').textContent = ''; }
   if (kind === 'look') MY.look = i; else if (kind === 'cam') { MY.cam = i; setZoom(zoom); } else MY.hat = i;
   saveMy(); remakeMe(); drawCloset();
@@ -831,11 +862,23 @@ $('#closet').addEventListener('click', (e) => {
   else if (b.dataset.hat) closetTap('hat', +b.dataset.hat);
   else if (b.dataset.cam) closetTap('cam', b.dataset.cam);
 });
-function openCloset() { closeAlbum(); closeDex(); pendingBuy = null; $('#cMsg').textContent = ''; drawCloset(); $('#closet').classList.add('on'); $('#closet').setAttribute('aria-hidden', 'false'); $('#closetX').focus({ preventScroll: true }); }
+// 👤 캐릭터 = 닉네임 · 성별 · 체형 · 가진 것 입기, 🛍 상점 = 사기 (같은 창을 두 모양으로)
+let closetKind = 'char';
+function drawNick() {
+  const [a, b] = myName.split(' '), opt = (L, v) => L.map((x) => `<option ${x === v ? 'selected' : ''}>${x}</option>`).join('');
+  $('#nA').innerHTML = opt(NAME_A, a); $('#nB').innerHTML = opt(NAME_B, b);
+}
+function changeNick(n) { setMyName(n); drawNick(); showPeople(); $('#cMsg').textContent = `이제 '${n}'(으)로 보여요`; }
+$('#nA').onchange = $('#nB').onchange = () => changeNick(`${$('#nA').value} ${$('#nB').value}`);
+$('#nRand').onclick = () => changeNick(`${NAME_A[Math.floor(Math.random() * NAME_A.length)]} ${NAME_B[Math.floor(Math.random() * NAME_B.length)]}`);
+function openCloset(kind = 'char') { closetKind = kind; const c = $('#closet'); c.classList.toggle('char', kind === 'char'); c.classList.toggle('shop', kind === 'shop'); $('#cTitle').textContent = kind === 'char' ? '👤 캐릭터' : '🛍 상점'; c.setAttribute('aria-label', kind === 'char' ? '캐릭터' : '상점'); drawNick();
+  closeAlbum(); closeDex(); pendingBuy = null; $('#cMsg').textContent = ''; drawCloset(); $('#closet').classList.add('on'); $('#closet').setAttribute('aria-hidden', 'false'); $('#closetX').focus({ preventScroll: true }); }
 function closeCloset() { $('#closet').classList.remove('on'); $('#closet').setAttribute('aria-hidden', 'true'); }
-$('#closetBtn').onclick = () => ($('#closet').classList.contains('on') ? closeCloset() : openCloset());
+const toggleCloset = (k) => ($('#closet').classList.contains('on') && closetKind === k ? closeCloset() : openCloset(k));
+$('#charBtn').onclick = () => toggleCloset('char');
+$('#shopBtn').onclick = () => toggleCloset('shop');
 $('#closetX').onclick = closeCloset;
-addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCloset(); });
+addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeCloset(); closeActs(); } });
 updCoins();
 
 
@@ -922,17 +965,35 @@ function updCtx() {
   else { ctxA = nearAnimal(); if (ctxA) { kind = 'feed'; label = (ctxA.fedT > 0 ? '🤲 쓰다듬기 · ' : '🥕 먹이 주기 · ') + ctxA.name; } }
   ctxKind = kind; $('#ctx').hidden = !kind; if ($('#ctx').textContent !== label) $('#ctx').textContent = label;
 }
-function sitDown(seat) { sitting = seat; me.target = null; me.pos.copy(seat.pos); me.face = seat.face; me.st.sit = 1; me.st.seat = 0.3; toastMsg('🔥 모닥불 곁에 앉았어요', '움직이면 일어나요 · 타닥타닥 불소리를 들어 보세요'); snd.fire = 1; }
+function sitDown(seat) { bump('sit'); sitting = seat; me.target = null; me.pos.copy(seat.pos); me.face = seat.face; me.st.sit = 1; me.st.seat = 0.3; toastMsg('🔥 모닥불 곁에 앉았어요', '움직이면 일어나요 · 타닥타닥 불소리를 들어 보세요'); snd.fire = 1; }
 function standUp() { if (!sitting) return; sitting = null; me.st.sit = 0; snd.fire = 0; }
-$('#ctx').onclick = () => {
-  if (ctxKind === 'sit') sitDown(nearSeat());
-  else if (ctxKind === 'stand') standUp();
-  else if (ctxKind === 'feed' && ctxA) {
-    const a = ctxA, pet = a.fedT > 0; a.face = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z); a.target = null; a.v = 0; a.visit = true; a.wait = 6; a.heart = 6; a.fedT = 30;
+// 동물 돌보기: pet = true 쓰다듬기, false 먹이 주기 (안 정하면 먹은 뒤엔 쓰다듬기)
+function careAnimal(a, pet = a.fedT > 0) {
+  bump(pet ? 'pet' : 'feed');
+  a.face = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z); a.target = null; a.v = 0; a.visit = true; a.wait = 6; a.heart = 6; a.fedT = 30;
     me.face = Math.atan2(a.pos.x - me.pos.x, a.pos.z - me.pos.z); me.st.waveT = 1.0;
     if (!pet && !(a.coinT > 0)) { MY.coins += 2; a.coinT = 120; saveMy(); updCoins(); }
     toastMsg(pet ? `🤲 ${a.name}${josa(a.name) === '과' ? '이' : '가'} 좋아해요` : `🥕 ${a.name}${josa(a.name) === '과' ? '이' : '가'} 맛있게 먹어요`, '6초 동안 곁에 머물러요 · 지금 찍으면 ♥ 특별한 순간!'); snd.chime();
-  }
+}
+// 🙌 동작 단추: 누르면 다섯 가지가 펼쳐져요. 춤 · 뛰기는 내 화면에서만 보여요
+function closeActs() { $('#actMenu').classList.remove('on'); $('#actBtn').setAttribute('aria-expanded', 'false'); }
+$('#actBtn').onclick = (e) => { e.stopPropagation(); const on = $('#actMenu').classList.toggle('on'); $('#actBtn').setAttribute('aria-expanded', String(on)); };
+addEventListener('pointerdown', (e) => { if (!e.target.closest('#actMenu, #actBtn')) closeActs(); });
+$('#actMenu').addEventListener('click', (e) => {
+  const k = e.target.closest('button')?.dataset.a; if (!k) return; closeActs(); if (me.riding) return;
+  if (k === 'sit') {
+    if (sitting) { standUp(); return; }
+    const seat = nearSeat(); if (seat) { sitDown(seat); return; }
+    bump('sit'); sitting = { pos: me.pos.clone(), face: me.face }; me.target = null; me.st.sit = 1; me.st.seat = 0.04; toastMsg('🌿 땅에 앉았어요', '움직이면 일어나요');
+  } else if (k === 'pet' || k === 'feed') {
+    const a = nearAnimal(); if (!a) { toastMsg('동물 곁으로 가 보세요', '3 m 안에 있으면 할 수 있어요'); return; }
+    careAnimal(a, k === 'pet');
+  } else { bump(k); standUp(); me.act = k; me.actT = k === 'jump' ? 0.7 : 4; }
+});
+$('#ctx').onclick = () => {
+  if (ctxKind === 'sit') sitDown(nearSeat());
+  else if (ctxKind === 'stand') standUp();
+  else if (ctxKind === 'feed' && ctxA) careAnimal(ctxA);
 };
 
 // ───────── 😊 감정 표현: 단추는 뺐어요 (2026-11-07). 예전 판 친구가 보낸 표현은 이름표에 그대로 떠요 ─────────
@@ -947,6 +1008,37 @@ function checkTitles() {
   for (const z of Object.keys(ZLAB)) { if (MY.titles.includes(z)) continue; const ids = DEX.filter((d) => d[2] === z).map((d) => d[0]); if (ids.length && ids.every((id) => dex[id])) { MY.titles.push(z); got.push(z); } }
   if (!MY.titles.includes('all') && DEX.every(([id]) => dex[id])) { MY.titles.push('all'); got.push('all'); }
   if (got.length) { MY.coins += 500 * got.length; saveMy(); updCoins(); setTimeout(() => toastMsg(`🏅 칭호를 얻었어요: ${TITLES[got[0]]}`, `구역 식구를 모두 찍었어요 · 🪙 +${500 * got.length}`), 3400); snd.chime(); showPeople(); }
+}
+// 🏅 뱃지: 이 기기에 쌓인 기록으로 저절로 모여요 (소호랩과 같은 방식). 서버로 보내지 않아요
+const BADGES = [
+  { id: 'shot1', icon: '📸', name: '첫 찰칵', cap: '사진 1장 찍기', ok: (c) => c.shot >= 1 },
+  { id: 'shot10', icon: '🎞', name: '사진 열 장', cap: '사진 10장 찍기', ok: (c) => c.shot >= 10 },
+  { id: 'shot100', icon: '🏞', name: '사진가', cap: '사진 100장 찍기', ok: (c) => c.shot >= 100 },
+  { id: 'star3', icon: '🌟', name: '별 셋', cap: '별 셋 사진 찍기', ok: (c) => c.star3 >= 1 },
+  { id: 'star10', icon: '✨', name: '명사진가', cap: '별 셋 사진 10장', ok: (c) => c.star3 >= 10 },
+  { id: 'dex3', icon: '📖', name: '도감 시작', cap: '동물 3종 모으기', ok: (c) => c.dex >= 3 },
+  { id: 'dex10', icon: '📚', name: '도감 수집가', cap: '동물 10종 모으기', ok: (c) => c.dex >= 10 },
+  { id: 'dexAll', icon: '🌏', name: '섬 박사', cap: '도감 다 모으기', ok: (c) => c.dex >= DEX.length },
+  { id: 'night', icon: '🌙', name: '밤 친구', cap: '밤에만 나오는 동물 찍기', ok: (c) => c.night >= 1 },
+  { id: 'feed', icon: '🥕', name: '첫 먹이', cap: '동물에게 먹이 주기', ok: (c) => c.feed >= 1 },
+  { id: 'feed20', icon: '🧺', name: '먹이 담당', cap: '먹이 20번 주기', ok: (c) => c.feed >= 20 },
+  { id: 'pet', icon: '🤲', name: '다정한 손', cap: '동물 10번 쓰다듬기', ok: (c) => c.pet >= 10 },
+  { id: 'wave', icon: '👋', name: '인사왕', cap: '인사 20번 하기', ok: (c) => c.wave >= 20 },
+  { id: 'sit', icon: '🪑', name: '쉬어 가기', cap: '앉아서 쉬기', ok: (c) => c.sit >= 1 },
+  { id: 'dance', icon: '💃', name: '섬의 춤꾼', cap: '춤 5번 추기', ok: (c) => c.dance >= 5 },
+  { id: 'jump', icon: '🤸', name: '폴짝폴짝', cap: '20번 뛰기', ok: (c) => c.jump >= 20 },
+  { id: 'buy', icon: '🛍', name: '첫 쇼핑', cap: '상점에서 사기', ok: (c) => c.buy >= 1 },
+  { id: 'rich', icon: '🪙', name: '코인 부자', cap: '코인 3000개 모으기', ok: (c) => c.coins >= 3000 },
+  { id: 'title', icon: '🏅', name: '칭호 획득', cap: '구역 식구 다 모으기', ok: (c) => c.titles >= 1 },
+];
+function bump(k, n = 1) { MY.cnt ||= {}; MY.cnt[k] = (MY.cnt[k] || 0) + n; saveMy(); checkBadges(); }
+function checkBadges() {
+  const c = { ...(MY.cnt || {}), dex: DEX.filter(([id]) => dex[id]).length, night: DEX.filter(([id, , , n]) => n && dex[id]).length, coins: MY.coins, titles: (MY.titles || []).length };
+  const got = BADGES.filter((b) => b.ok({ shot: 0, star3: 0, feed: 0, pet: 0, wave: 0, sit: 0, dance: 0, jump: 0, buy: 0, ...c })).map((b) => b.id), first = !MY.badges, had = MY.badges || [];
+  const fresh = got.filter((id) => !had.includes(id)); if (!fresh.length && !first) return;
+  MY.badges = [...new Set([...had, ...got])]; saveMy();   // 한 번 받은 뱃지는 그대로
+  if (first) return;   // 처음엔 조용히 (이미 한 일들)
+  const b = BADGES.find((x) => x.id === fresh[0]); setTimeout(() => toastMsg(`🏅 새 뱃지: ${b.icon} ${b.name}`, '도감 › 뱃지에서 볼 수 있어요'), 4800); snd.chime();
 }
 const myTitle = () => (MY.titles && MY.titles.length ? TITLES[MY.titles[MY.titles.length - 1]] + ' ' : '');
 
@@ -991,7 +1083,7 @@ const joy = { x: 0, y: 0, id: null };
 let waves = 0;
 function wave() {
   if (me.riding || me.st.waveT > 0.6) return;
-  me.st.waveT = 2.4; waves = (waves + 1) % 1000;
+  me.st.waveT = 2.4; waves = (waves + 1) % 1000; bump('wave');
   for (const a of animals) {
     const dx = a.pos.x - me.pos.x, dz = a.pos.z - me.pos.z, d = Math.hypot(dx, dz);
     if (d > 18 || d < 1 || !a.speed || a.move === 'swim') { if (d <= 18) a.heart = 3; continue; }
@@ -1016,7 +1108,7 @@ function friendOf(id, d) {
 }
 function dropFriend(id) { const f = friends.get(id); if (!f) return; scene.remove(f.st.root); f.tag.remove(); friends.delete(id); }
 const net = new IslandNet({
-  onState(id, d) { let f = friendOf(id, d); if (d.ec !== undefined && d.ec !== f.ec) { if (f.ec !== undefined) { f.emoT = 2.6; f.emo = EMOS[d.e || 0]; } f.ec = d.ec; } f.st.sit = d.s ? 1 : 0; f.st.seat = 0.3;
+  onState(id, d) { let f = friendOf(id, d); if (d.n) f.name = d.n; if (d.ec !== undefined && d.ec !== f.ec) { if (f.ec !== undefined) { f.emoT = 2.6; f.emo = EMOS[d.e || 0]; } f.ec = d.ec; } f.st.sit = d.s ? 1 : 0; f.st.seat = 0.3;
     if (f.st.look !== (d.l || 0) || f.st.g !== (d.g ? 'm' : 'f') || f.st.hat !== (d.h || 0) || f.st.body !== (d.b ?? START_BODY) || f.st.cam !== (CAMERAS[d.c || 0]?.id)) {   // 친구가 옷을 갈아입었어요
       const ns = makeWalker(d.l || 0, { g: d.g ? 'm' : 'f', hat: d.h || 0, body: d.b ?? START_BODY, cam: CAMERAS[d.c || 0]?.id }); ns.root.position.copy(f.st.root.position); ns.root.rotation.y = f.st.root.rotation.y; scene.remove(f.st.root); scene.add(ns.root); f.st = ns; } if (d.p !== f.p) { f.p = d.p; f.snapT = 2.2; f.st.aim = 1; f.st.snapT = 0.2; clearTimeout(f.aimT); f.aimT = setTimeout(() => (f.st.aim = 0), 1600); } if (d.w !== f.w) { if (f.w !== undefined) { f.st.waveT = 2.4; f.waveT = 2.4; } f.w = d.w; } f.d = d; f.name = d.n; f.to.set(d.x, d.y, d.z); f.r = d.r; },
   onLeave: dropFriend,
@@ -1125,6 +1217,12 @@ function frame() {
   }
   me.g.position.copy(me.pos);
   me.g.rotation.y = lerp(me.g.rotation.y, me.face, 0.2);
+  if (me.actT > 0) {   // 🙌 춤추기 · 뛰기
+    if (mv.lengthSq() > 0 && me.act === 'dance') me.actT = 0;
+    me.actT -= dt;
+    if (me.act === 'jump') me.g.position.y += Math.sin(Math.max(0, 1 - me.actT / 0.7) * Math.PI) * 0.9;
+    else { me.g.position.y += Math.abs(Math.sin(T * 6)) * 0.14; me.g.rotation.y = me.face + Math.sin(T * 5) * 0.5; me.st.waveT = Math.max(me.st.waveT, 0.5); }
+  }
   me.st.rate = SET.speed; me.st.walk = lerp(me.st.walk, moving ? 1 : 0, 0.2); me.st.update(T, dt);
 
   // 내 캐릭터가 화면에서 차지하는 네모: 그 뒤에 있는 동물의 이름표는 숨겨요 (이름표가 사람 몸 위로 뜨지 않게)

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!-- snapzoo.site 첫 화면 = 어른용 스냅주 섬 (그림 · 놀이 코드는 world/ 폴더). 아이용은 /kids/ -->
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Snapzoo · 스냅주</title>
 <meta name="theme-color" content="#e8a070">
 <meta name="description" content="노을 진 섬에서 동물과 걷는 힐링 메타버스. 사진을 찍고, 친구에게 손을 흔들어요.">
@@ -256,6 +256,32 @@ html body #zone b { text-shadow: 0 2px 6px rgba(0,0,0,.55); } html body #zone sm
 html body #coins { background: rgba(18,14,12,.34); padding: 3px 12px; border-radius: 99px; text-shadow: 0 1px 4px rgba(0,0,0,.6); top: calc(max(12px, env(safe-area-inset-top)) + 150px); }
 .cbody button:focus-visible, #grid button:focus-visible, .x:focus-visible, #viewer button:focus-visible { outline: 3px solid #e0a030; outline-offset: 2px; }
 @media (any-pointer: coarse) { html body #coins { top: calc(max(12px, env(safe-area-inset-top)) + 128px); } #ctx { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 96px); font-size: 17px; } }
+/* 2026-11-07: 위쪽 캐릭터 · 상점, 동작 펼치기, 확대 막기 */
+html, body, button, #closet, #drawer, #finder { touch-action: manipulation; }
+#joystick { touch-action: none; }
+#shopBtn { right: calc(max(12px, env(safe-area-inset-right)) + 68px); }
+#charBtn { right: calc(max(12px, env(safe-area-inset-right)) + 136px); }
+#closet.shop .chr, #closet.char .shp, #closet.char .lock { display: none; }
+.nick { align-items: center; } .nick select { font: 17px var(--hand); padding: 8px 10px; border-radius: 12px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); max-width: 42%; } .nick button { font-size: 20px; }
+#actMenu { position: fixed; left: 50%; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 96px); transform: translateX(-50%); z-index: 6; display: none; gap: 6px; padding: 8px; border-radius: 18px; background: rgba(18, 14, 12, .62); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+#actMenu.on { display: flex; } body.photo #actMenu { display: none; }
+#actMenu button { display: grid; justify-items: center; gap: 2px; width: 62px; padding: 6px 2px; border: 0; border-radius: 12px; background: rgba(255, 255, 255, .1); color: #fff6e6; font: 13px var(--hand); white-space: nowrap; cursor: pointer; }
+#actMenu button span { font-size: 24px; }
+@media (max-width: 560px) { #shopBtn { right: calc(max(12px, env(safe-area-inset-right)) + 58px); } #charBtn { right: calc(max(12px, env(safe-area-inset-right)) + 116px); } .g.top { width: 52px; height: 52px; } }
+/* 도감: 글자 카드 · 뱃지 탭 · 사진 크게 보기 */
+#dexTabs { display: flex; gap: 6px; flex: 1; } #dexTabs button, #dexPics { font: 20px var(--hand); padding: 6px 14px; border-radius: 999px; border: 1.5px solid #d8cdb8; background: #fff; color: var(--ink); cursor: pointer; white-space: nowrap; }
+#dexTabs button[aria-selected="true"] { background: #c8553d; border-color: #c8553d; color: #fff6e6; }
+#dexGrid.text { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; } #dexGrid.text .dcard { padding: 10px 12px; }
+#dexGrid.badges { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.bdg { display: grid; justify-items: center; text-align: center; gap: 1px; padding: 10px 6px; border-radius: 12px; background: #efe8da; color: #9a8e7e; } .bdg i { font-style: normal; font-size: 30px; filter: grayscale(1); opacity: .45; } .bdg b { font-weight: 400; font-size: 17px; } .bdg small { font-size: 13px; }
+.bdg.got { background: #fff; color: var(--ink); box-shadow: 0 2px 8px rgba(0,0,0,.14); } .bdg.got i { filter: none; opacity: 1; }
+#dexView { position: fixed; inset: 0; z-index: 8; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 12px; background: rgba(20, 16, 12, .92); touch-action: pan-y; }
+#dexView.on { display: flex; } .dvrow { display: flex; align-items: center; gap: 8px; max-width: 100%; }
+#dvImg { min-width: 0; max-width: min(84vw, 900px); max-height: 74vh; border-radius: 6px; object-fit: contain; }
+#dexView button { font: 34px var(--hand); width: 48px; height: 48px; flex: none; border-radius: 50%; border: 0; background: rgba(255, 246, 230, .9); color: #2a2018; cursor: pointer; }
+#dvX { position: absolute; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); font-size: 22px !important; }
+#dvCap { margin: 0; color: #fff6e6; font-size: 18px; text-align: center; }
+@media (max-width: 560px) { html body #acts { left: calc(50% - 22px); gap: 10px; } #dexTabs button, #dexPics { font-size: 16px; padding: 5px 9px; } #dex header { position: relative; padding-right: 58px; } #dexX { position: absolute; right: 10px; top: 10px; } #dexN { font-size: 15px; } }
 </style>
 </head>
 <body>
@@ -265,7 +291,9 @@ html body #coins { background: rgba(18,14,12,.34); padding: 3px 12px; border-rad
 <canvas id="mini" width="264" height="264" aria-label="작은 지도"></canvas>
 <div id="hint">누른 곳으로 걸어가요 · 방향키 · WASD · 끌어서 둘러보기 · 스페이스로 사진</div>
 <!-- 화면 단추: B 유리 아이콘 그림체 · 1번 '카메라가 주인공' 구성 (2026-11-05) -->
-<div id="acts"><button type="button" id="wave" class="g" aria-label="손 흔들어 인사하기 (H)"><svg viewBox="0 0 24 24"><path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V12m0-6.5a1.5 1.5 0 0 1 3 0V12m0-4.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3.5 15a1.5 1.5 0 0 1 2.4-1.8L8 15"/></svg><small>인사</small></button><button type="button" id="shot" class="g shot" aria-label="사진 찍기 (스페이스)"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.6"/></svg></button><button type="button" id="closetBtn" class="g" aria-label="꾸미기 · 상점"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><small>꾸미기</small></button></div>
+<div id="acts"><button type="button" id="wave" class="g" aria-label="손 흔들어 인사하기 (H)"><svg viewBox="0 0 24 24"><path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V12m0-6.5a1.5 1.5 0 0 1 3 0V12m0-4.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3.5 15a1.5 1.5 0 0 1 2.4-1.8L8 15"/></svg><small>인사</small></button><button type="button" id="shot" class="g shot" aria-label="사진 찍기 (스페이스)"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.6"/></svg></button><button type="button" id="actBtn" class="g" aria-label="동작 펼치기" aria-expanded="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="4.5" r="2"/><path d="M5 9l7 1 7-1M12 10v5M12 15l-4 6M12 15l4 6"/></svg><small>동작</small></button></div>
+<button type="button" id="charBtn" class="g top" aria-label="캐릭터"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/></svg><small>캐릭터</small></button>
+<button type="button" id="shopBtn" class="g top" aria-label="상점"><svg viewBox="0 0 24 24"><path d="M5 8h14l1 13H4zM9 8V6a3 3 0 0 1 6 0v2"/></svg><small>상점</small></button>
 <button type="button" id="drawerBtn" class="g top" aria-label="메뉴 열기" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg><small>메뉴</small></button>
 <nav id="drawer" aria-label="메뉴" aria-hidden="true"><div class="grp"><button type="button" id="dexBtn" class="tile"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6"/></svg><small>도감</small></button><button type="button" id="albumBtn" class="tile"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.5"/></svg><small>앨범</small></button><button type="button" id="setBtn" class="tile"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><small>설정</small></button><button type="button" id="helpBtn" class="tile"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.6-.8 1.1v.8M12 17h.01"/></svg><small>매뉴얼</small></button></div></nav>
 <nav id="moves" aria-label="이동"><button type="button" id="home" class="tile"><svg viewBox="0 0 24 24"><path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10M10 20v-6h4v6"/></svg><small>마을로</small></button><button type="button" id="cable" class="tile"><svg viewBox="0 0 24 24"><path d="m2 20 7-12 4 6 3-4 6 10z"/><path d="m7.5 11 1.5-2 1.5 2"/></svg><small>산꼭대기로</small></button><button type="button" id="goSav" class="tile"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><small>초원으로</small></button><button type="button" id="goDes" class="tile"><svg viewBox="0 0 24 24"><path d="M2 18c4-6 8-6 12 0M10 18c3-4 7-5 12-1"/><path d="M7 9v6M5 11h4"/></svg><small>사막으로</small></button><button type="button" id="goJun" class="tile"><svg viewBox="0 0 24 24"><path d="M12 21V9"/><path d="M12 9c-1-3-4-5-8-4 2 1 3 3 3 5 2-1 4-1 5-1zM12 9c1-3 4-5 8-4-2 1-3 3-3 5-2-1-4-1-5-1z"/></svg><small>정글로</small></button><button type="button" id="goSea" class="tile"><svg viewBox="0 0 24 24"><path d="M2 15c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2M2 19c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2"/><path d="M8 11 12 4l4 7z"/></svg><small>바다로</small></button></nav>
@@ -303,9 +331,9 @@ html body #coins { background: rgba(18,14,12,.34); padding: 3px 12px; border-rad
 <h3>🌅 시간</h3><ul>
 <li>섬의 하늘은 실제 시각을 따라 아침 · 낮 · 저녁 노을 · 밤으로 바뀌어요. 밤에는 별과 달이 뜨고 마을 창문에 불이 켜져요.</li>
 <li>⚙ 설정에서 ‘빠르게 흐르기(하루 24분)’나 원하는 시간으로 고정할 수 있어요.</li></ul>
-<h3>🪙 코인 · 🛍 상점 · 👤 꾸미기</h3><ul>
+<h3>🪙 코인 · 🛍 상점 · 👤 캐릭터</h3><ul>
 <li>섬에 머무는 1초마다 코인이 1개씩 모여요. 하루 최대 1시간(3600개)까지 모여요. 동물 사진을 찍어도 조금 더 받아요.</li>
-<li>아래 오른쪽 👤 꾸미기에서 성별 · 체형(키 순 1 · 2 · 3) · 옷 · 모자를 바꾸고, 안 가진 것은 코인으로 사요.</li>
+<li>📖 도감은 글자로만 보여요. 사진은 [📷 사진 보기]를 눌렀을 때 크게 보고 옆으로 넘겨요. 🏅 뱃지는 도감 안의 뱃지 탭에 저절로 모여요.</li><li>위쪽 👤 캐릭터에서 닉네임 · 성별 · 체형(키 순 1 · 2 · 3)과 가진 옷 · 모자를 바꾸고, 🛍 상점에서 안 가진 것을 코인으로 사요.</li><li>아래 🙌 동작을 누르면 앉기 · 쓰다듬기 · 먹이 주기 · 춤추기 · 뛰기가 펼쳐져요.</li>
 <li>📷 사진기도 여러 가지예요: 즉석(화사하게) · 빈티지(옛날 빛깔) · 흑백 · 파스텔 · 망원(8배 확대). 사진기마다 사진 색감과 테두리가 달라요.</li>
 <li>살 때는 한 번 누르면 값이 뜨고, 한 번 더 누르면 사요.</li></ul>
 <h3>🧭 이동 · 🛶 물</h3><ul>
@@ -340,6 +368,7 @@ html body #coins { background: rgba(18,14,12,.34); padding: 3px 12px; border-rad
 <li>💾 내 기록 내보내기 · 📂 불러오기: 코인 · 도감 · 꾸미기 · 사진을 파일 하나로 저장해 다른 기기나 브라우저에서 이어 할 수 있어요.</li></ul>
 </div></section>
 <div id="coins" aria-label="코인"></div>
+<div id="actMenu" role="group" aria-label="동작 고르기"><button type="button" data-a="sit"><span>🪑</span>앉기</button><button type="button" data-a="pet"><span>🤲</span>쓰다듬기</button><button type="button" data-a="feed"><span>🥕</span>먹이 주기</button><button type="button" data-a="dance"><span>💃</span>춤추기</button><button type="button" data-a="jump"><span>🤸</span>뛰기</button></div>
 <div id="joystick" aria-label="조이스틱 (끌어서 걷기)"><i></i></div>
 <section id="settings" aria-label="설정"><b>⚙ 설정</b>
   <label><span>🌅 시간</span><span></span><select id="sTime"><option value="auto">지금 시각 따라</option><option value="cycle">빠르게 흐르기 (하루 24분)</option><option value="morning">아침</option><option value="day">낮</option><option value="evening">저녁 노을</option><option value="night">밤</option></select></label>
@@ -351,9 +380,10 @@ html body #coins { background: rgba(18,14,12,.34); padding: 3px 12px; border-rad
 </section>
 <div id="finder" aria-hidden="true"><div id="frame"><i></i><i></i><i></i><i></i></div><div id="fhint"></div>
   <div id="fbar"><button type="button" id="fExit">✕ 나가기</button><button type="button" id="fFr" aria-pressed="false" aria-label="친구도 함께 찍기">👥</button><button type="button" id="zOut" aria-label="줌 아웃">➖</button><button type="button" id="fShot" aria-label="찰칵 (스페이스)">찰칵</button><button type="button" id="zIn" aria-label="줌 인">➕</button><span id="zLab">1.0×</span></div></div>
-<section id="dex" aria-label="섬 도감" aria-hidden="true"><header><b>📖 섬 도감</b><small id="dexN"></small><span id="dexTitles"></span><button type="button" class="x" id="dexX" aria-label="도감 닫기">✕</button></header><div id="dexGrid"></div></section>
-<section id="closet" aria-label="꾸미기 · 상점" aria-hidden="true"><header><b>👤 꾸미기 · 🛍 상점</b><small id="ccoins"></small><button type="button" class="x" id="closetX" aria-label="닫기">✕</button></header>
-  <div class="cbody"><h3>성별</h3><div id="cGender" class="row"></div><h3>체형 (키 순)</h3><div id="cBody" class="row"></div><h3>옷</h3><div id="cLooks" class="row"></div><h3>모자</h3><div id="cHats" class="row hats"></div><h3>📷 사진기</h3><div id="cCams" class="row cams"></div><p id="cMsg" role="status"></p><p class="note">🪙 섬에 머무는 1초마다 코인 1개 (하루 최대 1시간 = 3600개). 동물 사진을 찍어도 조금 더 모여요.</p></div></section>
+<section id="dex" aria-label="섬 도감" aria-hidden="true"><header><div id="dexTabs" role="tablist"><button type="button" role="tab" data-t="dex">📖 도감</button><button type="button" role="tab" data-t="badge">🏅 뱃지</button></div><small id="dexN"></small><button type="button" id="dexPics">📷 사진 보기</button><span id="dexTitles"></span><button type="button" class="x" id="dexX" aria-label="도감 닫기">✕</button></header><div id="dexGrid"></div></section>
+<div id="dexView" role="dialog" aria-modal="true" aria-label="모은 동물 사진"><button type="button" id="dvX" aria-label="사진 닫기">✕</button><div class="dvrow"><button type="button" id="dvPrev" aria-label="이전 사진">‹</button><img id="dvImg" alt=""><button type="button" id="dvNext" aria-label="다음 사진">›</button></div><p id="dvCap"></p></div>
+<section id="closet" aria-label="캐릭터" aria-hidden="true"><header><b id="cTitle">👤 캐릭터</b><small id="ccoins"></small><button type="button" class="x" id="closetX" aria-label="닫기">✕</button></header>
+  <div class="cbody"><h3 class="chr">닉네임</h3><div class="row chr nick"><select id="nA" aria-label="닉네임 앞말"></select><select id="nB" aria-label="닉네임 뒷말"></select><button type="button" id="nRand" aria-label="닉네임 아무거나">🎲</button></div><h3 class="chr">성별</h3><div id="cGender" class="row chr"></div><h3 class="chr">체형 (키 순)</h3><div id="cBody" class="row chr"></div><h3>옷</h3><div id="cLooks" class="row"></div><h3>모자</h3><div id="cHats" class="row hats"></div><h3>📷 사진기</h3><div id="cCams" class="row cams"></div><p id="cMsg" role="status"></p><p class="note shp">🪙 섬에 머무는 1초마다 코인 1개 (하루 최대 1시간 = 3600개). 동물 사진을 찍어도 조금 더 모여요.</p></div></section>
 <div id="travel" role="status" aria-live="polite"><b id="travelT"></b><div class="bar"><i id="travelBar"></i></div></div>
 <div id="ride" role="status" aria-live="polite"><b id="rideT"></b><div class="bar"><i id="rideBar"></i></div><small id="rideS"></small></div>
 <div id="flash"></div>

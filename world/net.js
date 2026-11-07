@@ -11,7 +11,10 @@ const RELAY = (() => {
 const store = (k, make) => { try { let v = localStorage.getItem(k); if (v === null) { v = make(); localStorage.setItem(k, v); } return v; } catch { return make(); } };
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 // 내 이름 · 모습: 이 기기에 기억 (처음 한 번 무작위)
-export const myName = store('snapzoo-island-name', () => `${pick(NAME_A)} ${pick(NAME_B)}`);
+export let myName = store('snapzoo-island-name', () => `${pick(NAME_A)} ${pick(NAME_B)}`);
+export { NAME_A, NAME_B };
+// 닉네임 바꾸기: 서버가 낱말 조합만 넘겨 줘서 앞말 · 뒷말을 골라요
+export function setMyName(n) { myName = n; try { localStorage.setItem('snapzoo-island-name', n); } catch {} }
 export const myLook = +store('snapzoo-island-look', () => String(Math.floor(Math.random() * 8))) % 8;
 // 이 탭의 열쇠: 새로 고침했을 때만 이어 받아요. 탭을 복제하거나 새 탭으로 열면 sessionStorage 가 복사돼 같은 열쇠가 되는데,
 // 그러면 서버가 두 탭을 한 사람으로 보고 먼저 탭을 밀어내요(먼저 들어온 쪽이 나중 사람을 못 봄). 그래서 그 밖엔 늘 새 열쇠.
