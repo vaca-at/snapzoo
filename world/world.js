@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108b';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108b';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108b';
-import { IslandSound } from './sound.js?v=20261108b';
-import { ROSTER } from './fauna.js?v=20261108b';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261108b';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108b';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108b';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108c';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108c';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108c';
+import { IslandSound } from './sound.js?v=20261108c';
+import { ROSTER } from './fauna.js?v=20261108c';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261108c';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108c';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108c';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -1873,7 +1873,16 @@ function frame() {
   }
   // 이름표가 서로 겹치면 가까운 동물 것만 남겨요
   { tagged.sort((p, q) => p.tagRank - q.tagRank); const keep = []; for (const a of tagged) { if (keep.some((b) => Math.abs(a.tx - b.tx) < 104 && Math.abs(a.ty - b.ty) < 32)) a.tag.classList.remove('on'); else keep.push(a); } tagged.length = 0; }
-  for (const d of dolphins) { const k = ((T * 0.35 + d.phase) % 3) / 3, j = Math.sin(k * Math.PI); d.g.position.set(d.cx + k * 26, k < 1 ? j * 4 - 1.2 : -3, d.cz); d.g.rotation.x = -Math.cos(k * Math.PI) * 0.9; d.g.rotation.order = 'YXZ'; d.g.rotation.y = Math.PI / 2; d.st.update(T); }
+  for (const d of dolphins) {
+    // 🐬 뛰는 길이 모두 깊은 바다인 방향을 처음 한 번 골라요 (모래사장에 박히지 않게)
+    if (d.dir === undefined) { const deep = (x, z) => height(x, z) < -2.2, L = 22; let best = null;
+      for (let r = 0; r < 60 && !best; r += 6) for (let i = 0; i < 16 && !best; i++) { const a = i / 16 * Math.PI * 2, b = (i * 2.4) % (Math.PI * 2), cx = d.cx + Math.sin(b) * r, cz = d.cz + Math.cos(b) * r, ux = Math.sin(a), uz = Math.cos(a);
+        let ok = true; for (let t = -0.15; t <= 1.15 && ok; t += 0.1) { const x = cx + ux * L * t, z = cz + uz * L * t; if (!deep(x, z) || !deep(x + uz * 3, z - ux * 3) || !deep(x - uz * 3, z + ux * 3)) ok = false; }
+        if (ok) best = { cx, cz, ux, uz }; }
+      if (best) { d.cx = best.cx; d.cz = best.cz; d.ux = best.ux; d.uz = best.uz; d.dir = Math.atan2(best.ux, best.uz); } else { d.dir = null; d.g.visible = false; } }
+    if (d.dir === null) continue;
+    const k = ((T * 0.35 + d.phase) % 3) / 3, j = Math.sin(k * Math.PI); d.g.position.set(d.cx + d.ux * k * 22, k < 1 ? j * 4 - 1.2 : -3, d.cz + d.uz * k * 22); d.g.rotation.order = 'YXZ'; d.g.rotation.y = d.dir; d.g.rotation.x = -Math.cos(k * Math.PI) * 0.9; d.st.update(T);
+  }
 
   // 풀밭: 12 m 넘게 벗어나면 내 둘레로 다시 깔기
   if (!me.riding && !me.inHome && Math.hypot(me.pos.x - grassAt.x, me.pos.z - grassAt.z) > 12) layGrass(me.pos.x, me.pos.z);
