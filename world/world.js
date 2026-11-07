@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108a';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108a';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108a';
-import { IslandSound } from './sound.js?v=20261108a';
-import { ROSTER } from './fauna.js?v=20261108a';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261108a';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108a';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108a';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108b';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108b';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108b';
+import { IslandSound } from './sound.js?v=20261108b';
+import { ROSTER } from './fauna.js?v=20261108b';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261108b';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108b';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108b';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -802,6 +802,10 @@ function showHint(ev) {
   $('#fhint').textContent = `${ev.o.name} · ${ev.total}점 · ${tip}`;
 }
 let lastShot = -1e9;   // 연타 금지: 0.4초에 한 번만 찍혀요
+// 📸 밤 사진 플래시: 사진 찍기 화면에서는 사진기 쪽에서 은은하게 비추고, 찰칵 할 때 크게 번쩍 (그 순간의 그림으로 사진을 만들어요)
+const camFlash = new THREE.PointLight('#fff6e8', 0, 45, 1.1); scene.add(camFlash);
+const nightK = () => (me.inHome ? 0 : clamp((tod.night - 0.25) / 0.6, 0, 1));
+function updCamFlash(dt) { camFlash.position.copy(camera.position); const want = mode === 'photo' ? 7 * nightK() : 0; camFlash.intensity += (want - camFlash.intensity) * Math.min(1, dt * 6); }
 function shoot() {
   if (mode !== 'photo' || raiseT > 0) return;
   const nowT = performance.now(); if (nowT - lastShot < 400) return; lastShot = nowT;
@@ -810,6 +814,7 @@ function shoot() {
   me.st.snapT = 0.18;
   const ev = ev0, fr = $('#frame').getBoundingClientRect(), k = renderer.getPixelRatio();
   const shot = document.createElement('canvas'); shot.width = 1000; shot.height = 750;
+  const nk = nightK(); if (nk > 0) { camFlash.position.copy(camera.position); camFlash.intensity = 18 * nk; renderer.render(scene, camera); }   // 밤엔 플래시를 터뜨린 그림으로
   { const sg = shot.getContext('2d'); sg.filter = camOf().filter || 'none'; sg.drawImage(renderer.domElement, fr.left * k, fr.top * k, fr.width * k, fr.height * k, 0, 0, 1000, 750); }   // 사진기마다 색감
   const zone = ZONES[curZone || 'village'][0], at = new Date(), sp = ev?.o, score = ev?.total || 0, stars = starsOf(score);
   $('#flash').classList.add('on'); requestAnimationFrame(() => setTimeout(() => $('#flash').classList.remove('on'), 60)); snd.shutter();
@@ -1477,7 +1482,7 @@ function updGear(dt) {
   umb.visible = rain; umb.position.set(0.12 * h, h * 1.12, 0.05); umb.scale.setScalar(Math.max(0.75, h / 1.25)); umb.rotation.z = -0.08;
 }
 function updFun(T, dt) {
-  updGear(dt); updFireworks(dt);
+  updGear(dt); updCamFlash(dt); updFireworks(dt);
   if (marsh.t > 0) {
     if (!sitting) { marsh.t = 0; marsh.g.visible = false; }
     else { marsh.t -= dt; marsh.g.position.set(me.pos.x, me.pos.y + 0.42, me.pos.z); marsh.g.rotation.y = me.face; marsh.m.material.color.copy(MSW).lerp(MSB, Math.min(1, 1 - marsh.t / 6));
