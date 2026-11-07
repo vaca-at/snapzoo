@@ -246,7 +246,6 @@ body.photo #ctx { display: none; }
 #meEmo.pop { animation: emoPop 2.6s ease forwards; }
 @keyframes emoPop { 0% { opacity: 0; margin-top: 10px; } 12% { opacity: 1; margin-top: 0; } 80% { opacity: 1; } 100% { opacity: 0; margin-top: -20px; } }
 #fbar #fFr[aria-pressed="true"] { background: #e0a030; color: #fff; }
-#dexTitles { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 100%; order: 3; }
 #dex header { flex-wrap: wrap; }
 .tt { font-size: 13px; padding: 1px 9px; border-radius: 99px; border: 1px dashed #d8cdb8; color: #b0a490; }
 .tt.on { border-style: solid; border-color: #e0a030; color: #8a5a1a; background: #fff3d8; }
@@ -305,6 +304,14 @@ button.dcard { font: inherit; text-align: left; border: 1.5px solid #e0a030; cur
 .dk { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 0; border-bottom: 1px dashed #e0d6c4; } .dk span { flex: 1 1 100%; font-size: 17px; } .dk button { font: 15px var(--hand); padding: 5px 10px; border-radius: 999px; border: 1.5px solid #d8cdb8; background: #fff; color: var(--ink); cursor: pointer; }
 #decoPics { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; } #decoPics button { padding: 0; border: 3px solid transparent; border-radius: 6px; background: none; cursor: pointer; } #decoPics button.on { border-color: #c8553d; } #decoPics img { width: 100%; display: block; border-radius: 3px; }
 @media (max-width: 560px) { #actMenu button { width: 54px; font-size: 12px; } #dexTabs { flex-wrap: wrap; } }
+/* 도감: 작은 이름 칩 · 장소 칸 */
+#toast { z-index: 9; }
+#dexGrid.text { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; align-content: start; }
+.dcats { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 4px; } .dcats button { font: 15px var(--hand); padding: 4px 10px; border-radius: 999px; border: 1.5px solid #d8cdb8; background: #fff; color: var(--ink); cursor: pointer; white-space: nowrap; } .dcats button.on { background: #6b8f4a; border-color: #6b8f4a; color: #fff6e6; }
+.dsec { grid-column: 1 / -1; margin: 8px 0 0; font-weight: 400; font-size: 17px; color: #7a6a5a; }
+.dchip { font: 15px var(--hand); line-height: 1.2; text-align: center; padding: 7px 4px; border-radius: 10px; background: #efe8da; color: #a89c8c; border: 1.5px solid transparent; word-break: keep-all; }
+.dchip.got { background: #fff; color: var(--ink); border-color: #e0a030; box-shadow: 0 1px 4px rgba(0,0,0,.12); } button.dchip { cursor: pointer; }
+#dexPics[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -356,7 +363,7 @@ button.dcard { font: inherit; text-align: left; border: 1.5px solid #e0a030; cur
 <li>⚙ 설정에서 ‘빠르게 흐르기(하루 24분)’나 원하는 시간으로 고정할 수 있어요.</li></ul>
 <h3>🪙 코인 · 🛍 상점 · 👤 캐릭터</h3><ul>
 <li>섬에 머무는 1초마다 코인이 1개씩 모여요. 하루 최대 1시간(3600개)까지 모여요. 동물 사진을 찍어도 조금 더 받아요.</li>
-<li>📖 도감은 글자로만 보여요. 찍은 동물 칸이나 [📷 모은 사진 보기]를 누르면 사진을 크게 보고 옆으로 넘겨요. 🧭 탐험 · 🏅 뱃지는 도감 안의 탭에 저절로 모여요.</li><li>위쪽 👤 캐릭터에서 닉네임 · 성별 · 체형(키 순 1 · 2 · 3)과 가진 옷 · 모자를 바꾸고, 🛍 상점에서 안 가진 것을 코인으로 사요.</li><li>🏠 마을 동쪽 ‘우리 집’ 문 앞에서 들어가요. 집 안에서는 쉬기 · 소파 · 책 읽기 · 차 마시기를 하고, 상점에서 산 옷 · 모자 · 사진기가 방에 놓여요. 🎨 꾸미기에서 가구를 놓고 사진을 벽에 걸어요. 벽지와 가구는 상점에서 사요.</li><li>🚢 마을 쪽 나루(또는 ‘섬으로’ 단추)에서 배를 타면 갈라파고스 섬에 가요. 섬 육지 · 섬 바닷가 · 마을 바닷가의 동물이 모두 달라요.</li><li>🚡 케이블카는 ‘케이블카 타는 곳’ 표지판 곁으로 가면 타기 단추가 떠요.</li><li>🥅 곤충잡기를 누르면 다섯 번 저절로 휘둘러요. 잡은 곤충은 도감의 🦋 곤충 탭에 모여요.</li><li>아래 🙌 동작을 누르면 앉기 · 쓰다듬기 · 먹이 주기가 펼쳐져요. 마을에서는 연날리기 · 곤충잡기, 다른 곳에서는 춤추기 · 뛰기를 해요.</li>
+<li>📖 도감은 장소별로 이름만 보여요. 찍은 동물(진한 칸)이나 [📷 모은 사진 보기]를 누르면 사진을 크게 보고 옆으로 넘겨요. 🧭 탐험 · 🏅 뱃지는 도감 안의 탭에 저절로 모여요.</li><li>위쪽 👤 캐릭터에서 닉네임 · 성별 · 체형(키 순 1 · 2 · 3)과 가진 옷 · 모자를 바꾸고, 🛍 상점에서 안 가진 것을 코인으로 사요.</li><li>🏠 마을 동쪽 ‘우리 집’ 문 앞에서 들어가요. 집 안에서는 쉬기 · 소파 · 책 읽기 · 차 마시기를 하고, 상점에서 산 옷 · 모자 · 사진기가 방에 놓여요. 🎨 꾸미기에서 가구를 놓고 사진을 벽에 걸어요. 벽지와 가구는 상점에서 사요.</li><li>🚢 마을 쪽 나루(또는 ‘섬으로’ 단추)에서 배를 타면 갈라파고스 섬에 가요. 섬 육지 · 섬 바닷가 · 마을 바닷가의 동물이 모두 달라요.</li><li>🚡 케이블카는 ‘케이블카 타는 곳’ 표지판 곁으로 가면 타기 단추가 떠요.</li><li>🥅 곤충잡기를 누르면 다섯 번 저절로 휘둘러요. 잡은 곤충은 도감의 🦋 곤충 칸에 모여요.</li><li>아래 🙌 동작을 누르면 앉기 · 쓰다듬기 · 먹이 주기가 펼쳐져요. 마을에서는 연날리기 · 곤충잡기, 다른 곳에서는 춤추기 · 뛰기를 해요.</li>
 <li>📷 사진기도 여러 가지예요: 즉석(화사하게) · 빈티지(옛날 빛깔) · 흑백 · 파스텔 · 망원(8배 확대). 사진기마다 사진 색감과 테두리가 달라요.</li>
 <li>살 때는 한 번 누르면 값이 뜨고, 한 번 더 누르면 사요.</li></ul>
 <h3>🧭 이동 · 🛶 물</h3><ul>
@@ -404,7 +411,7 @@ button.dcard { font: inherit; text-align: left; border: 1.5px solid #e0a030; cur
 </section>
 <div id="finder" aria-hidden="true"><div id="frame"><i></i><i></i><i></i><i></i></div><div id="fhint"></div>
   <div id="fbar"><button type="button" id="fExit">✕ 나가기</button><button type="button" id="fFr" aria-pressed="false" aria-label="친구도 함께 찍기">👥</button><button type="button" id="zOut" aria-label="줌 아웃">➖</button><button type="button" id="fShot" aria-label="찰칵 (스페이스)">찰칵</button><button type="button" id="zIn" aria-label="줌 인">➕</button><span id="zLab">1.0×</span></div></div>
-<section id="dex" aria-label="섬 도감" aria-hidden="true"><header><div id="dexTabs" role="tablist"><button type="button" role="tab" data-t="dex">📖 도감</button><button type="button" role="tab" data-t="bug">🦋 곤충</button><button type="button" role="tab" data-t="ex">🧭 탐험</button><button type="button" role="tab" data-t="badge">🏅 뱃지</button></div><small id="dexN"></small><button type="button" id="dexPics">📷 모은 사진 보기</button><span id="dexTitles"></span><button type="button" class="x" id="dexX" aria-label="도감 닫기">✕</button></header><div id="dexGrid"></div></section>
+<section id="dex" aria-label="섬 도감" aria-hidden="true"><header><div id="dexTabs" role="tablist"><button type="button" role="tab" data-t="dex">📖 도감</button><button type="button" role="tab" data-t="ex">🧭 탐험</button><button type="button" role="tab" data-t="badge">🏅 뱃지</button></div><small id="dexN"></small><button type="button" id="dexPics">📷 모은 사진 보기</button><button type="button" class="x" id="dexX" aria-label="도감 닫기">✕</button></header><div id="dexGrid"></div></section>
 <div id="dexView" role="dialog" aria-modal="true" aria-label="모은 동물 사진"><button type="button" id="dvX" aria-label="사진 닫기">✕</button><div class="dvrow"><button type="button" id="dvPrev" aria-label="이전 사진">‹</button><img id="dvImg" alt=""><button type="button" id="dvNext" aria-label="다음 사진">›</button></div><p id="dvCap"></p></div>
 <section id="closet" aria-label="캐릭터" aria-hidden="true"><header><b id="cTitle">👤 캐릭터</b><small id="ccoins"></small><button type="button" class="x" id="closetX" aria-label="닫기">✕</button></header>
   <div class="cbody"><h3 class="chr">닉네임</h3><div class="row chr nick"><select id="nA" aria-label="닉네임 앞말"></select><select id="nB" aria-label="닉네임 뒷말"></select><button type="button" id="nRand" aria-label="닉네임 아무거나">🎲</button></div><h3 class="chr">성별</h3><div id="cGender" class="row chr"></div><h3 class="chr">체형 (키 순)</h3><div id="cBody" class="row chr"></div><h3>옷</h3><div id="cLooks" class="row"></div><h3>모자</h3><div id="cHats" class="row hats"></div><h3>📷 사진기</h3><div id="cCams" class="row cams"></div><h3 class="shp">🏠 가구</h3><div id="cFurn" class="row hats shp"></div><h3 class="shp">🖌 벽지</h3><div id="cWalls" class="row hats shp"></div><p id="cMsg" role="status"></p><p class="note shp">🪙 섬에 머무는 1초마다 코인 1개 (하루 최대 1시간 = 3600개). 동물 사진을 찍어도 조금 더 모여요.</p></div></section>
