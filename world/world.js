@@ -1436,7 +1436,7 @@ function closeActs() { $('#actMenu').classList.remove('on'); $('#actBtn').setAtt
 // 모닥불 곁: 앉기 · 마시멜로 굽기 · 불꽃놀이 · 연날리기 / 그 밖(2026-11-07 쓰다듬기 · 먹이 · 셀카는 뺐어요): 마을은 앉기 · 연날리기 · 곤충잡기, 마을 밖은 앉기
 const nearFire = () => FIRES.find((f) => Math.hypot(f.g.position.x - me.pos.x, f.g.position.z - me.pos.z) < 7);
 function paintActs() {
-  const w = new Set(); if (me.inHome) w.add('home'); else { if (nearFire()) w.add('fire'); if (curZone === 'village') w.add('village'); else if (!w.size) w.add('out');   // 마을에서는 모닥불 곁이어도 곤충잡기가 보여요 }
+  const w = new Set(); if (me.inHome) w.add('home'); else { if (nearFire()) w.add('fire'); if (curZone === 'village') w.add('village'); else if (!w.size) w.add('out'); /* 마을에서는 모닥불 곁이어도 곤충잡기가 보여요 */ }
   document.querySelectorAll('#actMenu [data-v]').forEach((b) => { b.hidden = !b.dataset.v.split(' ').some((v) => w.has(v)); });
 }
 // 🔥 마시멜로: 모닥불 의자에 앉아 막대 끝 마시멜로를 노릇노릇하게 구워요 (6초)
