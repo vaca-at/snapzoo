@@ -49,14 +49,15 @@ export default {
       const rooms = await Promise.all(Array.from({ length: ISLANDS }, (_, i) => env.ROOMS.get(env.ROOMS.idFromName(`island-${i + 1}`)).fetch('https://room/count').then((r) => r.json()).then((j) => j.n).catch(() => 0)));
       return json(req, { ...s, online: rooms.reduce((a, b) => a + b, 0), rooms });
     }
-    // 관리자: 비밀번호(ADMIN_PASSWORD)가 맞을 때만 숫자를 보여 줘요
+    // 관리자: 관리자 구글 계정(Firebase 로그인 표)일 때만 숫자를 보여 줘요 (2026-11-07 비밀번호 로그인은 없앴어요)
     if (url.pathname === '/admin/stats') {
-      const auth = (req.headers.get('Authorization') || '').replace(/^Bearer /, '').trim();
-      if (!env.ADMIN_PASSWORD || !(await same(auth, env.ADMIN_PASSWORD.trim()))) return json(req, { error: 'unauthorized' }, 401);
+      const who = await verifyFirebase((req.headers.get('Authorization') || '').replace(/^Bearer /, '').trim());
+      if (!who || !ADMIN_EMAILS.includes(who.email)) return json(req, { error: 'unauthorized' }, 401);
+      const islands = await Promise.all(Array.from({ length: ISLANDS }, (_, i) => env.ROOMS.get(env.ROOMS.idFromName(`island-${i + 1}`)).fetch('https://room/count').then((r) => r.json()).then((j) => j.n).catch(() => 0)));
       const s = await stats().fetch('https://stats/read').then((r) => r.json());
       const rooms = await Promise.all(Array.from({ length: SERVER_COUNT }, (_, i) =>
         env.ROOMS.get(env.ROOMS.idFromName(`station-${i + 1}`)).fetch('https://room/count').then((r) => r.json()).then((j) => j.n).catch(() => 0)));
-      return json(req, { ...s, rooms, online: rooms.reduce((a, b) => a + b, 0), now: Date.now() });
+      return json(req, { ...s, rooms, islands, islandCap: ISLAND_CAP, online: rooms.reduce((a, b) => a + b, 0) + islands.reduce((a, b) => a + b, 0), now: Date.now() });
     }
     // 서버별 인원 (숫자만). ?kind=island 이면 어른용 섬 방
     if (url.pathname === '/counts') {
@@ -253,4 +254,27 @@ export class Room extends DurableObject {
     const s = JSON.stringify(obj);
     for (const ws of this.ctx.getWebSockets()) if (ws !== except) { try { ws.send(s); } catch {} }
   }
+}
+
+// ───────── 관리자 구글(Firebase moon-d528d) 로그인 검사: 서명 · 발급처 · 프로젝트 · 만료 · 이메일 확인 ─────────
+const FIREBASE_PROJECT = 'moon-d528d', ADMIN_EMAILS = ['bellachord@gmail.com', 'anstjsdud@sen.go.kr'];
+let googleKeys = { at: 0, keys: [] };
+async function firebaseKeys() {
+  if (Date.now() - googleKeys.at < 3600e3 && googleKeys.keys.length) return googleKeys.keys;
+  const r = await fetch('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com');
+  googleKeys = { at: Date.now(), keys: (await r.json()).keys || [] }; return googleKeys.keys;
+}
+const b64u = (x) => Uint8Array.from(atob(x.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((x.length + 3) % 4)), (c) => c.charCodeAt(0));
+async function verifyFirebase(token) {
+  try {
+    const [h, p, sg] = token.split('.'); if (!sg) return null;
+    const head = JSON.parse(new TextDecoder().decode(b64u(h))), pay = JSON.parse(new TextDecoder().decode(b64u(p)));
+    if (head.alg !== 'RS256') return null;
+    const jwk = (await firebaseKeys()).find((k) => k.kid === head.kid); if (!jwk) return null;
+    const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+    const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64u(sg), new TextEncoder().encode(`${h}.${p}`)), now = Date.now() / 1000;
+    if (!ok || pay.aud !== FIREBASE_PROJECT || pay.iss !== `https://securetoken.google.com/${FIREBASE_PROJECT}`) return null;
+    if (!(pay.exp > now) || !(pay.iat <= now + 60) || !pay.sub || !pay.email || pay.email_verified !== true) return null;
+    return { email: String(pay.email).toLowerCase() };
+  } catch { return null; }
 }

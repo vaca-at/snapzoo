@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261107w';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107w';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261107w';
-import { IslandSound } from './sound.js?v=20261107w';
-import { ROSTER } from './fauna.js?v=20261107w';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107w';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107w';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107w';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108a';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108a';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108a';
+import { IslandSound } from './sound.js?v=20261108a';
+import { ROSTER } from './fauna.js?v=20261108a';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261108a';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108a';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108a';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -400,6 +400,7 @@ function applyTime(T) {
   sunDir.set(...A[12]).lerp(V.set(...Bk[12]), k).normalize(); u.uSun.value.copy(sunDir);
   const cc = col(13); clouds.forEach((c) => c.material.color.copy(cc));
   tod.night = h >= 20.5 || h < 5.2 ? 1 : h >= 19 ? (h - 19) / 1.5 : h < 6.4 ? 1 - (h - 5.2) / 1.2 : 0;
+  renderer.toneMappingExposure *= 1 + tod.night * 0.35; tod.hemiI *= 1 + tod.night * 0.7;   // 밤이 너무 깜깜하지 않게 조금 밝혀요
   stars.material.opacity = tod.night * 0.95; stars.visible = tod.night > 0.02; moon.visible = tod.night > 0.05; moon.material.opacity = tod.night;
   GLASS.emissiveIntensity = tod.night * 1.4; if (villageFire) villageFire.intensity = 4 + tod.night * 14;
   grassMat.uniforms.uSun.value.copy(sun.color);
@@ -628,11 +629,12 @@ function bringAnimals() {
   const L = animals.filter((a) => a.zone === zone && !a.night && !a.spot && a.move !== 'fly' && a.move !== 'swim').sort((p, q) => p.pos.distanceTo(me.pos) - q.pos.distanceTo(me.pos));
   const dx = x - camera.position.x, dz = z - camera.position.z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl;
   const ahead = (a) => Math.hypot(a.pos.x - x, a.pos.z - z) < 13 && (a.pos.x - x) * ux + (a.pos.z - z) * uz > 2;   // 내 앞쪽에 보이는 동물만 세요
-  let need = Math.max(0, 2 + (rnd() < 0.5 ? 1 : 0) - L.filter(ahead).length); if (!need) return;
+  let need = Math.max(0, 2 + (rnd() < 0.5 ? 1 : 0) - L.filter(ahead).length); if (!need) return; const used = L.filter(ahead).map((a) => a.pos);
   for (const a of L) { if (!need) break; if (ahead(a)) continue;
-    for (let i = 0; i < 24; i++) { const r = 5 + (i % 6) * 1.2, sd = ((i * 7) % 11 - 5) * 0.9, px = x + ux * r - uz * sd, pz = z + uz * r + ux * sd, py = height(px, pz);
+    for (let i = 0; i < 24; i++) { const r = 4 + (i % 6) * 0.9, sd = ((i * 7) % 11 - 5) * 0.8, px = x + ux * r - uz * sd, pz = z + uz * r + ux * sd, py = height(px, pz);
+      if (used.some((u) => Math.hypot(u.x - px, u.z - pz) < 2.4)) continue;   // 두 마리가 한자리에 겹치지 않게
       if (py < 0.7 || (zone !== 'sea' && zone !== 'islesea' && py < 2) || !seenFrom(new THREE.Vector3(x, y + 1.4, z), new THREE.Vector3(px, py + 0.6, pz))) continue;
-      a.pos.set(px, py, pz); a.home = a.pos.clone(); a.target = null; a.wait = 6; a.v = 0; a.face = Math.atan2(x - px, z - pz); a.g.position.copy(a.pos); need--; break; } }
+      a.pos.set(px, py, pz); a.home = a.pos.clone(); a.target = null; a.wait = 6; a.v = 0; a.face = Math.atan2(x - px, z - pz); a.g.position.copy(a.pos); used.push(a.pos); need--; break; } }
 }
 function travelTo(label, where) {
   if (me.riding || travelling) return; travelling = true; exitPhoto(); me.target = null;
@@ -641,7 +643,8 @@ function travelTo(label, where) {
   const step = (now) => {
     const k = Math.min(1, (now - t0) / dur); $('#travelBar').style.width = `${Math.round((1 - Math.pow(1 - k, 2)) * 100)}%`;
     if (k > 0.55 && !moved) { moved = true; const old = me.pos.clone(); me.pos.copy(where()); me.pos.y = me.inHome ? ROOM.y : height(me.pos.x, me.pos.z); V.copy(me.pos).sub(old); camera.position.add(V); controls.target.copy(me.pos).add(V.set(0, 1.1, 0)); if (me.inHome) camera.position.set(ROOM.x + 1, ROOM.y + 7.2, ROOM.z + 6.4); layGrass(me.pos.x, me.pos.z); }   // 집 안은 문 쪽 위에서 방 전체가 보이게
-    if (k < 1) requestAnimationFrame(step); else { bringAnimals(); setTimeout(() => { $('#travel').classList.remove('on'); travelling = false; }, 250); }
+    if (k < 1) requestAnimationFrame(step); else { bringAnimals(); setTimeout(bringAnimals, 900);   // 카메라가 자리 잡은 뒤 한 번 더: 화면 앞쪽에 보이게
+      setTimeout(() => { $('#travel').classList.remove('on'); travelling = false; }, 250); }
   };
   requestAnimationFrame(step);
 }
@@ -1103,7 +1106,7 @@ function addSpot(name, p, zone) {
   const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })); sign.scale.set(4, 1, 1); sign.position.y = 3.4; g.add(sign);
   // 멀리서도 보이는 금빛 기둥
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.5, 46, 16, 1, true), new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide, fog: false })); beam.position.y = 23; g.add(beam);
-  SPOTS.push({ name, pos: new THREE.Vector3(p.x, y, p.z), g, ring, sign, tex: c }); settleAt(SPOTS.at(-1), zone);
+  SPOTS.push({ name, pos: new THREE.Vector3(p.x, y, p.z), g, ring, sign, beam, tex: c }); settleAt(SPOTS.at(-1), zone);
 }
 document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => {
   addSpot('강가 모닥불', YARD.village.spot, 'village');
@@ -1218,9 +1221,12 @@ YARD.desert = plaza(findYard('desert', (POOLS.get('desert') || [VIL])[1] || (POO
 YARD.jungle = plaza(findYard('jungle', (POOLS.get('jungle') || [VIL])[1] || (POOLS.get('jungle') || [VIL])[0]), '밀림 마당');
 { let c = null; for (let r = 16; r < 46 && !c; r += 2) for (let i = 0; i < 16 && !c; i++) { const a = i / 16 * Math.PI * 2, x = TOPS.x + Math.sin(a) * r, z = TOPS.z + Math.cos(a) * r; if (height(x, z) > 106 && riverNear(x, z).d > 15) c = new THREE.Vector3(x, 0, z); } YARD.arctic = plaza(c || TOPS.clone().add(V.set(-22, 0, 18)), '꼭대기 광장'); }
 YARD.isle = plaza(new THREE.Vector3(ISLE.x + PIER.ux * 36, 0, ISLE.z + PIER.uz * 36), '섬 광장');
+// 마을 광장: 우물 반대쪽(마을 바깥 쪽)에서 모닥불을 보고 서요. 카메라가 우물 · 모닥불에 가리지 않게
+{ const f = YARD.village.fire, ux = f.x - VIL.x, uz = f.z - VIL.z, ul = Math.hypot(ux, uz) || 1; YARD.village.out = { x: ux / ul, z: uz / ul }; YARD.village.pos = new THREE.Vector3(f.x + ux / ul * 4.2, 0, f.z + uz / ul * 4.2); }
 landAt(YARD.village.pos);   // 처음 들어올 때도 마을 광장 모닥불 앞에서 시작해요
+if (Math.hypot(me.pos.x - YARD.village.pos.x, me.pos.z - YARD.village.pos.z) < 1) me.face = Math.atan2(-YARD.village.out.x, -YARD.village.out.z);
 // 첫 화면 카메라: 예전엔 마을 한가운데(우물 지붕 안)에서 나를 봐서 뿌옇게 가렸어요. 이제 모닥불 건너편 비스듬히 위에서 나와 모닥불을 함께 봐요
-if (intro && !new URLSearchParams(location.search).get('at')) { const f = YARD.village.fire, dx = f.x - me.pos.x, dz = f.z - me.pos.z, d = Math.hypot(dx, dz) || 1; intro.to = new THREE.Vector3(f.x + dx / d * 4.6 + dz / d * 1.4, me.pos.y + 4.2, f.z + dz / d * 4.6 - dx / d * 1.4); }
+if (intro && !new URLSearchParams(location.search).get('at')) { const o = YARD.village.out; intro.to = new THREE.Vector3(me.pos.x + o.x * 5.5 - o.z * 1.2, me.pos.y + 3.4, me.pos.z + o.z * 5.5 + o.x * 1.2); }   // 내 뒤 비스듬히 위에서 나 · 모닥불 · 마을을 함께 봐요
 // 케이블카 · 배에서 내리면 그곳 시작 마당의 모닥불 앞으로 (카메라도 같이 옮겨요)
 function landAt(p) { const old = me.pos.clone(); me.pos.set(p.x, height(p.x, p.z), p.z); V.copy(me.pos).sub(old); camera.position.add(V); controls.target.add(V); me.target = null; me.face = Math.atan2(3, -3); }   // 모닥불 쪽을 봐요
 const nearPier = () => [PIER.main, PIER.isle].find((p) => Math.hypot(p.x - me.pos.x, p.z - me.pos.z) < 7);
@@ -1355,7 +1361,7 @@ function updKite(T, dt) {
   const on = kite.t > 0; kite.g.visible = kite.line.visible = on; if (!on) return; kite.t -= dt;
   const x = me.pos.x - Math.sin(me.face) * 6 + Math.sin(T * 0.9) * 1.2, z = me.pos.z - Math.cos(me.face) * 6 + Math.cos(T * 0.7) * 1.2, y = me.pos.y + 7 + Math.sin(T * 1.3) * 0.7;
   kite.g.position.x = lerp(kite.g.position.x, x, 0.05); kite.g.position.z = lerp(kite.g.position.z, z, 0.05); kite.g.position.y = lerp(kite.g.position.y, y, 0.05); kite.g.rotation.z = Math.sin(T * 1.7) * 0.25; kite.g.lookAt(me.pos.x, kite.g.position.y, me.pos.z);
-  const p = kite.line.geometry.attributes.position; p.setXYZ(0, me.pos.x, me.pos.y + 1, me.pos.z); p.setXYZ(1, kite.g.position.x, kite.g.position.y, kite.g.position.z); p.needsUpdate = true;
+  const p = kite.line.geometry.attributes.position, hp = me.st.handR ? me.st.handR.getWorldPosition(new THREE.Vector3()) : me.pos.clone().add(V.set(0, 1, 0)); p.setXYZ(0, hp.x, hp.y, hp.z);   // 연줄은 높이 든 오른손에서 p.setXYZ(1, kite.g.position.x, kite.g.position.y, kite.g.position.z); p.needsUpdate = true;
 }
 // 🥅 곤충잡기: 누르면 다섯 번 저절로 휘둘러요. 잡았어요 / 놓쳤어요, 잡은 곤충은 도감의 곤충 탭에 모여요 (잠깐 보고 놓아줘요)
 const BUG_KINDS = [['배추흰나비', 30, '흔해요'], ['메뚜기', 26, '흔해요'], ['무당벌레', 22, '흔해요'], ['밀잠자리', 20, '흔해요'], ['호랑나비', 12, '가끔'], ['고추잠자리', 12, '가끔'], ['매미', 10, '가끔'], ['사슴벌레', 5, '드물어요'], ['장수풍뎅이', 4, '드물어요'], ['반딧불이', 2, '아주 드물어요']];
@@ -1413,20 +1419,65 @@ function startMarsh() {
 // 🎆 불꽃놀이: 내 앞 하늘에 여섯 번 터져요
 const fireworks = [];
 const sparkTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+// 🎆 불꽃놀이: 오른손을 들고 긴 불꽃 막대를 쥐면, 막대 끝에서 불꽃이 하나씩 솟아올라 팡팡 터져요 (여섯 발)
+const wand = new THREE.Group();
+{ const L = 0.85, st = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.024, L, 8), toon('#c8553d')); st.position.y = -L / 2; wand.add(st);
+  for (let i = 0; i < 4; i++) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.03, 8), toon(i % 2 ? '#f2c84a' : '#3a7ad8')); r.position.y = -0.18 - i * 0.16; wand.add(r); }
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), new THREE.MeshBasicMaterial({ color: '#fff2a0' })); cap.position.y = -L; wand.add(cap); wand.userData.L = L; wand.userData.cap = cap; }
+let fwShow = null;   // { t, shots, next }
+function burst(c, color) {
+  const n = 110, pos = new Float32Array(n * 3), vel = [];
+  for (let k = 0; k < n; k++) { pos.set([c.x, c.y, c.z], k * 3); const u = rnd() * 2 - 1, a = rnd() * Math.PI * 2, r = Math.sqrt(1 - u * u), sp = 4 + rnd() * 1.5; vel.push(new THREE.Vector3(r * Math.cos(a) * sp, u * sp, r * Math.sin(a) * sp)); }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color, size: 1.1, map: sparkTex, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, fog: false }));
+  pts.frustumCulled = false; scene.add(pts); fireworks.push({ pts, vel, t: 0 }); snd.shutter();
+}
+const rockets = [];
 function startFireworks() {
-  standUp(); bump('fwork'); toastMsg('불꽃놀이를 해요', '앞쪽 하늘을 보세요');
-  const dx = me.pos.x - camera.position.x, dz = me.pos.z - camera.position.z, dl = Math.hypot(dx, dz) || 1;
-  for (let i = 0; i < 6; i++) setTimeout(() => {
-    // 지금 보는 화면 위쪽 가운데에 터지게: 카메라 앞 D m, 화면 높이의 위쪽 1/3 쯤
-    const D = 16 + rnd() * 4, fw = camera.getWorldDirection(new THREE.Vector3()), up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion), rt = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), hh = D * Math.tan(camera.fov * Math.PI / 360);
-    const n = 110, pos = new Float32Array(n * 3), vel = [], c = camera.position.clone().addScaledVector(fw, D).addScaledVector(up, hh * (0.3 + rnd() * 0.25)).addScaledVector(rt, hh * camera.aspect * (rnd() - 0.5) * 0.9);
-    for (let k = 0; k < n; k++) { pos.set([c.x, c.y, c.z], k * 3); const u = rnd() * 2 - 1, a = rnd() * Math.PI * 2, r = Math.sqrt(1 - u * u), sp = 4 + rnd() * 1.5; vel.push(new THREE.Vector3(r * Math.cos(a) * sp, u * sp, r * Math.sin(a) * sp)); }
-    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: ['#ffd84a', '#ff6a8a', '#6ac0ff', '#8aff7a', '#ffffff', '#c89aff'][i], size: 1.1, map: sparkTex, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, fog: false }));
-    pts.frustumCulled = false; scene.add(pts); fireworks.push({ pts, vel, t: 0 }); snd.shutter();
-  }, i * 550);
+  if (fwShow) return; standUp(); me.target = null; bump('fwork'); toastMsg('불꽃놀이를 해요', '하늘을 보세요 · 팡! 팡!');
+  // 카메라가 보는 쪽으로 몸을 돌려 막대를 하늘로 들어요
+  me.face = Math.atan2(me.pos.x - camera.position.x, me.pos.z - camera.position.z);
+  fwShow = { t: 0, shots: 6, next: 0.7 }; controls.target.y += 2.2;
+}
+function updFireworks(dt) {
+  if (fwShow) {
+    const st = me.st; st.hold = 1; if (wand.parent !== st.handR) st.handR.add(wand);
+    wand.visible = true; fwShow.t += dt; fwShow.next -= dt;
+    if (fwShow.next <= 0 && fwShow.shots > 0) {
+      fwShow.shots--; fwShow.next = 0.6;
+      const tip = wand.userData.cap.getWorldPosition(new THREE.Vector3()), dir = tip.clone().sub(st.handR.getWorldPosition(new THREE.Vector3())).normalize();
+      const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: sparkTex, color: '#fff0b0', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); m.scale.setScalar(0.5); m.position.copy(tip); scene.add(m);
+      rockets.push({ m, v: dir.multiplyScalar(5.5).add(V.set((rnd() - 0.5) * 1.2, 3.2, (rnd() - 0.5) * 1.2)), t: 0, c: ['#ffd84a', '#ff6a8a', '#6ac0ff', '#8aff7a', '#ffffff', '#c89aff'][fwShow.shots] });
+    }
+    if (fwShow.shots <= 0 && fwShow.next < -1.2) { fwShow = null; me.st.hold = 0; wand.visible = false; controls.target.y -= 2.2; }
+  } else me.st.hold = kite.t > 0 ? 1 : 0;   // 연을 날릴 땐 손을 들어 연줄을 쥐어요
+  for (let i = rockets.length - 1; i >= 0; i--) { const r = rockets[i]; r.t += dt; r.v.y -= 5 * dt; r.m.position.addScaledVector(r.v, dt);
+    if (r.t > 0.85) { burst(r.m.position.clone(), r.c); scene.remove(r.m); r.m.material.dispose(); rockets.splice(i, 1); } }
+}
+// 🔦 밤엔 손전등 · ☔ 비 오면 우산: 내 캐릭터를 따라다녀요 (옷을 갈아입어도 그대로)
+const gear = new THREE.Group(); scene.add(gear);
+const torch = new THREE.Group(); gear.add(torch);
+{ const body = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.2, 12), toon('#3a3e48')); body.rotation.x = Math.PI / 2; torch.add(body);
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.038, 0.06, 14), toon('#f2c84a')); head.rotation.x = Math.PI / 2; head.position.z = 0.12; torch.add(head);
+  const glass = new THREE.Mesh(new THREE.CircleGeometry(0.045, 14), new THREE.MeshBasicMaterial({ color: '#fff6c8' })); glass.position.z = 0.152; torch.add(glass); }
+const beam = new THREE.SpotLight('#fff0c8', 0, 30, 0.55, 0.6, 1.1); beam.position.set(0, 0, 0.15); torch.add(beam); torch.add(beam.target); beam.target.position.set(0, -1.6, 9);
+const glow = new THREE.PointLight('#ffe6b0', 0, 8, 1.4); gear.add(glow);
+const umb = new THREE.Group(); gear.add(umb);
+{ const top = new THREE.Mesh(new THREE.ConeGeometry(0.62, 0.26, 8, 1, true), toon('#e8553d', { side: THREE.DoubleSide })); top.position.y = 0.13; umb.add(top);
+  for (let i = 0; i < 8; i += 2) { const p = new THREE.Mesh(new THREE.ConeGeometry(0.62, 0.26, 8, 1, true, i * Math.PI / 4, Math.PI / 4), toon('#fbf6ea', { side: THREE.DoubleSide })); p.position.y = 0.131; umb.add(p); }
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.9, 6), toon('#5a4a3a')); pole.position.y = -0.3; umb.add(pole);
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), toon('#5a4a3a')); knob.position.y = 0.27; umb.add(knob); }
+let gearH = { g: null, h: 1.2 };
+function updGear(dt) {
+  if (gearH.g !== me.g) { const b = new THREE.Box3().setFromObject(me.g); gearH = { g: me.g, h: Math.max(0.6, (b.max.y - b.min.y) / Math.max(0.001, me.g.scale.y)) }; }
+  const out = !me.inHome && me.g.visible, h = gearH.h, night = out && tod.night > 0.45 && !fwShow, rain = out && wx.rain > 0.35;
+  gear.position.copy(me.g.position); gear.rotation.y = me.g.rotation.y;
+  torch.visible = night; torch.position.set(-0.2 * h, h * 0.5, 0.16 * h); torch.rotation.x = 0.12;
+  beam.intensity += ((night ? 38 : 0) - beam.intensity) * Math.min(1, dt * 4); glow.intensity += ((out && tod.night > 0.45 ? 2.4 : 0) - glow.intensity) * Math.min(1, dt * 4); glow.position.set(0, h * 0.9, 0.6);
+  umb.visible = rain; umb.position.set(0.12 * h, h * 1.12, 0.05); umb.scale.setScalar(Math.max(0.75, h / 1.25)); umb.rotation.z = -0.08;
 }
 function updFun(T, dt) {
+  updGear(dt); updFireworks(dt);
   if (marsh.t > 0) {
     if (!sitting) { marsh.t = 0; marsh.g.visible = false; }
     else { marsh.t -= dt; marsh.g.position.set(me.pos.x, me.pos.y + 0.42, me.pos.z); marsh.g.rotation.y = me.face; marsh.m.material.color.copy(MSW).lerp(MSB, Math.min(1, 1 - marsh.t / 6));
@@ -1853,7 +1904,7 @@ function frame() {
   updWeather(T, dt, z0);
   scene.fog.near = lerp(scene.fog.near, fogNear * wx.fogK, 0.02); scene.fog.far = lerp(scene.fog.far, fogFar * wx.fogK, 0.02);
   FIRES.forEach((f, i) => { const k = 0.85 + Math.sin(T * 11 + i) * 0.08 + Math.sin(T * 23 + i * 2) * 0.06; f.flames.forEach((m, j) => { m.scale.set(1, k + j * 0.05, 1); m.rotation.y = T * (1 + j); }); f.light.intensity = (4 + tod.night * 10) * k; });
-  SPOTS.forEach((sp, i) => { sp.ring.material.opacity = 0.35 + Math.sin(T * 2 + i) * 0.15; sp.g.visible = !me.inHome && Math.hypot(sp.pos.x - me.pos.x, sp.pos.z - me.pos.z) < 300; });
+  SPOTS.forEach((sp, i) => { sp.ring.material.opacity = 0.35 + Math.sin(T * 2 + i) * 0.15; { const dc = Math.hypot(sp.pos.x - camera.position.x, sp.pos.z - camera.position.z); sp.beam.material.opacity = 0.2 * clamp((dc - 8) / 22, 0, 1); sp.beam.visible = dc > 8; }  /* 금빛 기둥: 가까이 오면 흐려져요 (카메라가 기둥 안에 들어가면 화면이 뿌옇게 덮였어요) */ sp.g.visible = !me.inHome && Math.hypot(sp.pos.x - me.pos.x, sp.pos.z - me.pos.z) < 300; });
   // 📍 포토 스팟 알림: 가까워지면 한 번, 안에 들어오면 한 번
   if (!me.inHome && !me.riding) for (const sp of SPOTS) {
     const d = Math.hypot(sp.pos.x - me.pos.x, sp.pos.z - me.pos.z);
