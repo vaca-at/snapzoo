@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108h';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108h';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108h';
-import { IslandSound } from './sound.js?v=20261108h';
-import { ROSTER } from './fauna.js?v=20261108h';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261108h';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108h';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108h';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108i';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108i';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108i';
+import { IslandSound } from './sound.js?v=20261108i';
+import { ROSTER } from './fauna.js?v=20261108i';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261108i';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108i';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108i';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -1399,14 +1399,36 @@ function updKite(T, dt) {
 // 🥅 곤충잡기: 누르면 다섯 번 저절로 휘둘러요. 잡았어요 / 놓쳤어요, 잡은 곤충은 도감의 곤충 탭에 모여요 (잠깐 보고 놓아줘요)
 const BUG_KINDS = [['배추흰나비', 30, '흔해요'], ['메뚜기', 26, '흔해요'], ['무당벌레', 22, '흔해요'], ['밀잠자리', 20, '흔해요'], ['호랑나비', 12, '가끔'], ['고추잠자리', 12, '가끔'], ['매미', 10, '가끔'], ['사슴벌레', 5, '드물어요'], ['장수풍뎅이', 4, '드물어요'], ['반딧불이', 2, '아주 드물어요']];
 let bugRun = null;
+// 🦋 잠자리채: 막대 · 동그란 테 · 그물. 오른손에 쥐어요
+const bugNet = new THREE.Group();
+{ const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.95, 6), toon('#c8945a')); stick.position.y = -0.45; bugNet.add(stick);
+  const hoop = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.01, 6, 20), toon('#3a7ad8')); hoop.position.y = -1.04; hoop.rotation.x = Math.PI / 2; bugNet.add(hoop);
+  const mesh = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.26, 16, 1, true), new THREE.MeshStandardMaterial({ color: '#fbf6ea', transparent: true, opacity: 0.6, side: THREE.DoubleSide, roughness: 0.9 })); mesh.position.y = -1.04; mesh.position.z = -0.13; mesh.rotation.x = -Math.PI / 2; bugNet.add(mesh);
+  bugNet.visible = false; }
 function bugTry() {
-  const r = bugRun; r.n--; r.t = 1.5; me.st.waveT = 1;
+  const r = bugRun; r.n--;
   if (Math.random() < 0.6) {
     let w = Math.random() * BUG_KINDS.reduce((n, b) => n + b[1], 0), kind = BUG_KINDS[0]; for (const b of BUG_KINDS) { w -= b[1]; if (w <= 0) { kind = b; break; } }
     MY.bugs ||= {}; const fresh = !MY.bugs[kind[0]]; MY.bugs[kind[0]] = (MY.bugs[kind[0]] || 0) + 1; r.got++; MY.coins += fresh ? 5 : 1; saveMy(); updCoins(); bump('bug'); snd.chime();
     toastMsg(`${kind[0]}${josa(kind[0]) === '과' ? '을' : '를'} 잡았어요!`, fresh ? '곤충 도감에 새로 올랐어요 · 🪙 +5' : '잠깐 보고 놓아줬어요 · 🪙 +1');
   } else toastMsg('놓쳤어요', '다시 휘둘러요');
-  if (r.n <= 0) { bugRun = null; setTimeout(() => toastMsg(`다섯 번 중 ${r.got}마리 잡았어요`, '도감 › 곤충에서 볼 수 있어요'), 1400); }
+  if (r.n <= 0) { endBugRun(); setTimeout(() => toastMsg(`다섯 번 중 ${r.got}마리 잡았어요`, '도감 › 곤충에서 볼 수 있어요'), 1400); }
+}
+// 처음 선 자리 둘레 5 m 안을 돌아다니다가, 도착하면 잠자리채를 크게 휘둘러 잡아요 (다섯 번)
+function bugNext() {
+  const r = bugRun;
+  for (let i = 0; i < 20; i++) { const a = Math.random() * Math.PI * 2, d = 1.5 + Math.random() * 3.5, p = new THREE.Vector3(r.c.x + Math.sin(a) * d, 0, r.c.z + Math.cos(a) * d); pushOut(p);
+    if (!waterAt(p.x, p.z) && Math.abs(height(p.x, p.z) - height(r.c.x, r.c.z)) < 2) { r.to = p; me.target = p; r.walk = true; return; } }
+  r.to = null; r.walk = false; r.t = 0.6;
+}
+function endBugRun() { bugRun = null; bugNet.visible = false; me.st.net = 0; me.st.netBig = 0; }
+function updBugRun(dt) {
+  const r = bugRun; if (!r) return;
+  if (keys.size || Math.hypot(joy.x, joy.y) > 0.15 || (me.target && me.target !== r.to) || me.inHome || mode === 'photo') { if (me.target === r.to) me.target = null; endBugRun(); return; }   // 내가 움직이면 그만해요
+  const st = me.st; st.net = 1; if (bugNet.parent !== st.handR) st.handR.add(bugNet); bugNet.visible = true;
+  if (r.walk) { if (!me.target) { r.walk = false; r.t = 0.9; st.netBig = 0.9; snd.shutter(); } return; }   // 도착: 휙휙!
+  st.netBig = Math.max(0, st.netBig - dt); r.t -= dt;
+  if (r.t <= 0) { if (r.swung) { r.swung = false; bugTry(); if (bugRun) bugNext(); } else { r.swung = true; r.t = 0.01; } }
 }
 // 🦋 날아다니는 곤충: 마을 둘레의 풍경이에요
 const BUGS = [];
@@ -1419,7 +1441,7 @@ const BUGS = [];
     BUGS.push({ g, wings, name, off: 0, hx: VIL.x + Math.sin(a) * r, hz: VIL.z + Math.cos(a) * r, ph: i * 1.7 });
   } }
 function updBugs(T, dt) {
-  if (bugRun) { if (me.target || keys.size || Math.hypot(joy.x, joy.y) > 0.15) bugRun = null; else if ((bugRun.t -= dt) <= 0) bugTry(); }
+  updBugRun(dt);
   if (Math.hypot(me.pos.x - VIL.x, me.pos.z - VIL.z) > 70) return;
   for (const b of BUGS) {
     if (b.off > 0) { b.off -= dt; if (b.off <= 0) b.g.visible = true; continue; }
@@ -1577,7 +1599,7 @@ $('#actMenu').addEventListener('click', (e) => {
     if (kite.t > 0) { kite.t = 0; return; }
     standUp(); bump('kite'); kite.t = 20; toastMsg('연을 날려요', '걸어 다녀도 따라와요 · 한 번 더 누르면 내려요');
   } else if (k === 'bug') {
-    standUp(); bugRun = { n: 5, t: 0.2, got: 0 }; me.target = null; toastMsg('곤충을 잡아 볼까요?', '다섯 번 저절로 휘둘러요 · 움직이면 그만해요');
+    standUp(); me.target = null; bugRun = { n: 5, t: 0, got: 0, c: me.pos.clone(), swung: false }; bugNext(); toastMsg('곤충을 잡으러 가요', '잠자리채를 들고 돌아다니며 다섯 번 휘둘러요 · 움직이면 그만해요');
   } else { bump(k); standUp(); me.act = k; me.actT = k === 'jump' ? 0.7 : 4; }
 });
 $('#ctx').onclick = () => {
