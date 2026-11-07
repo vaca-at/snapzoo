@@ -606,6 +606,13 @@ function updMoves(z) {
 }
 
 
+// 🪙 이모지는 기기마다 그림이 달라서(아이폰은 물개처럼 보여요) 화면에 나올 때 우리 금화 그림으로 바꿔요. 글에는 🪙 그대로 쓰면 돼요
+{ const img = document.createElement('img'); img.src = 'world/coin.svg'; img.alt = '코인'; img.className = 'ci';
+  const coinize = (root) => { const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), L = []; while (w.nextNode()) if (w.currentNode.nodeValue.includes('🪙')) L.push(w.currentNode);
+    for (const n of L) { const f = document.createDocumentFragment(); n.nodeValue.split('🪙').forEach((t, i) => { if (i) f.append(img.cloneNode()); if (t) f.append(t); }); n.replaceWith(f); } };
+  coinize(document.body);
+  new MutationObserver((ms) => { for (const m of ms) { if (m.type === 'characterData') { if (m.target.parentNode) coinize(m.target.parentNode); } else for (const n of m.addedNodes) { if (n.nodeType === 1) coinize(n); else if (n.nodeType === 3 && n.parentNode) coinize(n.parentNode); } } }).observe(document.body, { subtree: true, childList: true, characterData: true }); }
+
 // ───────── ⚙ 설정 (이 기기에 기억): 걷는 속도 · 배경음악 · 배경음 ─────────
 const SET = (() => { try { return { speed: 1, music: 0.5, amb: 0.7, lowq: LOWQ, ...JSON.parse(localStorage.getItem('snapzoo-island-settings') || '{}') }; } catch { return { speed: 1, music: 0.5, amb: 0.7 }; } })();
 const saveSet = () => { try { localStorage.setItem('snapzoo-island-settings', JSON.stringify(SET)); } catch {} };
