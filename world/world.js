@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON } from './icons.js?v=20261107k';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107k';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107k';
-import { IslandSound } from './sound.js?v=20261107k';
-import { ROSTER } from './fauna.js?v=20261107k';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107k';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js?v=20261107k';
-import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107k';
+import { ICON, BADGE_ICON } from './icons.js?v=20261107m';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107m';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107m';
+import { IslandSound } from './sound.js?v=20261107m';
+import { ROSTER } from './fauna.js?v=20261107m';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107m';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js?v=20261107m';
+import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107m';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -535,7 +535,7 @@ addEventListener('keyup', (e) => { const k = KEYMAP[e.code]; if (k) keys.delete(
 addEventListener('blur', () => keys.clear());   // 다른 창으로 가면 눌린 키를 놓아요
 // 누르기와 끌기를 구분: 6px 안에서 떼면 '누르기' → 그곳으로 걸어가요
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
-canvas.addEventListener('pointerdown', (e) => { down = [e.clientX, e.clientY]; if (intro) intro.t0 = -1e9; });   // 누르면 바로 내 곁으로
+canvas.addEventListener('pointerdown', (e) => { closePanels(); down = [e.clientX, e.clientY]; if (intro) intro.t0 = -1e9; });   // 누르면 바로 내 곁으로
 canvas.addEventListener('pointerup', (e) => {
   if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6 || me.riding || mode === 'photo') return;
   ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
@@ -570,7 +570,7 @@ $('#cable').onclick = () => {
 // 🏘 마을로 · 🦁 초원으로 · 🏜️ 사막으로: 로딩 화면처럼 노을 사진 위에 '○○로 가는 중' + 진행선이 차오른 뒤 도착
 // ☰ 메뉴 서랍: 도감 · 앨범 · 꾸미기 · 설정 · 이동. 하나를 누르면 닫혀요
 // 창은 하나만: 상점 · 캐릭터 · 도감 · 앨범 · 꾸미기 · 어디로 · 설정 · 메뉴
-function closePanels() { closeCloset(); closeDex(); closeAlbum(); ['#deco', '#settings'].forEach((q) => $(q).classList.remove('on')); closeActs(); }
+function closePanels() { closeCloset(); closeDex(); closeAlbum(); closeManual(); ['#deco', '#settings'].forEach((q) => $(q).classList.remove('on')); closeActs(); }
 function closeDrawer() { $('#drawer').classList.remove('on'); $('#drawer').setAttribute('aria-hidden', 'true'); $('#drawerBtn').setAttribute('aria-expanded', 'false'); }
 $('#drawerBtn').onclick = (e) => { e.stopPropagation(); const on = !$('#drawer').classList.contains('on'); if (!on) return closeDrawer(); closePanels(); $('#drawer').classList.add('on'); $('#drawer').setAttribute('aria-hidden', 'false'); $('#drawerBtn').setAttribute('aria-expanded', 'true'); };
 $('#drawer').addEventListener('click', (e) => { if (e.target.closest('button') && e.target.closest('button').id !== 'setBtn') closeDrawer(); });
@@ -578,7 +578,7 @@ $('#drawer').addEventListener('click', (e) => { if (e.target.closest('button') &
 function closeManual() { $('#manual').classList.remove('on'); $('#manual').setAttribute('aria-hidden', 'true'); }
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 $('#credits').innerHTML = ROSTER.filter(([, id]) => DEX_PHOTOS[id]).map(([, id, name]) => { const c = DEX_PHOTOS[id]; return `<p>${name} — ${esc(c.by)} · ${esc(c.license)} · <a href="${esc(c.link)}" target="_blank" rel="noopener">원본</a></p>`; }).join('');
-$('#helpBtn').onclick = () => { closeAlbum(); closeDex(); $('#manual').classList.add('on'); $('#manual').setAttribute('aria-hidden', 'false'); $('#manualX').focus(); };
+$('#helpBtn').onclick = () => { closePanels(); $('#manual').classList.add('on'); $('#manual').setAttribute('aria-hidden', 'false'); $('#manualX').focus(); };
 $('#manualX').onclick = closeManual;
 addEventListener('keydown', (e) => { if (e.key === 'Escape') closeManual(); });
 addEventListener('pointerdown', (e) => { if (!e.target.closest('#drawer, #drawerBtn, #settings')) closeDrawer(); });
@@ -649,7 +649,7 @@ function showSet() {
   $('#sMusic').value = SET.music; $('#sMusicV').textContent = SET.music ? `${Math.round(SET.music * 100)}` : '끔';
   $('#sAmb').value = SET.amb; $('#sAmbV').textContent = SET.amb ? `${Math.round(SET.amb * 100)}` : '끔';
 }
-$('#setBtn').onclick = (e) => { e.stopPropagation(); closeDrawer(); $('#settings').classList.toggle('on'); showSet(); };
+$('#setBtn').onclick = (e) => { e.stopPropagation(); closeDrawer(); const was = $('#settings').classList.contains('on'); closePanels(); if (was) $('#settings').classList.add('on'); $('#settings').classList.toggle('on'); showSet(); };
 addEventListener('pointerdown', (e) => { if (!e.target.closest('#settings, #setBtn')) $('#settings').classList.remove('on'); });
 $('#sLow').onchange = (e) => { SET.lowq = e.target.checked; saveSet(); location.reload(); };
 $('#sTime').onchange = (e) => { SET.time = e.target.value; saveSet(); frame.tod = 0; };
@@ -833,24 +833,39 @@ function shoot() {
 let dexTab = 'dex';
 let dexCat = 'all';
 const DCATS = [['all', '전체'], ['village', '마을'], ['sea', '마을 바닷가'], ['savanna', '초원'], ['desert', '사막'], ['jungle', '정글'], ['arctic', '산꼭대기'], ['isle', '섬'], ['islesea', '섬 바닷가'], ['bug', '곤충']];
+let dexPic = false; try { dexPic = localStorage.getItem('snapzoo-dex-pic') === '1'; } catch {}
+let dexThumbs = [];
+// 사진 보기를 켜면 동물마다 사진 칸. 내가 찍은 사진이 있으면 그것, 없으면 실제 사진
 function dexChips(cat) {
   if (cat === 'bug') { const B = MY.bugs || {}; return BUG_KINDS.map(([n]) => `<div class="dchip ${B[n] ? 'got' : ''}">${n}</div>`).join(''); }
-  return DEX.filter((d) => d[2] === cat).map(([id, name]) => (dex[id] ? `<button type="button" class="dchip got" data-id="${id}">${name}</button>` : `<div class="dchip">${name}</div>`)).join('');
+  return DEX.filter((d) => d[2] === cat).map(([id, name]) => {
+    if (!dexPic) return dex[id] ? `<button type="button" class="dchip got" data-id="${id}">${name}</button>` : `<div class="dchip">${name}</div>`;
+    if (!dex[id]) return `<div class="dpic none"><span class="ph"></span><b>${name}</b></div>`;
+    const ph = DEX_PHOTOS[id]; return `<button type="button" class="dpic" data-id="${id}"><span class="ph"><img data-pid="${id}" alt="" ${ph ? `src="world/${ph.src || 'dex/' + id + '.jpg'}"` : ''} loading="lazy"></span><b>${name}</b></button>`;
+  }).join('');
+}
+async function fillDexPics() {
+  dexThumbs.forEach((u) => URL.revokeObjectURL(u)); dexThumbs = []; if (!dexPic) return;
+  const all = await listPhotos();
+  document.querySelectorAll('#dexGrid img[data-pid]').forEach((im) => { const id = im.dataset.pid, p = all.find((x) => x.id === `best-${id}`) || all.find((x) => x.animal === id); if (p?.blob) { const u = URL.createObjectURL(p.blob); dexThumbs.push(u); im.src = u; } });
 }
 function drawDex() {
-  const B = MY.bugs || {}, isDex = dexTab === 'dex', BL = BADGES.filter((b) => !!b.ex === (dexTab === 'ex')), bs = BL.filter((b) => (MY.badges || []).includes(b.id)).length;
+  const B = MY.bugs || {}, isDex = dexTab === 'dex', bs = BADGES.filter((b) => (MY.badges || []).includes(b.id)).length;
   const inCat = (c) => (c === 'bug' ? BUG_KINDS.map(([n]) => !!B[n]) : DEX.filter((d) => c === 'all' || d[2] === c).map(([id]) => !!dex[id]));
   const L = dexCat === 'all' ? [...inCat('all'), ...inCat('bug')] : inCat(dexCat);
-  $('#dexN').textContent = isDex ? `${L.filter(Boolean).length} / ${L.length}` : `${bs} / ${BL.length}`;
+  $('#dexN').textContent = isDex ? `${L.filter(Boolean).length} / ${L.length}` : `${bs} / ${BADGES.length}`;
   document.querySelectorAll('#dexTabs [data-t]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.t === dexTab)));
-  $('#dexPics').hidden = !isDex;
-  $('#dexGrid').className = isDex ? 'text' : 'badges';
+  $('#dexPicBox').hidden = !isDex; $('#dexPicOn').checked = dexPic;
+  $('#dexGrid').className = isDex ? (dexPic ? 'text pics' : 'text') : 'badges';
+  const bcard = (b) => `<div class="bdg ${(MY.badges || []).includes(b.id) ? 'got' : ''}"><i>${ICON[BADGE_ICON[b.id]] || ICON.medal}</i><b>${b.name}</b><small>${b.cap}</small></div>`;
   $('#dexGrid').innerHTML = isDex
     ? `<div class="dcats">${DCATS.map(([k, l]) => `<button type="button" data-cat="${k}" class="${dexCat === k ? 'on' : ''}">${l}</button>`).join('')}</div>` + (dexCat === 'all' ? DCATS.slice(1).map(([k, l]) => `<h4 class="dsec">${l}</h4>${dexChips(k)}`).join('') : dexChips(dexCat))
-    : BL.map((b) => `<div class="bdg ${(MY.badges || []).includes(b.id) ? 'got' : ''}"><i>${ICON[BADGE_ICON[b.id]] || ICON.medal}</i><b>${b.name}</b><small>${b.cap}</small></div>`).join('');
+    : `<h4 class="dsec">탐험</h4>${BADGES.filter((b) => b.ex).map(bcard).join('')}<h4 class="dsec">사진 · 활동</h4>${BADGES.filter((b) => !b.ex && !b.id.startsWith('tt-')).map(bcard).join('')}<h4 class="dsec">칭호</h4>${BADGES.filter((b) => b.id.startsWith('tt-')).map(bcard).join('')}`;
+  fillDexPics();
 }
+$('#dexPicOn').onchange = (e) => { dexPic = e.target.checked; try { localStorage.setItem('snapzoo-dex-pic', dexPic ? '1' : '0'); } catch {} drawDex(); };
 async function openDex() {
-  checkBadges(); drawDex();
+  closePanels(); closeDrawer(); checkBadges(); drawDex();
   $('#dex').classList.add('on'); $('#dex').setAttribute('aria-hidden', 'false'); $('#dexX').focus({ preventScroll: true });
 }
 $('#dexTabs').addEventListener('click', (e) => { const t = e.target.closest('[data-t]')?.dataset.t; if (t) { dexTab = t; drawDex(); } });
@@ -862,7 +877,6 @@ function dvShow() {
 }
 function dvFlip(n) { dvI = (dvI + n + dvList.length) % dvList.length; dvShow(); }
 function dvClose() { $('#dexView').classList.remove('on'); dvList.forEach((x) => { if (x.src.startsWith('blob:')) URL.revokeObjectURL(x.src); }); dvList = []; }
-$('#dexPics').onclick = () => openPics();
 $('#dexGrid').addEventListener('click', (e) => { const k = e.target.closest('[data-cat]'); if (k) { dexCat = k.dataset.cat; drawDex(); return; } const c = e.target.closest('[data-id]'); if (c) openPics(c.dataset.id); });
 async function openPics(want) {
   const all = await listPhotos(), out = []; let at = -1;
@@ -885,6 +899,7 @@ $('#dexX').onclick = closeDex;
 // 🖼 앨범
 let urls = [], viewing = null, albumList = [], viewI = 0;
 async function openAlbum() {
+  closePanels();
   const list = (await listPhotos()).filter((p) => !String(p.id).startsWith('best-')); urls.forEach((u) => URL.revokeObjectURL(u)); urls = [];
   $('#albumN').textContent = list.length ? `${list.length}장` : '';
   $('#grid').innerHTML = list.length ? '' : '<p class="empty">아직 사진이 없어요. 사진 찍기로 동물을 담아 보세요</p>';
@@ -1207,6 +1222,7 @@ function homeDo(k) {
 }
 // 🎨 꾸미기 창: 가구 놓기 · 옮기기 · 치우기, 사진 벽
 async function openDeco() {
+  if (!$('#deco').classList.contains('on')) closePanels();
   const H = MY.home ||= { wall: 'cream', items: [], pics: [] }, own = MY.own.furn || [];
   $('#decoFurn').innerHTML = own.length ? own.map((id) => { const f = FURN.find((x) => x[0] === id), on = H.items.some((i) => i.id === id); return `<div class="dk"><span class="dki">${ICON[id]}${f[2]}</span><button type="button" data-put="${id}">${on ? '내 앞으로 옮기기' : '내 앞에 놓기'}</button>${on ? `<button type="button" data-turn="${id}">돌리기</button><button type="button" data-off="${id}">치우기</button>` : ''}</div>`; }).join('') : '<p class="empty">상점의 가구에서 사면 여기서 놓을 수 있어요</p>';
   const list = (await listPhotos()).filter((p) => !String(p.id).startsWith('best-')).slice(0, 24); decoUrls.forEach((u) => URL.revokeObjectURL(u)); decoUrls = [];
@@ -1363,7 +1379,7 @@ function checkBadges() {
   const fresh = got.filter((id) => !had.includes(id)); if (!fresh.length && !first) return;
   MY.badges = [...new Set([...had, ...got])]; saveMy();   // 한 번 받은 뱃지는 그대로
   if (first) return;   // 처음엔 조용히 (이미 한 일들)
-  const b = BADGES.find((x) => x.id === fresh[0]); setTimeout(() => toastMsg(`새 뱃지: ${b.name}`, '도감 › 뱃지에서 볼 수 있어요'), 4800); snd.chime();
+  const b = BADGES.find((x) => x.id === fresh[0]); setTimeout(() => toastMsg(`새 뱃지: ${b.name}`, '도감 창의 뱃지에서 볼 수 있어요'), 4800); snd.chime();
 }
 const titleName = (z) => TITLES[z].slice(TITLES[z].indexOf(' ') + 1);
 const myTitle = () => (MY.titles && MY.titles.length ? titleName(MY.titles[MY.titles.length - 1]) + ' ' : '');
