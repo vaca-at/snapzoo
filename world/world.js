@@ -6,13 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107h';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107h';
-import { IslandSound } from './sound.js?v=20261107h';
-import { ROSTER } from './fauna.js?v=20261107h';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107h';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js?v=20261107h';
-import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107h';
+import { ICON, BADGE_ICON } from './icons.js?v=20261107j';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107j';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107j';
+import { IslandSound } from './sound.js?v=20261107j';
+import { ROSTER } from './fauna.js?v=20261107j';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107j';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js?v=20261107j';
+import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107j';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -86,14 +87,14 @@ function height(x, z) {
 
 // ───────── 구역 ─────────
 const ZONES = {
-  arctic: ['🐧 북극 · 산꼭대기 눈밭', '펭귄과 북극곰이 사는 하얀 꼭대기예요'],
-  jungle: ['🌴 정글 · 안개 낀 산허리', '빽빽한 숲, 안개가 내려앉아요'],
-  savanna: ['🦁 초원 · 넓은 들', '코끼리 · 기린 · 얼룩말이 풀을 뜯어요'],
-  desert: ['🏜️ 사막 · 비 그늘 쪽', '산이 비를 막아 메마른 모래 언덕이에요'],
-  sea: ['🌊 바다 · 강 하구', '강물이 바다와 만나요. 돌고래가 뛰어요'],
-  isle: ['🏝 갈라파고스 섬', '거북 · 이구아나 · 푸른발부비새가 사는 화산섬이에요'],
-  home: ['🏠 우리 집', '침대 · 소파 · 책장을 써 보세요'],
-  village: ['🏘 강가 마을', '강을 따라 올라가면 산꼭대기 눈밭이에요'],
+  arctic: ['북극 · 산꼭대기 눈밭', '펭귄과 북극곰이 사는 하얀 꼭대기예요'],
+  jungle: ['정글 · 안개 낀 산허리', '빽빽한 숲, 안개가 내려앉아요'],
+  savanna: ['초원 · 넓은 들', '코끼리 · 기린 · 얼룩말이 풀을 뜯어요'],
+  desert: ['사막 · 비 그늘 쪽', '산이 비를 막아 메마른 모래 언덕이에요'],
+  sea: ['바다 · 강 하구', '강물이 바다와 만나요. 돌고래가 뛰어요'],
+  isle: ['갈라파고스 섬', '거북 · 이구아나 · 푸른발부비새가 사는 화산섬이에요'],
+  home: ['우리 집', '침대 · 소파 · 책장을 써 보세요'],
+  village: ['강가 마을', '강을 따라 올라가면 산꼭대기 눈밭이에요'],
 };
 function zoneAt(x, z, y = height(x, z)) {
   if (y < 1.2) return 'sea';
@@ -384,7 +385,7 @@ function applyTime(T) {
   GLASS.emissiveIntensity = tod.night * 1.4; if (villageFire) villageFire.intensity = 4 + tod.night * 14;
   grassMat.uniforms.uSun.value.copy(sun.color);
   sun.intensity *= wx.sunK; tod.hemiI *= 0.75 + 0.25 * wx.sunK;
-  tod.label = (h < 5.2 || h >= 20.5 ? '🌙 밤' : h < 9 ? '🌅 아침' : h < 16.5 ? '☀️ 낮' : '🌇 저녁') + WX_LABEL[wx.kind];
+  tod.label = (h < 5.2 || h >= 20.5 ? '밤' : h < 9 ? '아침' : h < 16.5 ? '낮' : '저녁') + WX_LABEL[wx.kind];
 }
 // 별 · 달
 const stars = (() => { const n = 1400, p = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, y = Math.abs(u) * 0.95 + 0.05, rr = Math.sqrt(1 - y * y); p.set([Math.cos(a) * rr * 1500, y * 1500, Math.sin(a) * rr * 1500], i * 3); }
@@ -562,14 +563,16 @@ $('#cable').onclick = () => {
   if (me.riding) return; exitPhoto();
   const atTop = me.pos.distanceTo(TOPS) < me.pos.distanceTo(STA);
   me.riding = { t: 0, dur: 14, dir: atTop ? -1 : 1 }; bump('cable');
-  $('#rideT').textContent = atTop ? '🚡 마을로 내려가는 중' : '🚡 산꼭대기로 올라가는 중'; $('#rideBar').style.width = '0'; $('#ride').classList.add('on');
+  $('#rideT').textContent = atTop ? '마을로 내려가는 중' : '산꼭대기로 올라가는 중'; $('#rideBar').style.width = '0'; $('#ride').classList.add('on');
   me.target = null; $('#cable').disabled = true;
   closeDrawer();
 };
 // 🏘 마을로 · 🦁 초원으로 · 🏜️ 사막으로: 로딩 화면처럼 노을 사진 위에 '○○로 가는 중' + 진행선이 차오른 뒤 도착
 // ☰ 메뉴 서랍: 도감 · 앨범 · 꾸미기 · 설정 · 이동. 하나를 누르면 닫혀요
+// 창은 하나만: 상점 · 캐릭터 · 도감 · 앨범 · 꾸미기 · 어디로 · 설정 · 메뉴
+function closePanels() { closeCloset(); closeDex(); closeAlbum(); ['#deco', '#places', '#settings'].forEach((q) => $(q).classList.remove('on')); closeActs(); }
 function closeDrawer() { $('#drawer').classList.remove('on'); $('#drawer').setAttribute('aria-hidden', 'true'); $('#drawerBtn').setAttribute('aria-expanded', 'false'); }
-$('#drawerBtn').onclick = (e) => { e.stopPropagation(); const on = !$('#drawer').classList.contains('on'); if (!on) return closeDrawer(); $('#drawer').classList.add('on'); $('#drawer').setAttribute('aria-hidden', 'false'); $('#drawerBtn').setAttribute('aria-expanded', 'true'); };
+$('#drawerBtn').onclick = (e) => { e.stopPropagation(); const on = !$('#drawer').classList.contains('on'); if (!on) return closeDrawer(); closePanels(); $('#drawer').classList.add('on'); $('#drawer').setAttribute('aria-hidden', 'false'); $('#drawerBtn').setAttribute('aria-expanded', 'true'); };
 $('#drawer').addEventListener('click', (e) => { if (e.target.closest('button') && e.target.closest('button').id !== 'setBtn') closeDrawer(); });
 // 📘 매뉴얼
 function closeManual() { $('#manual').classList.remove('on'); $('#manual').setAttribute('aria-hidden', 'true'); }
@@ -616,10 +619,10 @@ function herdOf(zone) {
   return a.home.clone();
 }
 // 마을가기: 산꼭대기에서는 케이블카, 섬에서는 배로 돌아와요
-$('#home').onclick = () => { if (curZone === 'arctic') $('#cable').onclick(); else if (curZone === 'isle') rideFerry(); else travelTo('🏘 마을로 돌아가는 중', () => VIL.clone().add(V.set(0, 0, 8))); };
+$('#home').onclick = () => { if (curZone === 'arctic') $('#cable').onclick(); else if (curZone === 'isle') rideFerry(); else travelTo('마을로 돌아가는 중', () => VIL.clone().add(V.set(0, 0, 8))); };
 $('#goHome').onclick = () => enterHome();   // 어디서든 맨 위 단추로 집 안에 들어가요
-$('#goSav').onclick = () => travelTo('🦁 초원으로 가는 중', () => YARD.savanna.pos.clone());
-$('#goDes').onclick = () => travelTo('🏜️ 사막으로 가는 중', () => YARD.desert.pos.clone());
+$('#goSav').onclick = () => travelTo('초원으로 가는 중', () => YARD.savanna.pos.clone());
+$('#goDes').onclick = () => travelTo('사막으로 가는 중', () => YARD.desert.pos.clone());
 // 지금 있는 구역의 단추는 숨겨요 (마을에선 '마을로'가 없어요). 산꼭대기에선 케이블카가 '마을로 내려가기'
 function updMoves(z) {
   // 다섯 단계: 마을(+마을 바닷가) → 초원 → 사막 → 산꼭대기 → 섬(+섬 바닷가). 지금 있는 곳의 단추만 숨겨요
@@ -659,7 +662,7 @@ $('#sAmb').oninput = (e) => { SET.amb = +e.target.value; snd.setVolume('amb', SE
 // 도감 · 사진 순서: 마을 → 마을 바닷가 → 초원 → 사막 → 정글 → 산꼭대기 → 섬 → 섬 바닷가
 const ZORDER = ['village', 'sea', 'savanna', 'desert', 'jungle', 'arctic', 'isle', 'islesea'];
 const DEX = ROSTER.map(([zone, id, name, , , , , , night]) => [id, name, zone, night]).sort((a, b) => ZORDER.indexOf(a[2]) - ZORDER.indexOf(b[2]));
-const ZLAB = { village: '🏘 마을', sea: '🌊 마을 바닷가', savanna: '🦁 초원', desert: '🏜️ 사막', jungle: '🌴 정글', arctic: '🐧 산꼭대기', isle: '🏝 섬', islesea: '🏖 섬 바닷가' };
+const ZLAB = { village: '마을', sea: '마을 바닷가', savanna: '초원', desert: '사막', jungle: '정글', arctic: '산꼭대기', isle: '섬', islesea: '섬 바닷가' };
 let dex = (() => { try { return JSON.parse(localStorage.getItem('snapzoo-island-dex') || '{}'); } catch { return {}; } })();
 const saveDex = () => { try { localStorage.setItem('snapzoo-island-dex', JSON.stringify(dex)); } catch {} };
 const starsOf = (sc) => (sc >= 85 ? 3 : sc >= 60 ? 2 : sc > 0 ? 1 : 0);
@@ -710,9 +713,9 @@ function subjects() {
     if (!a.g.visible) continue; const h = a.tagH - 0.35, c = a.pos.clone(); c.y += h * 0.55;
     if (c.distanceTo(eye) > Math.min(45, Math.max(9, h * 30)) || !seenFrom(eye, c)) continue;   // 멀거나 언덕 너머면 안 찍혀요 (작은 동물은 가까이서만)
     const toMe = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z), look = Math.abs(Math.atan2(Math.sin(toMe - a.g.rotation.y), Math.cos(toMe - a.g.rotation.y))) < 0.55 && a.pos.distanceTo(me.pos) < 20;
-    out.push({ id: a.id, name: a.name, c, h, moment: a.heart > 0 || a.call > 0 ? '♥ 반가워해요' : look ? '👀 나를 바라봐요' : '' });
+    out.push({ id: a.id, name: a.name, c, h, moment: a.heart > 0 || a.call > 0 ? '♥ 반가워해요' : look ? '나를 바라봐요' : '' });
   }
-  for (const d of dolphins) { if (d.g.position.y < -0.6 || d.g.position.distanceTo(eye) > 45 || !seenFrom(eye, d.g.position)) continue; out.push({ id: 'dolphin', name: '돌고래', c: d.g.position.clone(), h: 1.1, moment: d.g.position.y > 1 ? '🐬 뛰어올랐어요' : '' }); }   // 물 위로 보일 때만
+  for (const d of dolphins) { if (d.g.position.y < -0.6 || d.g.position.distanceTo(eye) > 45 || !seenFrom(eye, d.g.position)) continue; out.push({ id: 'dolphin', name: '돌고래', c: d.g.position.clone(), h: 1.1, moment: d.g.position.y > 1 ? '뛰어올랐어요' : '' }); }   // 물 위로 보일 때만
   return out;
 }
 function pickTarget() {
@@ -758,7 +761,7 @@ function evaluate() {
 const SCORE = { center: 40, size: 30, moment: 30 };
 function showHint(ev) {
   if (!ev) { $('#fhint').textContent = '동물을 네모 안에 담아 보세요 · 끌어서 조준'; return; }
-  const tip = ev.ratio < 0.22 ? '➕ 조금 더 가까이' : ev.ratio > 0.85 ? '➖ 너무 가까워요' : ev.center < 26 ? '가운데로 맞춰요' : !ev.moment ? '👋 인사하면 반겨 줘요' : ev.o.moment;
+  const tip = ev.ratio < 0.22 ? '조금 더 가까이' : ev.ratio > 0.85 ? '너무 가까워요' : ev.center < 26 ? '가운데로 맞춰요' : !ev.moment ? '인사하면 반겨 줘요' : ev.o.moment;
   $('#fhint').textContent = `${ev.o.name} · ${ev.total}점 · ${tip}`;
 }
 let lastShot = -1e9;   // 연타 금지: 1초에 한 번만 찍혀요
@@ -779,7 +782,7 @@ function shoot() {
   // 🪙 코인 규칙 (2026-11-07): 새 도감 20 + 점수/10 · 최고 점수 넘김 5 + 점수/10 · 같거나 낮으면 10 (같은 동물 1분에 한 번) · 두 마리 이상 +20 (1분에 한 번) · 포토 스팟 +30 (스팟마다 하루 한 번)
   if (sp) {
     const old = dex[sp.id], nowT2 = Date.now(), day = new Date().toDateString(); MY.payT ||= {};
-    if (!old) { badge = '📖 새 도감 등록!'; isNew = true; dex[sp.id] = { score, stars, shots: 1, at: nowT2 }; earn = 20 + Math.round(score / 10); }
+    if (!old) { badge = '새 도감 등록!'; isNew = true; dex[sp.id] = { score, stars, shots: 1, at: nowT2 }; earn = 20 + Math.round(score / 10); }
     else if (score > old.score) { badge = '최고 사진 바꿈!'; Object.assign(old, { score, stars, shots: old.shots + 1, at: nowT2 }); earn = 5 + Math.round(score / 10); }
     else { old.shots++; if (nowT2 - (MY.payT[sp.id] || 0) >= 60000) { MY.payT[sp.id] = nowT2; earn = 10; badge = `최고 사진은 ${old.score}점이에요`; } else { badge = `최고 ${old.score}점을 넘거나 1분 뒤에 코인을 받아요`; } }
     // 네모 안의 다른 동물도 도감에 올려요 (두세 마리까지)
@@ -787,7 +790,7 @@ function shoot() {
     for (const x of [...(ev.all || [])].sort((a, b) => b.total - a.total)) {
       if (seenIds.has(x.o.id) || seenIds.size >= 3) continue; seenIds.add(x.o.id); friends2.push(x.o);
       const d2 = dex[x.o.id], s2 = x.total;
-      if (!d2) { dex[x.o.id] = { score: s2, stars: starsOf(s2), shots: 1, at: nowT2 }; earn += 20 + Math.round(s2 / 10); isNew = true; badge = '📖 새 도감 등록!'; }
+      if (!d2) { dex[x.o.id] = { score: s2, stars: starsOf(s2), shots: 1, at: nowT2 }; earn += 20 + Math.round(s2 / 10); isNew = true; badge = '새 도감 등록!'; }
       else { d2.shots++; if (s2 > d2.score) Object.assign(d2, { score: s2, stars: starsOf(s2), at: nowT2 }); }
     }
     if ((ev.all || []).length >= 2 && nowT2 - (MY.payT.duo || 0) >= 60000) { MY.payT.duo = nowT2; earn += 20; note = ' · 두 마리 +20'; }
@@ -804,13 +807,13 @@ function shoot() {
     g.drawImage(shot, 40, 40); g.strokeStyle = 'rgba(60,40,20,.25)'; g.lineWidth = 2; g.strokeRect(40, 40, 1000, 750);
     g.fillStyle = '#3a2e24'; g.font = '58px OngleipUnz, sans-serif'; g.fillText(sp ? sp.name : zone, 52, 870);
     if (sp) { const x0 = 52 + g.measureText(sp.name).width + 26; g.font = '46px OngleipUnz, sans-serif'; for (let i = 0; i < 3; i++) { g.fillStyle = i < stars ? '#e0a030' : '#ddd3c2'; g.fillText('★', x0 + i * 50, 866); } }
-    g.fillStyle = '#7a6a5a'; g.font = '38px OngleipUnz, sans-serif'; g.fillText(sp ? `${spot ? '📍 ' + spot.name : zone} · ${score}점${sp.moment ? ' · ' + sp.moment : ''}` : '조용한 한때', 54, 930);
+    g.fillStyle = '#7a6a5a'; g.font = '38px OngleipUnz, sans-serif'; g.fillText(sp ? `${spot ? '' + spot.name : zone} · ${score}점${sp.moment ? ' · ' + sp.moment : ''}` : '조용한 한때', 54, 930);
     g.font = '24px OngleipUnz, sans-serif'; g.fillStyle = 'rgba(90,70,50,.55)'; g.textAlign = 'right'; g.fillText('Snapzoo · snapzoo.site', 1032, 985); g.textAlign = 'left';   // 공유할 때 보이는 작은 표시
     g.textAlign = 'right'; g.font = '32px OngleipUnz, sans-serif'; g.fillText(`${at.getFullYear()}. ${at.getMonth() + 1}. ${at.getDate()}`, 1032, 930);
     // 결과(폴라로이드 · 점수 · 도감)를 먼저 보여 주고, 앨범 저장은 그 뒤에 해요. 저장이 막혀도 결과는 떠요
     const done = async (blob, src) => {
       const t = $('#toast'); t.querySelector('img').src = src;
-      const msg = sp ? `<b>${[sp.name, ...friends2.map((o) => o.name)].join(' · ')} ${starHTML(stars)} ${score}점</b><small>${badge}${earn ? ` · 🪙 +${earn}` : ''}${note}${spot ? ` · 📍 ${spot.name}` : ''}</small>` : '<b>찰칵!</b><small>동물은 안 찍혔어요</small>';
+      const msg = sp ? `<b>${[sp.name, ...friends2.map((o) => o.name)].join(' · ')} ${starHTML(stars)} ${score}점</b><small>${badge}${earn ? ` · 🪙 +${earn}` : ''}${note}${spot ? ` · ${spot.name}` : ''}</small>` : '<b>찰칵!</b><small>동물은 안 찍혔어요</small>';
       t.querySelector('span').innerHTML = msg;
       t.classList.add('on'); clearTimeout(shoot.tt); shoot.tt = setTimeout(() => { t.classList.remove('on'); if (src.startsWith('blob:')) URL.revokeObjectURL(src); }, 4500);
       if (isNew) snd.chime();
@@ -829,7 +832,7 @@ function shoot() {
 // 사진이 무서운 어린이도 볼 수 있게 도감은 글자만. 사진은 [📷 사진 보기] 를 눌렀을 때만 (2026-11-07)
 let dexTab = 'dex';
 let dexCat = 'all';
-const DCATS = [['all', '전체'], ['village', '🏘 마을'], ['sea', '🌊 마을 바닷가'], ['savanna', '🦁 초원'], ['desert', '🏜️ 사막'], ['jungle', '🌴 정글'], ['arctic', '🐧 산꼭대기'], ['isle', '🏝 섬'], ['islesea', '🏖 섬 바닷가'], ['bug', '🦋 곤충']];
+const DCATS = [['all', '전체'], ['village', '마을'], ['sea', '마을 바닷가'], ['savanna', '초원'], ['desert', '사막'], ['jungle', '정글'], ['arctic', '산꼭대기'], ['isle', '섬'], ['islesea', '섬 바닷가'], ['bug', '곤충']];
 function dexChips(cat) {
   if (cat === 'bug') { const B = MY.bugs || {}; return BUG_KINDS.map(([n]) => `<div class="dchip ${B[n] ? 'got' : ''}">${n}</div>`).join(''); }
   return DEX.filter((d) => d[2] === cat).map(([id, name]) => (dex[id] ? `<button type="button" class="dchip got" data-id="${id}">${name}</button>` : `<div class="dchip">${name}</div>`)).join('');
@@ -844,7 +847,7 @@ function drawDex() {
   $('#dexGrid').className = isDex ? 'text' : 'badges';
   $('#dexGrid').innerHTML = isDex
     ? `<div class="dcats">${DCATS.map(([k, l]) => `<button type="button" data-cat="${k}" class="${dexCat === k ? 'on' : ''}">${l}</button>`).join('')}</div>` + (dexCat === 'all' ? DCATS.slice(1).map(([k, l]) => `<h4 class="dsec">${l}</h4>${dexChips(k)}`).join('') : dexChips(dexCat))
-    : BL.map((b) => `<div class="bdg ${(MY.badges || []).includes(b.id) ? 'got' : ''}"><i>${b.icon}</i><b>${b.name}</b><small>${b.cap}</small></div>`).join('');
+    : BL.map((b) => `<div class="bdg ${(MY.badges || []).includes(b.id) ? 'got' : ''}"><i>${ICON[BADGE_ICON[b.id]] || ICON.medal}</i><b>${b.name}</b><small>${b.cap}</small></div>`).join('');
 }
 async function openDex() {
   checkBadges(); drawDex();
@@ -884,7 +887,7 @@ let urls = [], viewing = null, albumList = [], viewI = 0;
 async function openAlbum() {
   const list = (await listPhotos()).filter((p) => !String(p.id).startsWith('best-')); urls.forEach((u) => URL.revokeObjectURL(u)); urls = [];
   $('#albumN').textContent = list.length ? `${list.length}장` : '';
-  $('#grid').innerHTML = list.length ? '' : '<p class="empty">아직 사진이 없어요. 📷 사진 찍기로 동물을 담아 보세요</p>';
+  $('#grid').innerHTML = list.length ? '' : '<p class="empty">아직 사진이 없어요. 사진 찍기로 동물을 담아 보세요</p>';
   albumList = list;
   list.forEach((ph, i) => { const u = URL.createObjectURL(ph.blob); urls.push(u); const b = document.createElement('button'); b.setAttribute('aria-label', `${ph.zone} 사진 크게 보기`); b.innerHTML = `<img src="${u}" alt="" style="--tilt:${((i * 37) % 7) - 3}deg">`; b.onclick = () => { viewI = i; view(ph, u); }; $('#grid').append(b); });
   $('#album').classList.add('on'); $('#album').setAttribute('aria-hidden', 'false');
@@ -898,7 +901,7 @@ function flip(d) { if (!albumList.length) return; viewI = (viewI + d + albumList
 $('#vPrev').onclick = () => flip(-1); $('#vNext').onclick = () => flip(1);
 addEventListener('keydown', (e) => { if (!$('#viewer').classList.contains('on')) return; if (e.code === 'ArrowLeft') { flip(-1); e.stopImmediatePropagation(); } if (e.code === 'ArrowRight') { flip(1); e.stopImmediatePropagation(); } }, true);
 let swipeX = null; $('#viewer').addEventListener('pointerdown', (e) => { swipeX = e.clientX; }); $('#viewer').addEventListener('pointerup', (e) => { if (swipeX !== null && Math.abs(e.clientX - swipeX) > 50) flip(e.clientX < swipeX ? 1 : -1); swipeX = null; });
-$('#vHang').onclick = () => { if (!viewing) return; const H = MY.home ||= { wall: 'cream', items: [], pics: [] }; if (H.pics.includes(viewing.id)) { toastMsg('이미 벽에 걸려 있어요', '집 안 🎨 꾸미기에서 내릴 수 있어요'); return; } if (H.pics.length >= PICS.length) { toastMsg('벽이 꽉 찼어요', '집 안 🎨 꾸미기에서 내린 뒤 걸어 주세요'); return; } H.pics.push(viewing.id); saveMy(); toastMsg('🖼 집 벽에 걸었어요', '우리 집에 들어가면 보여요'); };
+$('#vHang').onclick = () => { if (!viewing) return; const H = MY.home ||= { wall: 'cream', items: [], pics: [] }; if (H.pics.includes(viewing.id)) { toastMsg('이미 벽에 걸려 있어요', '집 안 꾸미기에서 내릴 수 있어요'); return; } if (H.pics.length >= PICS.length) { toastMsg('벽이 꽉 찼어요', '집 안 꾸미기에서 내린 뒤 걸어 주세요'); return; } H.pics.push(viewing.id); saveMy(); toastMsg('집 벽에 걸었어요', '우리 집에 들어가면 보여요'); };
 $('#vDel').onclick = async () => { if (!viewing) return; await removePhoto(viewing.id); $('#viewer').classList.remove('on'); openAlbum(); };
 addEventListener('keydown', (e) => { if (e.key === 'Escape') { if ($('#viewer').classList.contains('on')) $('#viewer').classList.remove('on'); else { closeAlbum(); closeDex(); $('#settings').classList.remove('on'); } } });
 
@@ -908,31 +911,34 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape') { if ($('#viewer').
 // ───────── 👤 꾸미기 · 🛍 상점: 성별 · 옷 여덟 벌 · 모자 여섯. 안 가진 건 사진으로 모은 코인으로 사요 ─────────
 const PRICE = { look: 800, hat: [0, 1000, 800, 1500, 2000, 0] };   // 🪙 1초에 1개씩 모여요 (하루 최대 3600)
 const SW = ['#6f7d4c', '#4f6a8a', '#a8604a', '#d8b062', '#7a5a8a', '#3f6a5a', '#c8907a', '#5a5a62'];
-const HAT_ICON = ['👒', '🧢', '🧶', '🤠', '🌸', '🙂'];
 function updCoins() { const left = Math.max(0, 3600 - (MY.today?.sec || 0)); $('#coins').textContent = `🪙 ${MY.coins}${left ? '' : ' · 오늘 다 모았어요'}`; $('#ccoins').textContent = `🪙 ${MY.coins} · 오늘 ${Math.floor((MY.today?.sec || 0) / 60)}분 / 60분`; }
 function remakeMe() {
   const ns = makeWalker(MY.look, { g: MY.g, hat: MY.hat, body: MY.body, cam: MY.cam }); ns.root.position.copy(me.g.position); ns.root.rotation.y = me.g.rotation.y; ns.root.visible = me.g.visible;
   scene.remove(me.g); scene.add(ns.root); me.g = ns.root; me.st = ns;
 }
 let pendingBuy = null;
+// 소호랩처럼 묶음별 카드: 그림 · 이름 · 설명 · 가격. 캐릭터 창은 가진 것만, 상점은 전부
+function card(attr, thumb, name, sub, own, on, price, ask) {
+  return `<button type="button" ${attr} class="scard ${own ? 'owned' : 'lock'} ${on ? 'on' : ''} ${ask ? 'ask' : ''}"><span class="th">${thumb}</span><b>${name}</b>${sub ? `<small>${sub}</small>` : ''}<em>${ask ? '한 번 더 누르면 사요' : on ? '쓰는 중' : own ? '가지고 있어요' : '🪙 ' + price}</em></button>`;
+}
 function drawCloset() {
   updCoins();
   const g = (v, t) => `<button type="button" data-g="${v}" class="${MY.g === v ? 'on' : ''}">${t}</button>`;
-  $('#cGender').innerHTML = g('f', '👩 여자') + g('m', '👨 남자');
+  $('#cGender').innerHTML = g('f', '여자') + g('m', '남자');
   $('#cBody').innerHTML = BODIES.map((b, i) => `<button type="button" data-body="${i}" class="${MY.body === i ? 'on' : ''}">${i + 1} · ${b.name}</button>`).join('');
-  $('#cLooks').innerHTML = SW.map((c, i) => { const own = MY.own.looks.includes(i); return `<button type="button" data-look="${i}" class="sw ${MY.look === i ? 'on' : ''} ${own ? '' : 'lock'} ${pendingBuy === 'look' + i ? 'ask' : ''}" style="--c:${c}" aria-label="옷 ${i + 1}${own ? '' : ` · ${PRICE.look}코인`}">${own ? '' : `<small>${pendingBuy === 'look' + i ? '사기?' : '🪙' + PRICE.look}</small>`}</button>`; }).join('');
-  $('#cCams').innerHTML = CAMERAS.map((c) => { const own = MY.own.cams.includes(c.id), k = 'cam' + c.id; return `<button type="button" data-cam="${c.id}" class="cam ${MY.cam === c.id ? 'on' : ''} ${own ? '' : 'lock'} ${pendingBuy === k ? 'ask' : ''}"><span>${c.icon}</span><b>${c.name}</b><em>${c.desc}</em>${own ? (MY.cam === c.id ? '<small>쓰는 중</small>' : '<small>가지고 있어요</small>') : `<small>${pendingBuy === k ? '한 번 더 누르면 사요' : '🪙 ' + c.price}</small>`}</button>`; }).join('');
+  $('#cLooks').innerHTML = SW.map((c, i) => card(`data-look="${i}"`, `<i class="swatch" style="background:${c}"></i>`, `옷 ${i + 1}`, '', MY.own.looks.includes(i), MY.look === i, PRICE.look, pendingBuy === 'look' + i)).join('');
+  $('#cHats').innerHTML = HATS.map((n, i) => card(`data-hat="${i}"`, ICON['hat' + i], n, '', MY.own.hats.includes(i), MY.hat === i, PRICE.hat[i], pendingBuy === 'hat' + i)).join('');
+  $('#cCams').innerHTML = CAMERAS.map((c) => card(`data-cam="${c.id}"`, ICON['cam_' + c.id], c.name, c.desc, MY.own.cams.includes(c.id), MY.cam === c.id, c.price, pendingBuy === 'cam' + c.id)).join('');
   MY.own.furn ||= []; MY.own.walls ||= ['cream']; const hm = MY.home ||= { wall: 'cream', items: [], pics: [] };
-  $('#cFurn').innerHTML = FURN.map(([id, ic, n, pr]) => { const own = MY.own.furn.includes(id); return `<button type="button" data-furn="${id}" class="${own ? 'on' : 'lock'} ${pendingBuy === 'f' + id ? 'ask' : ''}"><span>${ic}</span>${n}<small>${own ? '가짐' : '🪙 ' + pr}</small></button>`; }).join('');
-  $('#cWalls').innerHTML = WALLS.map(([id, n, c, pr]) => { const own = MY.own.walls.includes(id); return `<button type="button" data-wall="${id}" class="${hm.wall === id ? 'on' : ''} ${own ? '' : 'lock'} ${pendingBuy === 'w' + id ? 'ask' : ''}"><i style="background:${c}"></i>${n}<small>${own ? (hm.wall === id ? '쓰는 중' : '바르기') : '🪙 ' + pr}</small></button>`; }).join('');
-  $('#cHats').innerHTML = HATS.map((n, i) => { const own = MY.own.hats.includes(i); return `<button type="button" data-hat="${i}" class="${MY.hat === i ? 'on' : ''} ${own ? '' : 'lock'} ${pendingBuy === 'hat' + i ? 'ask' : ''}"><span>${HAT_ICON[i]}</span>${n}${own ? '' : `<small>${pendingBuy === 'hat' + i ? '한 번 더 누르면 사요' : '🪙 ' + PRICE.hat[i]}</small>`}</button>`; }).join('');
+  $('#cFurn').innerHTML = FURN.map(([id, , n, pr]) => card(`data-furn="${id}"`, ICON[id], n, '집 안 꾸미기에서 놓아요', MY.own.furn.includes(id), false, pr, pendingBuy === 'f' + id)).join('');
+  $('#cWalls').innerHTML = WALLS.map(([id, n, c, pr]) => card(`data-wall="${id}"`, `<i class="swatch sq" style="background:${c}"></i>`, n, '', MY.own.walls.includes(id), hm.wall === id, pr, pendingBuy === 'w' + id)).join('');
 }
 function closetTap(kind, i) {
   const own = MY.own[kind === 'look' ? 'looks' : kind === 'cam' ? 'cams' : 'hats'], price = kind === 'look' ? PRICE.look : kind === 'cam' ? CAMERAS.find((c) => c.id === i).price : PRICE.hat[i], key = kind + i;
   if (!own.includes(i)) {
     if (MY.coins < price) { $('#cMsg').textContent = `코인이 ${price - MY.coins}개 모자라요. 섬에 머무는 1초마다 1개씩 모여요 (하루 최대 3600)`; return; }
     if (pendingBuy !== key) { pendingBuy = key; $('#cMsg').textContent = `🪙 ${price}코인으로 살까요? 한 번 더 누르면 사요`; drawCloset(); return; }
-    MY.coins -= price; own.push(i); pendingBuy = null; bump('buy'); $('#cMsg').textContent = '🛍 샀어요! 바로 입어 볼게요'; snd.chime();
+    MY.coins -= price; own.push(i); pendingBuy = null; bump('buy'); $('#cMsg').textContent = '샀어요! 바로 입어 볼게요'; snd.chime();
   } else { pendingBuy = null; $('#cMsg').textContent = ''; }
   if (kind === 'look') MY.look = i; else if (kind === 'cam') { MY.cam = i; setZoom(zoom); } else MY.hat = i;
   saveMy(); remakeMe(); drawCloset();
@@ -941,7 +947,7 @@ function homeBuy(key, price, have, give) {
   if (have) { give(); return; }
   if (MY.coins < price) { $('#cMsg').textContent = `코인이 ${price - MY.coins}개 모자라요`; return; }
   if (pendingBuy !== key) { pendingBuy = key; $('#cMsg').textContent = `🪙 ${price}코인으로 살까요? 한 번 더 누르면 사요`; drawCloset(); return; }
-  MY.coins -= price; pendingBuy = null; give(); bump('buy'); $('#cMsg').textContent = '🛍 샀어요! 집에서 볼 수 있어요'; snd.chime();
+  MY.coins -= price; pendingBuy = null; give(); bump('buy'); $('#cMsg').textContent = '샀어요! 집에서 볼 수 있어요'; snd.chime();
 }
 $('#closet').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
@@ -961,8 +967,9 @@ function drawNick() {
 }
 function changeNick(n) { setMyName(n); drawNick(); showPeople(); $('#cMsg').textContent = `이제 '${n}'(으)로 보여요`; }
 $('#nA').onchange = $('#nB').onchange = () => changeNick(`${$('#nA').value} ${$('#nB').value}`);
+$('#cToShop').onclick = () => openCloset('shop');
 $('#nRand').onclick = () => changeNick(`${NAME_A[Math.floor(Math.random() * NAME_A.length)]} ${NAME_B[Math.floor(Math.random() * NAME_B.length)]}`);
-function openCloset(kind = 'char') { closetKind = kind; const c = $('#closet'); c.classList.toggle('char', kind === 'char'); c.classList.toggle('shop', kind === 'shop'); $('#cTitle').textContent = kind === 'char' ? '👤 캐릭터' : '🛍 상점'; c.setAttribute('aria-label', kind === 'char' ? '캐릭터' : '상점'); drawNick();
+function openCloset(kind = 'char') { closePanels(); closeDrawer(); closetKind = kind; const c = $('#closet'); c.classList.toggle('char', kind === 'char'); c.classList.toggle('shop', kind === 'shop'); $('#cTitle').innerHTML = kind === 'char' ? '캐릭터' : '상점'; c.setAttribute('aria-label', kind === 'char' ? '캐릭터' : '상점'); drawNick();
   closeAlbum(); closeDex(); pendingBuy = null; $('#cMsg').textContent = ''; drawCloset(); $('#closet').classList.add('on'); $('#closet').setAttribute('aria-hidden', 'false'); $('#closetX').focus({ preventScroll: true }); }
 function closeCloset() { $('#closet').classList.remove('on'); $('#closet').setAttribute('aria-hidden', 'true'); }
 const toggleCloset = (k) => ($('#closet').classList.contains('on') && closetKind === k ? closeCloset() : openCloset(k));
@@ -1010,7 +1017,7 @@ const SPOTS = [];
 function addSpot(name, p) {
   if (!p) return; const y = height(p.x, p.z), g = new THREE.Group(); g.position.set(p.x, Math.max(y, 0.05) + 0.06, p.z); scene.add(g);
   const ring = new THREE.Mesh(new THREE.RingGeometry(2.6, 3.0, 48), new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.55, depthWrite: false, fog: false })); ring.rotation.x = -Math.PI / 2; g.add(ring);
-  const c = document.createElement('canvas'); c.width = 512; c.height = 128; const x = c.getContext('2d'); x.fillStyle = 'rgba(18,14,12,.6)'; x.beginPath(); x.roundRect(8, 16, 496, 96, 40); x.fill(); x.fillStyle = '#fff3d6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.fillText('📍 ' + name, 256, 84);
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128; const x = c.getContext('2d'); x.fillStyle = 'rgba(18,14,12,.6)'; x.beginPath(); x.roundRect(8, 16, 496, 96, 40); x.fill(); x.fillStyle = '#fff3d6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.fillText('' + name, 256, 84);
   const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })); sign.scale.set(4, 1, 1); sign.position.y = 3.4; g.add(sign);
   // 멀리서도 보이는 금빛 기둥
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.5, 46, 16, 1, true), new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide, fog: false })); beam.position.y = 23; g.add(beam);
@@ -1036,7 +1043,7 @@ rainG.setAttribute('position', new THREE.BufferAttribute(rainP, 3));
 const rain = new THREE.LineSegments(rainG, new THREE.LineBasicMaterial({ color: '#c8d8e8', transparent: true, opacity: 0, depthWrite: false })); rain.frustumCulled = false; scene.add(rain);
 const bow = new THREE.Group(); scene.add(bow); bow.visible = false;
 ['#ff5a5a', '#ff9a3a', '#ffe24a', '#5ad25a', '#4a9aff', '#5a5ad8', '#a05ad8'].forEach((c, i) => { const t = new THREE.Mesh(new THREE.TorusGeometry(420 - i * 9, 4.5, 6, 80, Math.PI), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0, depthWrite: false, fog: false })); bow.add(t); });
-const WX_LABEL = { clear: '', rain: ' · 🌧 비', fog: ' · 🌫 안개', rainbow: ' · 🌈 무지개' };
+const WX_LABEL = { clear: '', rain: ' · 비', fog: ' · 안개', rainbow: ' · 무지개' };
 function updWeather(T, dt, z0) {
   if (T > wx.until) { const r = Math.random(); wx.kind = wx.kind === 'rain' ? (tod.night < 0.5 ? 'rainbow' : 'clear') : r < 0.55 ? 'clear' : r < 0.8 ? 'rain' : 'fog'; wx.until = T + (wx.kind === 'rainbow' ? 70 : 180 + Math.random() * 120); }
   const k = Math.min(1, dt * 0.4), wantRain = wx.kind === 'rain' && z0 !== 'arctic' && z0 !== 'desert' ? 1 : 0;
@@ -1056,18 +1063,18 @@ function updCtx() {
   if (mode === 'photo' || me.riding) { $('#ctx').hidden = true; return; }
   let kind = '', label = '';
   const st = !me.inHome && [STA, TOPS].find((p) => Math.hypot(p.x - me.pos.x, p.z - me.pos.z) < 7.5), hs = me.inHome && Object.keys(HS).find((k) => Math.hypot(ROOM.x + HS[k].x - me.pos.x, ROOM.z + HS[k].z - me.pos.z) < 1.7);
-  if (sitting) { kind = 'stand'; label = '🚶 일어나기'; }
-  else if (me.inHome && me.pos.z > ROOM.z + 2.3 && Math.abs(me.pos.x - ROOM.x) < 1.6) { kind = 'out'; label = '🚪 밖으로 나가기'; }
+  if (sitting) { kind = 'stand'; label = '일어나기'; }
+  else if (me.inHome && me.pos.z > ROOM.z + 2.3 && Math.abs(me.pos.x - ROOM.x) < 1.6) { kind = 'out'; label = '밖으로 나가기'; }
   else if (hs) { kind = hs; label = HS[hs].label; }
   else if (me.inHome) { kind = ''; }
-  else if (Math.hypot(HOME.door.x - me.pos.x, HOME.door.z - me.pos.z) < 3) { kind = 'in'; label = '🏠 우리 집 들어가기'; }
-  else if (nearPier()) { kind = 'ferry'; label = curZone === 'isle' ? '🚢 배 타고 마을로' : '🚢 배 타고 섬으로'; }
-  else if (st) { kind = 'cable'; label = st === STA ? '🚡 케이블카 타기 · 산꼭대기로' : '🚡 케이블카 타기 · 마을로'; }
-  else if (nearSeat()) { kind = 'sit'; label = '🪑 모닥불 곁에 앉기'; }
-  else { ctxA = nearAnimal(); if (ctxA) { kind = 'feed'; label = (ctxA.fedT > 0 ? '🤲 쓰다듬기 · ' : '🥕 먹이 주기 · ') + ctxA.name; } }
+  else if (Math.hypot(HOME.door.x - me.pos.x, HOME.door.z - me.pos.z) < 3) { kind = 'in'; label = '우리 집 들어가기'; }
+  else if (nearPier()) { kind = 'ferry'; label = curZone === 'isle' ? '배 타고 마을로' : '배 타고 섬으로'; }
+  else if (st) { kind = 'cable'; label = st === STA ? '케이블카 타기 · 산꼭대기로' : '케이블카 타기 · 마을로'; }
+  else if (nearSeat()) { kind = 'sit'; label = '모닥불 곁에 앉기'; }
+  else { ctxA = nearAnimal(); if (ctxA) { kind = 'feed'; label = (ctxA.fedT > 0 ? '쓰다듬기 · ' : '먹이 주기 · ') + ctxA.name; } }
   ctxKind = kind; $('#ctx').hidden = !kind; if ($('#ctx').textContent !== label) $('#ctx').textContent = label;
 }
-function sitDown(seat) { bump('sit'); sitting = seat; me.target = null; me.pos.copy(seat.pos); me.face = seat.face; me.st.sit = 1; me.st.seat = 0.3; toastMsg('🔥 모닥불 곁에 앉았어요', '움직이면 일어나요 · 타닥타닥 불소리를 들어 보세요'); snd.fire = 1; }
+function sitDown(seat) { bump('sit'); sitting = seat; me.target = null; me.pos.copy(seat.pos); me.face = seat.face; me.st.sit = 1; me.st.seat = 0.3; toastMsg('모닥불 곁에 앉았어요', '움직이면 일어나요 · 타닥타닥 불소리를 들어 보세요'); snd.fire = 1; }
 function standUp() { if (!sitting) return; sitting = null; me.st.sit = 0; me.lie = false; snd.fire = 0; }
 // 동물 돌보기: pet = true 쓰다듬기, false 먹이 주기 (안 정하면 먹은 뒤엔 쓰다듬기)
 function careAnimal(a, pet = a.fedT > 0) {
@@ -1077,7 +1084,7 @@ function careAnimal(a, pet = a.fedT > 0) {
   { const dx = a.pos.x - me.pos.x, dz = a.pos.z - me.pos.z, d = Math.hypot(dx, dz), stay = 1.6 + a.tagH * 0.6; if (a.speed && d > stay + 0.4) { a.target = me.pos.clone().add(V.set((dx / d) * stay, 0, (dz / d) * stay)); a.call = 8; a.wait = 0; } }
     me.face = Math.atan2(a.pos.x - me.pos.x, a.pos.z - me.pos.z); me.st.waveT = 1.0;
     if (!pet && !(a.coinT > 0)) { MY.coins += 2; a.coinT = 120; saveMy(); updCoins(); }
-    toastMsg(pet ? `🤲 ${a.name}${josa(a.name) === '과' ? '이' : '가'} 좋아해요` : `🥕 ${a.name}${josa(a.name) === '과' ? '이' : '가'} 맛있게 먹어요`, '6초 동안 곁에 머물러요 · 지금 찍으면 ♥ 특별한 순간!'); snd.chime();
+    toastMsg(pet ? `${a.name}${josa(a.name) === '과' ? '이' : '가'} 좋아해요` : `${a.name}${josa(a.name) === '과' ? '이' : '가'} 맛있게 먹어요`, '6초 동안 곁에 머물러요 · 지금 찍으면 ♥ 특별한 순간!'); snd.chime();
 }
 // 🚡 케이블카 탑승장: 지붕 · 표지판 · 바닥 고리. 곁에 가면 '케이블카 타기' 단추가 떠요
 function station(p, text) {
@@ -1090,19 +1097,19 @@ function station(p, text) {
   document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => { const x2 = c.getContext('2d'); x2.fillStyle = 'rgba(200,85,61,.95)'; x2.beginPath(); x2.roundRect(6, 10, 628, 108, 30); x2.fill(); x2.fillStyle = '#fff6e6'; x2.font = '58px OngleipUnz, sans-serif'; x2.textAlign = 'center'; x2.textBaseline = 'middle'; x2.fillText(text, 320, 66); tex.needsUpdate = true; });
 }
 { const c = document.createElement('canvas'); c.width = 320; c.height = 112; const tex = new THREE.CanvasTexture(c), sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.scale.set(2.6, 0.9, 1); sp.position.set(VIL.x + 12.2, height(VIL.x + 12.2, VIL.z) + 3, VIL.z); scene.add(sp);
-  document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => { const x = c.getContext('2d'); x.fillStyle = 'rgba(90,70,50,.92)'; x.beginPath(); x.roundRect(6, 8, 308, 96, 26); x.fill(); x.fillStyle = '#fff6e6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('🏠 우리 집', 160, 58); tex.needsUpdate = true; }); }
+  document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => { const x = c.getContext('2d'); x.fillStyle = 'rgba(90,70,50,.92)'; x.beginPath(); x.roundRect(6, 8, 308, 96, 26); x.fill(); x.fillStyle = '#fff6e6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('우리 집', 160, 58); tex.needsUpdate = true; }); }
 // 🚢 섬 가는 배: 마을 쪽 나루 ↔ 섬 나루 (케이블카처럼 타요)
 const PIER = (() => { const dx = VIL.x - ISLE.x, dz = VIL.z - ISLE.z, L = Math.hypot(dx, dz), ux = dx / L, uz = dz / L; let a = null, b = null;
   for (let r = 10; r < L; r += 0.5) { const x = ISLE.x + ux * r, z = ISLE.z + uz * r, y = height(x, z); if (!a && y < 1.1) a = new THREE.Vector3(x - ux * 1.5, 0, z - uz * 1.5); if (a && r > ISLE.r + 40 && y > 1.1) { b = new THREE.Vector3(x + ux * 1.5, 0, z + uz * 1.5); break; } }
   a.y = height(a.x, a.z); b.y = height(b.x, b.z); return { isle: a, main: b, ux, uz }; })();
 const FERRY = new THREE.QuadraticBezierCurve3(PIER.main.clone().setY(0).add(V.set(-PIER.ux * 8, 0, -PIER.uz * 8)), new THREE.Vector3((PIER.main.x + PIER.isle.x) / 2 + 12, 0, (PIER.main.z + PIER.isle.z) / 2), PIER.isle.clone().setY(0).add(V.set(PIER.ux * 8, 0, PIER.uz * 8)));
-for (const [p, s, t] of [[PIER.main, -1, '🚢 섬 가는 배'], [PIER.isle, 1, '🚢 마을 가는 배']]) {
+for (const [p, s, t] of [[PIER.main, -1, '섬 가는 배'], [PIER.isle, 1, '마을 가는 배']]) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 112; const tex = new THREE.CanvasTexture(c), sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.scale.set(4.6, 1, 1); sp.position.set(p.x, p.y + 3.2, p.z); scene.add(sp);
   document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => { const x = c.getContext('2d'); x.fillStyle = 'rgba(63,115,160,.95)'; x.beginPath(); x.roundRect(6, 8, 500, 96, 28); x.fill(); x.fillStyle = '#fff6e6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(t, 256, 58); tex.needsUpdate = true; });
   const dock = new THREE.Mesh(new RoundedBoxGeometry(2.4, 0.3, 9, 2, 0.08), toon('#9a7048')); dock.position.set(p.x + PIER.ux * s * 4, Math.max(0.5, p.y), p.z + PIER.uz * s * 4); dock.rotation.y = Math.atan2(PIER.ux, PIER.uz); dock.castShadow = true; scene.add(dock);
 }
 // 🏕 모이는 곳: 마을처럼 둥근 광장 · 모닥불 · 작은 집 · 등불
-const GATHER = [{ name: '🏘 마을 광장', pos: VIL.clone().add(V.set(0, 0, 8)) }];
+const GATHER = [{ name: '마을 광장', pos: VIL.clone().add(V.set(0, 0, 8)) }];
 function plaza(c, label, small) {
   const PR = small ? 6.5 : 9.5;
   const y = height(c.x, c.z), g = new THREE.Group(); g.position.set(c.x, y, c.z); scene.add(g);
@@ -1123,14 +1130,14 @@ function findYard(zone, base) {
   return base.clone();
 }
 const YARD = {};
-YARD.savanna = plaza(findYard('savanna', (POOLS.get('savanna') || [VIL])[0]), '🦁 초원 마당', true);
-YARD.desert = plaza(findYard('desert', (POOLS.get('desert') || [VIL])[1] || (POOLS.get('desert') || [VIL])[0]), '🏜️ 사막 마당', true);
-{ let c = null; for (let r = 16; r < 46 && !c; r += 2) for (let i = 0; i < 16 && !c; i++) { const a = i / 16 * Math.PI * 2, x = TOPS.x + Math.sin(a) * r, z = TOPS.z + Math.cos(a) * r; if (height(x, z) > 106 && riverNear(x, z).d > 15) c = new THREE.Vector3(x, 0, z); } YARD.arctic = plaza(c || TOPS.clone().add(V.set(-22, 0, 18)), '🏔 꼭대기 광장'); }
-YARD.isle = plaza(new THREE.Vector3(ISLE.x + PIER.ux * 36, 0, ISLE.z + PIER.uz * 36), '🏝 섬 광장');
+YARD.savanna = plaza(findYard('savanna', (POOLS.get('savanna') || [VIL])[0]), '초원 마당', true);
+YARD.desert = plaza(findYard('desert', (POOLS.get('desert') || [VIL])[1] || (POOLS.get('desert') || [VIL])[0]), '사막 마당', true);
+{ let c = null; for (let r = 16; r < 46 && !c; r += 2) for (let i = 0; i < 16 && !c; i++) { const a = i / 16 * Math.PI * 2, x = TOPS.x + Math.sin(a) * r, z = TOPS.z + Math.cos(a) * r; if (height(x, z) > 106 && riverNear(x, z).d > 15) c = new THREE.Vector3(x, 0, z); } YARD.arctic = plaza(c || TOPS.clone().add(V.set(-22, 0, 18)), '꼭대기 광장'); }
+YARD.isle = plaza(new THREE.Vector3(ISLE.x + PIER.ux * 36, 0, ISLE.z + PIER.uz * 36), '섬 광장');
 // 📍 어디로 갈까: 포토 스팟 · 모이는 곳 목록, 누르면 바로 가요
 function openPlaces() {
-  const row = (name, pos, done) => `<div class="dk"><span>${done ? '✅ ' : ''}${name} <small>${Math.round(Math.hypot(pos.x - me.pos.x, pos.z - me.pos.z))} m</small></span><button type="button" data-gx="${pos.x}" data-gz="${pos.z}" data-gn="${name}">가기</button></div>`;
-  $('#placeList').innerHTML = `<h3>📍 포토 스팟</h3><p class="note">안에서 동물을 찍으면 🪙 +30 (스팟마다 하루 한 번)</p>${SPOTS.map((sp) => row(sp.name, sp.pos, (MY.spots || {})[sp.name])).join('')}<h3>🏕 모이는 곳</h3>${GATHER.map((g) => row(g.name, g.pos)).join('')}<h3>🏠 우리 집</h3><div class="dk"><span>우리 집</span><button type="button" data-gohome="1">가기</button></div>`;
+  const row = (name, pos, done) => `<div class="dk"><span>${done ? '' : ''}${name} <small>${Math.round(Math.hypot(pos.x - me.pos.x, pos.z - me.pos.z))} m</small></span><button type="button" data-gx="${pos.x}" data-gz="${pos.z}" data-gn="${name}">가기</button></div>`;
+  $('#placeList').innerHTML = `<h3>포토 스팟</h3><p class="note">안에서 동물을 찍으면 🪙 +30 (스팟마다 하루 한 번)</p>${SPOTS.map((sp) => row(sp.name, sp.pos, (MY.spots || {})[sp.name])).join('')}<h3>모이는 곳</h3>${GATHER.map((g) => row(g.name, g.pos)).join('')}<h3>우리 집</h3><div class="dk"><span>우리 집</span><button type="button" data-gohome="1">가기</button></div>`;
   $('#places').classList.add('on');
 }
 $('#placeBtn').onclick = () => { if (me.inHome) { toastMsg('집에서 나간 뒤에 갈 수 있어요', '문 앞 매트로 가면 나가요'); return; } openPlaces(); };
@@ -1140,10 +1147,10 @@ const nearPier = () => [PIER.main, PIER.isle].find((p) => Math.hypot(p.x - me.po
 function rideFerry() {
   if (me.riding || me.inHome) return; exitPhoto(); standUp();
   const toIsle = curZone !== 'isle'; me.riding = { ferry: true, t: 0, dur: 14, dir: toIsle ? 1 : -1 }; bump('ferry'); me.target = null; $('#ferry').disabled = true;
-  $('#rideT').textContent = toIsle ? '🚢 섬으로 가는 중' : '🚢 마을 쪽 나루로 가는 중'; $('#rideBar').style.width = '0'; $('#ride').classList.add('on'); closeDrawer();
+  $('#rideT').textContent = toIsle ? '섬으로 가는 중' : '마을 쪽 나루로 가는 중'; $('#rideBar').style.width = '0'; $('#ride').classList.add('on'); closeDrawer();
 }
 $('#ferry').onclick = rideFerry;
-station(STA, '🚡 케이블카 타는 곳'); station(TOPS, '🚡 마을로 내려가는 곳');
+station(STA, '케이블카 타는 곳'); station(TOPS, '마을로 내려가는 곳');
 // 🏠 우리 집: 마을 동쪽 집의 문. 안은 하늘 높이 따로 만든 방이에요 (벽은 안쪽 면만 그려서 밖에서 들여다보여요)
 const ROOM = new THREE.Vector3(0, 320, 0), room = new THREE.Group(), homeItems = new THREE.Group(), wallMat = new THREE.MeshStandardMaterial({ color: '#f6e8d2', side: THREE.BackSide, roughness: 0.9 });
 const HOME = { door: new THREE.Vector3(VIL.x + 11.4, 0, VIL.z) }; HOME.door.y = height(HOME.door.x, HOME.door.z);
@@ -1152,8 +1159,8 @@ const FURN = [['plant', '🪴', '화분', 300], ['lamp', '💡', '스탠드', 40
 const WALLS = [['cream', '크림', '#f6e8d2', 0], ['mint', '민트', '#cfe8dc', 300], ['sky', '하늘', '#cfe2f2', 300], ['pink', '분홍', '#f6d8dc', 300], ['wood', '나무', '#c8a47a', 600], ['night', '밤하늘', '#3f4e72', 800]];
 const PICS = [[-4.1, 2.35], [-3, 2.35], [-1.9, 2.35], [1.8, 2.35], [2.9, 2.35], [4, 2.35]];
 const HS = {
-  bed: { x: -3.2, z: -1.9, face: 0, label: '🛏 침대에서 쉬기' }, sofa: { x: 3.2, z: -2.9, face: 0, label: '🛋 소파에 앉기' },
-  book: { x: 0, z: -2.6, face: Math.PI, label: '📚 책 읽기' }, tea: { x: 3.2, z: 0.6, face: Math.PI, label: '🍵 차 마시기' },
+  bed: { x: -3.2, z: -1.9, face: 0, label: '침대에서 쉬기' }, sofa: { x: 3.2, z: -2.9, face: 0, label: '소파에 앉기' },
+  book: { x: 0, z: -2.6, face: Math.PI, label: '책 읽기' }, tea: { x: 3.2, z: 0.6, face: Math.PI, label: '차 마시기' },
 };
 { room.position.copy(ROOM); room.visible = false; scene.add(room); room.add(homeItems);
   const wall = wallMat, floor = new THREE.MeshStandardMaterial({ color: '#b98a5a', side: THREE.BackSide, roughness: 0.8 }), ceil = new THREE.MeshStandardMaterial({ color: '#fff6e6', side: THREE.BackSide });
@@ -1170,7 +1177,8 @@ const HS = {
   B(0.06, 0.06, 3.2, '#7a5a40', -4.7, 2.3, 1.6);   // 옷걸이 봉
   for (const y of [1.2, 2]) B(0.34, 0.06, 3.6, '#8a5e3a', 4.8, y, 1.5);   // 진열 선반
   const lamp = new THREE.PointLight('#ffe6c0', 26, 18, 1.4); lamp.position.set(0, 3, 0); room.add(lamp); room.add(new THREE.AmbientLight('#fff2e0', 0.7)); }
-const emojiSprite = (ch) => { const c = document.createElement('canvas'); c.width = c.height = 96; const x = c.getContext('2d'); x.font = '76px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(ch, 48, 52); const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true })); sp.scale.setScalar(0.55); return sp; };
+const iconSprite = (name) => { const c = document.createElement('canvas'); c.width = c.height = 128; const tex = new THREE.CanvasTexture(c), sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true })); sp.scale.setScalar(0.55);
+  const im = new Image(); im.onload = () => { c.getContext('2d').drawImage(im, 0, 0, 128, 128); tex.needsUpdate = true; }; im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(ICON[name].replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" ')); return sp; };
 // 상점에서 산 것을 방에 놓아요: 옷은 옷걸이 봉에, 모자 · 사진기는 진열 선반에
 function makeFurn(id) {
   const g = new THREE.Group(), B = (w, h, d, c, x, y, z) => { const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 2, Math.min(0.05, h / 3, w / 3)), toon(c)); m.position.set(x, y, z); g.add(m); return m; }, Bl = (r, c, x, y, z) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), toon(c)); m.position.set(x, y, z); g.add(m); };
@@ -1195,21 +1203,21 @@ async function drawHomeItems() {
     const pic = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.84), new THREE.MeshBasicMaterial({ map: texLoader.load(URL.createObjectURL(ph.blob)) })); pic.position.set(slot[0], slot[1], -3.93); homeItems.add(pic);
   }
   MY.own.looks.forEach((i, n) => { const m = new THREE.Mesh(new RoundedBoxGeometry(0.1, 0.85, 0.42, 2, 0.04), toon(SW[i])); m.position.set(-4.7, 1.82, 0.2 + n * 0.4); homeItems.add(m); });
-  MY.own.hats.filter((i) => HATS[i] && i !== 5).forEach((i, n) => { const sp = emojiSprite(HAT_ICON[i]); sp.position.set(4.75, 2.3, 0.1 + n * 0.6); homeItems.add(sp); });
-  MY.own.cams.forEach((id, n) => { const sp = emojiSprite('📷'); sp.position.set(4.75, 1.5, 0.1 + n * 0.6); homeItems.add(sp); });
+  MY.own.hats.filter((i) => HATS[i] && i !== 5).forEach((i, n) => { const sp = iconSprite('hat' + i); sp.position.set(4.75, 2.3, 0.1 + n * 0.6); homeItems.add(sp); });
+  MY.own.cams.forEach((id, n) => { const sp = iconSprite('cam_' + id); sp.position.set(4.75, 1.5, 0.1 + n * 0.6); homeItems.add(sp); });
 }
 function homeDo(k) {
   const p = HS[k]; standUp(); me.target = null; me.pos.x = ROOM.x + p.x; me.pos.z = ROOM.z + p.z; me.face = p.face; sitting = { pos: me.pos.clone(), face: p.face };
   // 가구에 가리지 않게 앞쪽에서 봐요
   camera.position.set(me.pos.x + Math.sin(p.face) * 3.4 + (k === 'bed' ? 1.6 : 0), ROOM.y + 2.1, me.pos.z + Math.cos(p.face) * 3.4); controls.target.set(me.pos.x, ROOM.y + 0.9, me.pos.z);
-  if (k === 'bed') { me.lie = true; bump('rest'); const day = new Date().toDateString(), gift = MY.restDay !== day; if (gift) { MY.restDay = day; MY.coins += 20; saveMy(); updCoins(); } toastMsg('🛏 푹 쉬어요', gift ? '오늘 처음 쉬었어요 · 🪙 +20' : '움직이면 일어나요'); return; }
+  if (k === 'bed') { me.lie = true; bump('rest'); const day = new Date().toDateString(), gift = MY.restDay !== day; if (gift) { MY.restDay = day; MY.coins += 20; saveMy(); updCoins(); } toastMsg('푹 쉬어요', gift ? '오늘 처음 쉬었어요 · 🪙 +20' : '움직이면 일어나요'); return; }
   me.st.sit = 1; me.st.seat = k === 'sofa' ? 0.45 : 0.42;
-  toastMsg({ sofa: '🛋 소파에 앉았어요', book: '📚 책을 읽어요', tea: '🍵 따뜻한 차를 마셔요' }[k], '움직이면 일어나요');
+  toastMsg({ sofa: '소파에 앉았어요', book: '책을 읽어요', tea: '따뜻한 차를 마셔요' }[k], '움직이면 일어나요');
 }
 // 🎨 꾸미기 창: 가구 놓기 · 옮기기 · 치우기, 사진 벽
 async function openDeco() {
   const H = MY.home ||= { wall: 'cream', items: [], pics: [] }, own = MY.own.furn || [];
-  $('#decoFurn').innerHTML = own.length ? own.map((id) => { const f = FURN.find((x) => x[0] === id), on = H.items.some((i) => i.id === id); return `<div class="dk"><span>${f[1]} ${f[2]}</span><button type="button" data-put="${id}">${on ? '내 앞으로 옮기기' : '내 앞에 놓기'}</button>${on ? `<button type="button" data-turn="${id}">돌리기</button><button type="button" data-off="${id}">치우기</button>` : ''}</div>`; }).join('') : '<p class="empty">상점의 🏠 가구에서 사면 여기서 놓을 수 있어요</p>';
+  $('#decoFurn').innerHTML = own.length ? own.map((id) => { const f = FURN.find((x) => x[0] === id), on = H.items.some((i) => i.id === id); return `<div class="dk"><span class="dki">${ICON[id]}${f[2]}</span><button type="button" data-put="${id}">${on ? '내 앞으로 옮기기' : '내 앞에 놓기'}</button>${on ? `<button type="button" data-turn="${id}">돌리기</button><button type="button" data-off="${id}">치우기</button>` : ''}</div>`; }).join('') : '<p class="empty">상점의 가구에서 사면 여기서 놓을 수 있어요</p>';
   const list = (await listPhotos()).filter((p) => !String(p.id).startsWith('best-')).slice(0, 24); decoUrls.forEach((u) => URL.revokeObjectURL(u)); decoUrls = [];
   $('#decoPics').innerHTML = list.length ? list.map((p) => { const u = URL.createObjectURL(p.blob); decoUrls.push(u); return `<button type="button" data-pic="${p.id}" class="${H.pics.includes(p.id) ? 'on' : ''}" aria-label="사진 걸기"><img src="${u}" alt=""></button>`; }).join('') : '<p class="empty">사진을 찍으면 벽에 걸 수 있어요</p>';
   $('#decoN').textContent = `${H.pics.length} / ${PICS.length}장`; $('#deco').classList.add('on');
@@ -1225,10 +1233,10 @@ $('#deco').addEventListener('click', (e) => {
   else return; saveMy(); drawHomeItems(); openDeco();
 });
 function enterHome() {
-  travelTo('🏠 집으로 들어가는 중', () => { standUp(); me.inHome = true; room.visible = true; drawHomeItems(); document.body.classList.add('inhome'); controls.maxDistance = 7; me.face = Math.PI; return ROOM.clone().add(V.set(0, 0, 2.6)); });
+  travelTo('집으로 들어가는 중', () => { standUp(); me.inHome = true; room.visible = true; drawHomeItems(); document.body.classList.add('inhome'); controls.maxDistance = 7; me.face = Math.PI; return ROOM.clone().add(V.set(0, 0, 2.6)); });
 }
 function exitHome() {
-  travelTo('🏘 마당으로 나가는 중', () => { standUp(); me.inHome = false; room.visible = false; document.body.classList.remove('inhome'); controls.maxDistance = 320; me.face = -Math.PI / 2; return HOME.door.clone().add(V.set(-1.6, 0, 0)); });
+  travelTo('마당으로 나가는 중', () => { standUp(); me.inHome = false; room.visible = false; document.body.classList.remove('inhome'); controls.maxDistance = 320; me.face = -Math.PI / 2; return HOME.door.clone().add(V.set(-1.6, 0, 0)); });
 }
 // 🪁 연: 내 뒤 하늘에 떠서 따라와요 (내 화면에서만 보여요)
 const kite = { t: 0, g: new THREE.Group() };
@@ -1251,9 +1259,9 @@ function bugTry() {
   if (Math.random() < 0.6) {
     let w = Math.random() * BUG_KINDS.reduce((n, b) => n + b[1], 0), kind = BUG_KINDS[0]; for (const b of BUG_KINDS) { w -= b[1]; if (w <= 0) { kind = b; break; } }
     MY.bugs ||= {}; const fresh = !MY.bugs[kind[0]]; MY.bugs[kind[0]] = (MY.bugs[kind[0]] || 0) + 1; r.got++; MY.coins += fresh ? 5 : 1; saveMy(); updCoins(); bump('bug'); snd.chime();
-    toastMsg(`🥅 ${kind[0]}${josa(kind[0]) === '과' ? '을' : '를'} 잡았어요!`, fresh ? '📖 곤충 도감에 새로 올랐어요 · 🪙 +5' : '잠깐 보고 놓아줬어요 · 🪙 +1');
-  } else toastMsg('💨 놓쳤어요', '다시 휘둘러요');
-  if (r.n <= 0) { bugRun = null; setTimeout(() => toastMsg(`🥅 다섯 번 중 ${r.got}마리 잡았어요`, '도감 › 곤충에서 볼 수 있어요'), 1400); }
+    toastMsg(`${kind[0]}${josa(kind[0]) === '과' ? '을' : '를'} 잡았어요!`, fresh ? '곤충 도감에 새로 올랐어요 · 🪙 +5' : '잠깐 보고 놓아줬어요 · 🪙 +1');
+  } else toastMsg('놓쳤어요', '다시 휘둘러요');
+  if (r.n <= 0) { bugRun = null; setTimeout(() => toastMsg(`다섯 번 중 ${r.got}마리 잡았어요`, '도감 › 곤충에서 볼 수 있어요'), 1400); }
 }
 // 🦋 날아다니는 곤충: 마을 둘레의 풍경이에요
 const BUGS = [];
@@ -1275,6 +1283,7 @@ function updBugs(T, dt) {
   }
 }
 // 🙌 동작 단추: 누르면 다섯 가지가 펼쳐져요. 춤 · 뛰기는 내 화면에서만 보여요
+document.querySelectorAll('#actMenu button').forEach((b) => { b.querySelector('span').innerHTML = ICON[b.dataset.a] || ''; });
 function closeActs() { $('#actMenu').classList.remove('on'); $('#actBtn').setAttribute('aria-expanded', 'false'); }
 // 마을: 연날리기 · 곤충잡기 / 마을 밖: 춤추기 · 뛰기
 function paintActs() { const w = me.inHome ? 'home' : curZone === 'village' ? 'village' : 'out'; document.querySelectorAll('#actMenu [data-v]').forEach((b) => { b.hidden = !b.dataset.v.split(' ').includes(w); }); }
@@ -1286,15 +1295,15 @@ $('#actMenu').addEventListener('click', (e) => {
   if (k === 'sit') {
     if (sitting) { standUp(); return; }
     const seat = nearSeat(); if (seat) { sitDown(seat); return; }
-    bump('sit'); sitting = { pos: me.pos.clone(), face: me.face }; me.target = null; me.st.sit = 1; me.st.seat = 0.04; toastMsg('🌿 땅에 앉았어요', '움직이면 일어나요');
+    bump('sit'); sitting = { pos: me.pos.clone(), face: me.face }; me.target = null; me.st.sit = 1; me.st.seat = 0.04; toastMsg('땅에 앉았어요', '움직이면 일어나요');
   } else if (k === 'pet' || k === 'feed') {
     const a = nearAnimal(); if (!a) { toastMsg('동물 곁으로 가 보세요', '8 m 안에 있으면 다가와요'); return; }
     careAnimal(a, k === 'pet');
   } else if (k === 'kite') {
     if (kite.t > 0) { kite.t = 0; return; }
-    standUp(); bump('kite'); kite.t = 20; toastMsg('🪁 연을 날려요', '걸어 다녀도 따라와요 · 한 번 더 누르면 내려요');
+    standUp(); bump('kite'); kite.t = 20; toastMsg('연을 날려요', '걸어 다녀도 따라와요 · 한 번 더 누르면 내려요');
   } else if (k === 'bug') {
-    standUp(); bugRun = { n: 5, t: 0.2, got: 0 }; me.target = null; toastMsg('🥅 곤충을 잡아 볼까요?', '다섯 번 저절로 휘둘러요 · 움직이면 그만해요');
+    standUp(); bugRun = { n: 5, t: 0.2, got: 0 }; me.target = null; toastMsg('곤충을 잡아 볼까요?', '다섯 번 저절로 휘둘러요 · 움직이면 그만해요');
   } else { bump(k); standUp(); me.act = k; me.actT = k === 'jump' ? 0.7 : 4; }
 });
 $('#ctx').onclick = () => {
@@ -1315,7 +1324,7 @@ function checkTitles() {
   MY.titles ||= []; const got = [];
   for (const z of Object.keys(ZLAB)) { if (MY.titles.includes(z)) continue; const ids = DEX.filter((d) => d[2] === z).map((d) => d[0]); if (ids.length && ids.every((id) => dex[id])) { MY.titles.push(z); got.push(z); } }
   if (!MY.titles.includes('all') && DEX.every(([id]) => dex[id])) { MY.titles.push('all'); got.push('all'); }
-  if (got.length) { MY.coins += 500 * got.length; saveMy(); updCoins(); setTimeout(() => toastMsg(`🏅 칭호를 얻었어요: ${TITLES[got[0]]}`, `구역 식구를 모두 찍었어요 · 🪙 +${500 * got.length}`), 3400); snd.chime(); showPeople(); }
+  if (got.length) { MY.coins += 500 * got.length; saveMy(); updCoins(); setTimeout(() => toastMsg(`칭호를 얻었어요: ${titleName(got[0])}`, `구역 식구를 모두 찍었어요 · 🪙 +${500 * got.length}`), 3400); snd.chime(); showPeople(); }
 }
 // 🏅 뱃지: 이 기기에 쌓인 기록으로 저절로 모여요 (소호랩과 같은 방식). 서버로 보내지 않아요
 const BADGES = [
@@ -1363,9 +1372,10 @@ function checkBadges() {
   const fresh = got.filter((id) => !had.includes(id)); if (!fresh.length && !first) return;
   MY.badges = [...new Set([...had, ...got])]; saveMy();   // 한 번 받은 뱃지는 그대로
   if (first) return;   // 처음엔 조용히 (이미 한 일들)
-  const b = BADGES.find((x) => x.id === fresh[0]); setTimeout(() => toastMsg(`🏅 새 뱃지: ${b.icon} ${b.name}`, '도감 › 뱃지에서 볼 수 있어요'), 4800); snd.chime();
+  const b = BADGES.find((x) => x.id === fresh[0]); setTimeout(() => toastMsg(`새 뱃지: ${b.name}`, '도감 › 뱃지에서 볼 수 있어요'), 4800); snd.chime();
 }
-const myTitle = () => (MY.titles && MY.titles.length ? TITLES[MY.titles[MY.titles.length - 1]] + ' ' : '');
+const titleName = (z) => TITLES[z].slice(TITLES[z].indexOf(' ') + 1);
+const myTitle = () => (MY.titles && MY.titles.length ? titleName(MY.titles[MY.titles.length - 1]) + ' ' : '');
 
 // ───────── 💾 내 기록 내보내기 · 불러오기 (기기를 바꿔도 이어 하게) ─────────
 const blobToData = (b) => new Promise((r) => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(b); });
@@ -1374,7 +1384,7 @@ $('#expBtn').onclick = async () => {
   for (const p of photos) out.photos.push({ id: p.id, zone: p.zone, seen: p.seen, animal: p.animal, score: p.score, at: p.at, data: await blobToData(p.blob) });
   const u = URL.createObjectURL(new Blob([JSON.stringify(out)], { type: 'application/json' })), a = document.createElement('a'), d = new Date();
   a.href = u; a.download = `스냅주-내기록-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.json`; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
-  toastMsg('💾 내 기록을 파일로 저장했어요', `사진 ${photos.length}장 · 코인 · 도감 · 꾸미기`);
+  toastMsg('내 기록을 파일로 저장했어요', `사진 ${photos.length}장 · 코인 · 도감 · 꾸미기`);
 };
 $('#impBtn').onclick = () => $('#impFile').click();
 $('#impFile').onchange = async (e) => {
@@ -1383,16 +1393,16 @@ $('#impFile').onchange = async (e) => {
     const j = JSON.parse(await f.text()); if (j.app !== 'snapzoo-island') throw new Error('not ours');
     localStorage.setItem(LOOK_KEY, JSON.stringify(j.me)); localStorage.setItem('snapzoo-island-dex', JSON.stringify(j.dex || {})); localStorage.setItem('snapzoo-island-settings', JSON.stringify(j.settings || {}));
     for (const p of j.photos || []) { const blob = await (await fetch(p.data)).blob(); await addPhoto({ id: p.id, zone: p.zone, seen: p.seen, animal: p.animal, score: p.score, blob }); }
-    toastMsg('📂 기록을 불러왔어요', '잠시 뒤 다시 시작해요'); setTimeout(() => location.reload(), 1200);
-  } catch { toastMsg('📂 불러오지 못했어요', '스냅주에서 내보낸 기록 파일(.json)을 골라 주세요'); }
+    toastMsg('기록을 불러왔어요', '잠시 뒤 다시 시작해요'); setTimeout(() => location.reload(), 1200);
+  } catch { toastMsg('불러오지 못했어요', '스냅주에서 내보낸 기록 파일(.json)을 골라 주세요'); }
 };
 
 // ───────── 📤 사진 공유 ─────────
 $('#vShare').onclick = async () => {
   if (!viewing) return; const file = new File([viewing.blob], `snapzoo-${viewing.id}.jpg`, { type: 'image/jpeg' });
-  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Snapzoo', text: '노을 진 섬에서 찍었어요 📷 snapzoo.site' }); return; } } catch (err) { if (err && err.name === 'AbortError') return; }
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Snapzoo', text: '노을 진 섬에서 찍었어요 snapzoo.site' }); return; } } catch (err) { if (err && err.name === 'AbortError') return; }
   $('#vSave').click(); try { await navigator.clipboard.writeText('https://snapzoo.site'); } catch {}
-  toastMsg('📤 사진을 저장했어요', '사진과 함께 snapzoo.site 를 친구에게 보내 보세요 (주소를 복사했어요)');
+  toastMsg('사진을 저장했어요', '사진과 함께 snapzoo.site 를 친구에게 보내 보세요 (주소를 복사했어요)');
 };
 
 // ───────── 🕹 조이스틱 (휴대폰 · 태블릿): 왼쪽 아래, 카메라가 보는 쪽 기준으로 걸어요 ─────────
@@ -1440,7 +1450,7 @@ const net = new IslandNet({
   onReset() { [...friends.keys()].forEach(dropFriend); },
   onStatus() { showPeople(); },
 });
-function showPeople() { const n = friends.size; $('#people').textContent = `${myTitle()}${myName}${net.online ? (n ? ` · 👥 친구 ${n}명과 함께` : ' · 섬에 혼자예요') : ''}`; }
+function showPeople() { const n = friends.size; $('#people').textContent = `${myTitle()}${myName}${net.online ? (n ? ` · 친구 ${n}명과 함께` : ' · 섬에 혼자예요') : ''}`; }
 showPeople(); setTimeout(() => net.join(), 1500);   // 첫 그림이 나온 뒤에 붙어요
 addEventListener('pagehide', () => net.close());
 function updateFriends(dt) {
@@ -1453,7 +1463,7 @@ function updateFriends(dt) {
     f.st.walk = lerp(f.st.walk, f.d.m ? 1 : 0, 0.15); if (g.visible) f.st.update(clock.elapsedTime, dt);
     f.snapT = Math.max(0, f.snapT - dt); f.waveT = Math.max(0, (f.waveT || 0) - dt); f.emoT = Math.max(0, (f.emoT || 0) - dt);
     const on = g.visible && d < 60; f.tag.classList.toggle('on', on);
-    if (on) { V.copy(g.position); V.y += 2.1; V.project(camera); if (V.z > 1) { f.tag.classList.remove('on'); continue; } f.tag.textContent = (f.emoT > 0 ? f.emo + ' ' : f.waveT > 0 ? '👋 ' : f.snapT > 0 ? '📷 ' : '') + f.name; f.tag.style.transform = `translate(${(V.x * 0.5 + 0.5) * innerWidth}px, ${(-V.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`; }
+    if (on) { V.copy(g.position); V.y += 2.1; V.project(camera); if (V.z > 1) { f.tag.classList.remove('on'); continue; } f.tag.textContent = (f.emoT > 0 ? f.emo + ' ' : f.waveT > 0 ? '' : f.snapT > 0 ? '' : '') + f.name; f.tag.style.transform = `translate(${(V.x * 0.5 + 0.5) * innerWidth}px, ${(-V.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`; }
   }
   if (friends.size !== showPeople.n) { showPeople.n = friends.size; showPeople(); }
 }
@@ -1522,18 +1532,18 @@ function frame() {
     const sp = (mode === 'photo' ? 1.4 : inWater ? 2.8 : 3.6) * SET.speed * dt;   // 뗏목 · 배는 조금 느리게   // ⚙ 걷는 속도
     const nx = me.pos.x + mv.x * sp, nz = me.pos.z + mv.z * sp, ny = height(nx, nz);
     if (me.inHome) { me.pos.x = clamp(nx, ROOM.x - 4.4, ROOM.x + 4.4); me.pos.z = clamp(nz, ROOM.z - 3.4, ROOM.z + 3.5); }
-    else if (ny > -8 && Math.abs(nx) < SIZE / 2 - 4 && Math.abs(nz) < SIZE / 2 - 4) { me.pos.x = nx; me.pos.z = nz; } else { me.target = null; if (!limitT) { limitT = 2.5; toastMsg('⛵ 바닷가 둘레까지만 갈 수 있어요', '더 먼 바다는 못 가요'); } }   // 바닷가 둘레만
+    else if (ny > -8 && Math.abs(nx) < SIZE / 2 - 4 && Math.abs(nz) < SIZE / 2 - 4) { me.pos.x = nx; me.pos.z = nz; } else { me.target = null; if (!limitT) { limitT = 2.5; toastMsg('바닷가 둘레까지만 갈 수 있어요', '더 먼 바다는 못 가요'); } }   // 바닷가 둘레만
     if (mode !== 'photo') me.face = Math.atan2(mv.x, mv.z);
   }
   if (me.riding) {
     const r = me.riding; r.t += dt; const k = clamp(r.t / r.dur, 0, 1), e = k * k * (3 - 2 * k), u = r.dir > 0 ? e : 1 - e;
     if (r.ferry) {
       const p = FERRY.getPointAt(u), tn = FERRY.getTangentAt(u); me.pos.set(p.x, waveAt(p.x, p.z) + 0.34, p.z); me.face = Math.atan2(tn.x * r.dir, tn.z * r.dir); boat.visible = true; raft.visible = false; boat.position.set(p.x, me.pos.y - 0.22, p.z); boat.rotation.set(Math.sin(T * 1.3) * 0.03, me.g.rotation.y, Math.sin(T * 1.1) * 0.04);
-      $('#rideBar').style.width = `${Math.round(k * 100)}%`; $('#rideS').textContent = k < 1 ? `${Math.ceil(r.dur * (1 - k))}초 남았어요 · ${r.dir > 0 ? '🏝 갈라파고스 섬' : '🏘 마을 쪽 나루'}` : '도착!';
+      $('#rideBar').style.width = `${Math.round(k * 100)}%`; $('#rideS').textContent = k < 1 ? `${Math.ceil(r.dur * (1 - k))}초 남았어요 · ${r.dir > 0 ? '갈라파고스 섬' : '마을 쪽 나루'}` : '도착!';
       if (k >= 1) { const end = r.dir > 0 ? PIER.isle : PIER.main, s = r.dir > 0 ? -1 : 1; me.pos.set(end.x + PIER.ux * s * 3, 0, end.z + PIER.uz * s * 3); me.pos.y = height(me.pos.x, me.pos.z); me.riding = null; boat.visible = false; $('#ferry').disabled = false; setTimeout(() => { $('#ride').classList.remove('on'); bringAnimals(); }, 700); }
     } else {
     const p = CABLE.getPointAt(u); gondola.position.copy(p); me.pos.set(p.x, p.y - 3.3, p.z);
-    $('#rideBar').style.width = `${Math.round(k * 100)}%`; $('#rideS').textContent = k < 1 ? `${Math.ceil(r.dur * (1 - k))}초 남았어요 · ${r.dir > 0 ? '🐧 눈 덮인 꼭대기' : '🏘 강가 마을'}` : '도착!';
+    $('#rideBar').style.width = `${Math.round(k * 100)}%`; $('#rideS').textContent = k < 1 ? `${Math.ceil(r.dur * (1 - k))}초 남았어요 · ${r.dir > 0 ? '눈 덮인 꼭대기' : '강가 마을'}` : '도착!';
     if (k >= 1) { const end = r.dir > 0 ? TOPS : STA; me.pos.copy(end).add(V.set(3, 0, 3)); me.pos.y = height(me.pos.x, me.pos.z); me.riding = null; $('#cable').disabled = false; setTimeout(() => { $('#ride').classList.remove('on'); bringAnimals(); }, 700); }
     }
   } else {
@@ -1542,7 +1552,7 @@ function frame() {
     const onRaft = wa?.kind === 'river', onBoat = wa?.kind === 'sea', vessel = onRaft ? raft : onBoat ? boat : null;
     raft.visible = onRaft && mode !== 'photo'; boat.visible = onBoat && mode !== 'photo';   // 사진 찍을 땐 돛대 · 뱃머리가 앞을 가리지 않게 숨겨요
     if (vessel) { vessel.position.set(me.pos.x, me.pos.y - deck, me.pos.z); vessel.rotation.set(Math.sin(T * 1.3) * 0.03, me.g.rotation.y, Math.sin(T * 1.1) * 0.04); if (vessel === boat) boat.userData.sail.rotation.x = Math.sin(T * 0.9) * 0.08; }
-    if (wa?.kind !== frame.lastWater) { frame.lastWater = wa?.kind; if (wa) toastMsg(wa.kind === 'river' ? '🛶 뗏목을 타고 강을 건너요' : '⛵ 작은 배를 타고 바다로', wa.kind === 'river' ? '건너편 강둑에 닿으면 내려요' : '돌고래 · 바다거북 · 해달을 만나 보세요'); }
+    if (wa?.kind !== frame.lastWater) { frame.lastWater = wa?.kind; if (wa) toastMsg(wa.kind === 'river' ? '뗏목을 타고 강을 건너요' : '작은 배를 타고 바다로', wa.kind === 'river' ? '건너편 강둑에 닿으면 내려요' : '돌고래 · 바다거북 · 해달을 만나 보세요'); }
     if (limitT > 0) limitT -= dt;
     gondola.position.copy(CABLE.getPointAt(0.5 + 0.5 * Math.sin(T * 0.08)));   // 빈 케이블카는 천천히 오가요
   }
@@ -1650,9 +1660,9 @@ function frame() {
   // 📍 포토 스팟 알림: 가까워지면 한 번, 안에 들어오면 한 번
   if (!me.inHome && !me.riding) for (const sp of SPOTS) {
     const d = Math.hypot(sp.pos.x - me.pos.x, sp.pos.z - me.pos.z);
-    if (d < 3 && !sp.inIt) { sp.inIt = true; MY.spots ||= {}; if (!MY.spots[sp.name]) { MY.spots[sp.name] = 1; saveMy(); checkBadges(); } toastMsg(`📍 포토 스팟 · ${sp.name}`, '여기서 동물을 찍으면 🪙 +30 이고 사진에 장소 이름이 들어가요'); }
+    if (d < 3 && !sp.inIt) { sp.inIt = true; MY.spots ||= {}; if (!MY.spots[sp.name]) { MY.spots[sp.name] = 1; saveMy(); checkBadges(); } toastMsg(`포토 스팟 · ${sp.name}`, '여기서 동물을 찍으면 🪙 +30 이고 사진에 장소 이름이 들어가요'); }
     else if (d > 6) sp.inIt = false;
-    if (d < 26 && !sp.near) { sp.near = true; if (d >= 3) toastMsg(`📍 근처에 포토 스팟이 있어요`, `금빛 기둥을 찾아가 보세요 · ${sp.name}`); } else if (d > 40) sp.near = false;
+    if (d < 26 && !sp.near) { sp.near = true; if (d >= 3) toastMsg(`근처에 포토 스팟이 있어요`, `금빛 기둥을 찾아가 보세요 · ${sp.name}`); } else if (d > 40) sp.near = false;
   }
   if ((frame.cx = (frame.cx || 0) + dt) > 0.2) { frame.cx = 0; updCtx(); }
   const ZL = { jungle: ['#a9bf8e', 1.75], arctic: ['#dde5ee', 1.35], desert: ['#f2d2a2', 1.1] }[z0] || [LK.fog, LK.hemi[2] * 1.4];   // 정글은 초록 안개 · 밝은 하늘빛
@@ -1679,7 +1689,7 @@ function frame() {
   if (finder && !withFriends) for (const f of friends.values()) f.st.root.visible = false;   // 사진엔 동물만 (👥 친구도 켜면 같이)
   renderer.render(scene, finder ? fcam : camera);
   if (wantShot && raiseT <= 0) { wantShot = false; shoot(); }   // 사진기를 드는 중에 누르면 다 든 뒤에 찍어요   // 그린 바로 다음에 찍어야 화면이 비지 않아요
-  if (!perf.done) { perf.t += dt; perf.n++; if (perf.t > 8) { perf.done = true; const fps = perf.n / perf.t; if (fps < 25 && !LOWQ) { renderer.setPixelRatio(Math.max(0.75, renderer.getPixelRatio() * 0.6)); AUTO_LOW = true; toastMsg('📱 화면을 조금 가볍게 했어요', '⚙ 설정에서 바꿀 수 있어요'); } else if (fps < 20) { renderer.setPixelRatio(0.75); AUTO_LOW = true; } } }
+  if (!perf.done) { perf.t += dt; perf.n++; if (perf.t > 8) { perf.done = true; const fps = perf.n / perf.t; if (fps < 25 && !LOWQ) { renderer.setPixelRatio(Math.max(0.75, renderer.getPixelRatio() * 0.6)); AUTO_LOW = true; toastMsg('화면을 조금 가볍게 했어요', '설정에서 바꿀 수 있어요'); } else if (fps < 20) { renderer.setPixelRatio(0.75); AUTO_LOW = true; } } }
   requestAnimationFrame(frame);
 }
 drawMini();
