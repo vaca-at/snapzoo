@@ -349,6 +349,34 @@ Object.assign(SPECIES, {
     `vec3 c=C0; if((reg<0.5||(reg>1.5&&reg<2.5))&&T.z<-0.35) c=C1; if(reg>2.5&&reg<3.5&&abs(T.y)>0.45&&T.z>-0.1&&T.x>0.05&&T.x<0.13) c=C2; if(reg>2.5&&reg<3.5&&T.x>0.15) c=C1; if(reg>3.5&&reg<4.5&&fract(T.x*7.0)<0.45) c=C2; if(reg>0.5&&reg<1.5&&R.y<0.08) c=C2; return c;`),
   bat, firefly: fireflies,
 });
+// 🏝 갈라파고스 섬 식구 (isle) · 섬 바닷가 식구 (islesea). 마을 바닷가(sea) 식구와 겹치지 않아요
+Object.assign(SPECIES, {
+  galtortoise: () => turtle({ size: 0.95, shell: '#4a4a3a', plate: '#6a6a4a', skin: '#7a7a62' }),
+  landiguana: () => lizard({ size: 0.6, c: '#c8a03a', spikes: '#8a6a2a' }),
+  lavalizard: () => lizard({ size: 0.2, c: '#5a5048' }),
+  finch: () => bird({ size: 0.11, legL: 0.03, c: '#3a3430', belly: '#6a5a4a', wing: '#2a2622', beak: 'cone', beakC: '#2a2622', neckL: 0.02, peck: true, legC: '#3a3430', legR: 0.05 }),
+  mockingbird: () => bird({ size: 0.16, legL: 0.05, c: '#8a7a68', belly: '#e8e0d0', wing: '#5a4e42', beak: 'cone', beakC: '#2a2622', neckL: 0.03, peck: true, legC: '#3a3430' }),
+  galdove: () => bird({ size: 0.17, legL: 0.04, c: '#a87a5a', belly: '#c89a7a', wing: '#7a5a42', beak: 'cone', beakC: '#3a3a3a', neckL: 0.03, peck: true, legC: '#c85a4a' }),
+  bluefoot: () => bird({ size: 0.3, legL: 0.1, c: '#f2ece0', wing: '#6a5444', neckL: 0.06, beak: 'cone', beakC: '#5a7a8a', legC: '#2a8ae8', peck: true }),
+  frigate: () => bird({ size: 0.34, legL: 0.05, c: '#26262c', belly: '#d8342e', wing: '#1a1a20', neckL: 0.06, beak: 'hook', beakC: '#5a5a62', legC: '#2a2a30' }),
+  marineiguana: () => lizard({ size: 0.5, c: '#2e2e32', spikes: '#6a6a60' }),
+  sealion: () => swimBody({ size: 0.9, c: '#7a5e48', belly: '#a88a6a', lie: true, whiskers: '#c8b090' }),
+  galpenguin: () => SPECIES.penguin(),
+  redcrab: () => crab({ size: 0.18, c: '#e83a2a' }),
+  cushionstar: () => starfish({ size: 0.26, c: '#e8a23a' }),
+  greenturtle: () => turtle({ size: 0.85, shell: '#3a5a3a', plate: '#5a7a4a', skin: '#6a8a6a', sea: true }),
+  parrotfish: () => fishSchool({ cols: ['#3ac8a8', '#3a8ae8', '#e85a9a'], n: 7, fin: '#f2e24a' }),
+  butterflyfish: () => fishSchool({ cols: ['#f2d23a', '#f6f2e4'], n: 10, stripe: '#2a2a2a' }),
+  pufferfish: () => swimBody({ size: 0.3, c: '#d8b84a', belly: '#f6f2e0' }),
+  sunfish: () => swimBody({ size: 0.9, c: '#8a9aa8', belly: '#d8dce0', bigFin: true }),
+});
+ROSTER.push(
+  ['isle', 'galtortoise', '갈라파고스땅거북', 3, 2, 1, 'walk', 0.2], ['isle', 'landiguana', '육지이구아나', 3, 2, 1, 'walk', 0.5], ['isle', 'lavalizard', '용암도마뱀', 3, 3, 1, 'walk', 0.9], ['isle', 'finch', '다윈핀치', 3, 3, 1, 'walk', 1.0],
+  ['isle', 'mockingbird', '흉내지빠귀', 2, 2, 1, 'walk', 0.9], ['isle', 'galdove', '갈라파고스비둘기', 2, 2, 1, 'walk', 0.7], ['isle', 'bluefoot', '푸른발부비새', 3, 3, 1, 'walk', 0.5], ['isle', 'frigate', '군함조', 2, 2, 1, 'still', 0],
+  ['islesea', 'marineiguana', '바다이구아나', 3, 3, 1, 'shore', 0.4], ['islesea', 'sealion', '바다사자', 3, 2, 1, 'shore', 0.3], ['islesea', 'galpenguin', '갈라파고스펭귄', 2, 3, 0.7, 'shore', 0.5], ['islesea', 'redcrab', '붉은바위게', 3, 3, 1, 'shore', 0.8],
+  ['islesea', 'cushionstar', '쿠션불가사리', 2, 2, 1, 'shore', 0], ['islesea', 'greenturtle', '초록바다거북', 3, 1, 1, 'swim', 0.7], ['islesea', 'parrotfish', '앵무고기 떼', 3, 1, 1, 'swim', 0.8], ['islesea', 'butterflyfish', '나비고기 떼', 3, 1, 1, 'swim', 0.8],
+  ['islesea', 'pufferfish', '복어', 2, 2, 1, 'swim', 0.5], ['islesea', 'sunfish', '개복치', 2, 1, 1, 'swim', 0.4],
+);
 // 밤에만 나오는 친구 (구역 · id · 이름 · 무리 · 마리 · 크기 · 움직임 · 빠르기 · 밤): fly = 하늘을 빙빙
 ROSTER.push(
   ['village', 'owl', '부엉이', 2, 1, 1, 'still', 0, true], ['village', 'raccoon', '너구리', 2, 2, 1, 'walk', 1.0, true],

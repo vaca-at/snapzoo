@@ -35,6 +35,8 @@ function noise(x, z) {
 const fbm = (x, z) => noise(x, z) * 0.55 + noise(x * 2.1, z * 2.1) * 0.28 + noise(x * 4.3, z * 4.3) * 0.17;
 
 const PEAK = { x: 0, z: -140 };
+const ISLE = { x: -225, z: 250, r: 52 };
+const isleD = (x, z) => Math.hypot(x - ISLE.x, z - ISLE.z);
 // 강: 산꼭대기 아래 샘에서 남서쪽 바다까지
 const RIVER = new THREE.CatmullRomCurve3([
   [-14, -112], [-34, -70], [6, -22], [-26, 34], [12, 86], [-24, 138], [-72, 184], [-122, 222], [-176, 252], [-220, 276],
@@ -61,7 +63,14 @@ function rawH(x, z) {
   h += de * (2.4 * Math.sin(x * 0.09 + z * 0.04) + 1.6 * Math.sin(x * 0.05 - z * 0.07));   // 사막 모래 언덕
   h -= smooth(250, 318, Math.hypot(x, z * 0.95)) * 42;                          // 섬 가장자리
   h -= smooth(165, 250, z - 0.6 * x) * 32;                                      // 남서쪽 바다 · 강 하구
-  return terrace(h);
+  return isleShape(x, z, terrace(h));
+}
+// 🏝 갈라파고스 같은 섬: 남서쪽 먼바다. 가운데 작은 화산, 둘레는 완만한 바닷가와 얕은 바다
+function isleShape(x, z, t) {
+  const d = Math.hypot(x - ISLE.x, z - ISLE.z), R = ISLE.r; if (d > R + 62) return t;
+  const land = 5 + 2.2 * fbm(x * 0.03, z * 0.03) + 15 * smooth(36, 4, d);
+  const prof = d < R ? land : d < R + 12 ? lerp(land, -1, (d - R) / 12) : d < R + 32 ? lerp(-1, -8, (d - R - 12) / 20) : -8;
+  return lerp(t, prof, smooth(R + 60, R + 32, d));
 }
 // 산을 계단처럼: 높이 30 까지는 그대로, 정글은 완만한 평지(30~44), 짧은 비탈을 오르면 꼭대기 눈밭 평지(108~114)
 function terrace(h) {
@@ -82,11 +91,13 @@ const ZONES = {
   savanna: ['🦁 초원 · 넓은 들', '코끼리 · 기린 · 얼룩말이 풀을 뜯어요'],
   desert: ['🏜️ 사막 · 비 그늘 쪽', '산이 비를 막아 메마른 모래 언덕이에요'],
   sea: ['🌊 바다 · 강 하구', '강물이 바다와 만나요. 돌고래가 뛰어요'],
+  isle: ['🏝 갈라파고스 섬', '거북 · 이구아나 · 푸른발부비새가 사는 화산섬이에요'],
   home: ['🏠 우리 집', '침대 · 소파 · 책장을 써 보세요'],
   village: ['🏘 강가 마을', '강을 따라 올라가면 산꼭대기 눈밭이에요'],
 };
 function zoneAt(x, z, y = height(x, z)) {
   if (y < 1.2) return 'sea';
+  if (isleD(x, z) < ISLE.r + 16) return 'isle';
   if (y > 100) return 'arctic';
   if (x > 112 + 14 * fbm(z * 0.02, 1.7)) return 'desert';
   if (y > 30 + 6 * fbm(x * 0.03, z * 0.03)) return 'jungle';
@@ -143,6 +154,7 @@ for (let i = 0; i < pos.count; i++) {
   const n = fbm(x * 0.05, z * 0.05) * 0.5 + 0.5, zn = zoneAt(x, z, y);
   if (y < 0) tmp.copy(C.seabed).lerp(C.sand, smooth(-8, 0, y));
   else if (y < 2.6) tmp.copy(C.sand);
+  else if (zn === 'isle') tmp.set('#7a7a5a').lerp(C.savanna2, n * 0.6).lerp(C.rock, smooth(10, 20, y));
   else if (zn === 'arctic') tmp.copy(C.rock).lerp(C.snow, smooth(96, 106, y + n * 6));
   else if (zn === 'jungle') tmp.copy(C.jungle).lerp(C.jungle2, n).lerp(C.rock, smooth(84, 100, y) * 0.8);
   else if (zn === 'desert') tmp.copy(C.desert).lerp(C.desert2, n).lerp(C.rock, smooth(70, 100, y) * 0.6);
@@ -236,6 +248,8 @@ scatter('savanna', 420, [[blob(1.3, 2), bushM, 0.6, 1, 0.7, 1]], 0.7, 1.5);
 // 사막: 선인장 · 붉은 바위 언덕(메사)
 scatter('desert', 220, [[cyl(0.45, 0.5, 4.5), cactusM, 2.25], [cyl(0.3, 0.3, 1.8), cactusM, 2.6, 1, 1, 1]], 0.8, 1.4);
 scatter('desert', 22, [[new THREE.CylinderGeometry(5.5, 7.5, 9, 7), mesaM, 4]], 0.7, 1.2);
+scatter('isle', 70, [[cyl(0.3, 0.34, 2.6), cactusM, 1.3], [cyl(0.2, 0.2, 1.2), cactusM, 1.6, 1, 1, 1]], 0.7, 1.2);
+scatter('isle', 50, [[new THREE.DodecahedronGeometry(1.1, 0), rockM, 0.4, 1, 0.6, 1]], 0.6, 1.5);
 scatter('desert', 90, [[new THREE.DodecahedronGeometry(1.6, 0), rockM, 0.6, 1, 0.6, 1]], 0.6, 1.8);
 // 북극: 얼음 바위
 scatter('arctic', 90, [[new THREE.IcosahedronGeometry(1.2, 1), iceM, 0.5, 1, 0.8, 1]], 0.5, 1.4);
@@ -391,13 +405,15 @@ function waterAt(x, z) {
 // ───────── 동물: 구역마다 10종 (fauna.js 의 ROSTER). 사람을 해치는 동물은 없어요 ─────────
 // 움직임: walk 구역 안을 거닐어요 · still 거의 가만히 · shore 바닷가 모래 · swim 물속 · jump 돌고래(아래에서 따로)
 const SEA_Y = { whale: -0.9, fish: -0.35, seaturtle: -0.18, octopus: -0.05, seaotter: 0.02 };
-const onBeach = (x, z) => { const y = height(x, z); return y > 0.7 && y < 2.6 && riverNear(x, z).d > 6 && z - 0.6 * x > 150; };   // 남서쪽 강 하구 바닷가
-const inSea = (x, z) => { const y = height(x, z); return y < -1.2 && y > -15 && riverNear(x, z).d > 4 && z - 0.6 * x > 150; };   // 너무 멀리(깊이)는 안 가요
+const nearIsle = (x, z) => isleD(x, z) < ISLE.r + 36, nearVillageSea = (x, z) => isleD(x, z) > ISLE.r + 40 && z - 0.6 * x > 150;
+const onBeach = (x, z, isl) => { const y = height(x, z); return y > 0.7 && y < 2.6 && riverNear(x, z).d > 6 && (isl ? nearIsle(x, z) : nearVillageSea(x, z)); };   // 마을 쪽 바닷가 · 섬 바닷가는 살림이 달라요
+const inSea = (x, z, isl) => { const y = height(x, z); return y < -1.2 && y > -7 && riverNear(x, z).d > 4 && (isl ? nearIsle(x, z) : nearVillageSea(x, z)); };   // 바닷가에서 보이는 얕은 곳에서 살아요
 const inVillage = (x, z) => { const r = Math.hypot(x - VIL.x, z - VIL.z); return r < 27 && r > 3.5 && Math.abs(r - 15) > 4.2 && riverNear(x, z).d > 6; };
 function okFor(a, x, z) {
   if (a.zone === 'village') return inVillage(x, z);
-  if (a.move === 'swim') return inSea(x, z) && Math.hypot(x - a.home.x, z - a.home.z) < 34;
-  if (a.move === 'shore') return onBeach(x, z) && Math.hypot(x - a.home.x, z - a.home.z) < 30;
+  const isl = a.zone === 'islesea';
+  if (a.move === 'swim') return inSea(x, z, isl) && Math.hypot(x - a.home.x, z - a.home.z) < 34;
+  if (a.move === 'shore') return onBeach(x, z, isl) && Math.hypot(x - a.home.x, z - a.home.z) < 30;
   const y = height(x, z), rv = riverNear(x, z);
   return y > 1.5 && zoneAt(x, z, y) === a.zone && !(rv.i >= 0 && rv.d < riverW(rv.i) * 0.9) && Math.hypot(x - VIL.x, z - VIL.z) > 30;
 }
@@ -405,9 +421,9 @@ function spotFor(zone, move, test) {
   for (let k = 0; k < 4000; k++) {
     let x, z;
     if (zone === 'village') { const a = rnd() * Math.PI * 2, r = 4 + rnd() * 23; x = VIL.x + Math.sin(a) * r; z = VIL.z + Math.cos(a) * r; if (!inVillage(x, z)) continue; }
-    else { x = (rnd() - 0.5) * 640; z = (rnd() - 0.5) * 640; const y = height(x, z);
-      if (move === 'swim') { if (!inSea(x, z) || height(x, z) < -9) continue; }
-      else if (move === 'shore') { if (!onBeach(x, z)) continue; }
+    else { const onI = zone === 'isle' || zone === 'islesea'; x = onI ? ISLE.x + (rnd() - 0.5) * 2 * (ISLE.r + 34) : (rnd() - 0.5) * 640; z = onI ? ISLE.z + (rnd() - 0.5) * 2 * (ISLE.r + 34) : (rnd() - 0.5) * 640; const y = height(x, z), isl = zone === 'islesea';
+      if (move === 'swim') { if (!inSea(x, z, isl)) continue; }
+      else if (move === 'shore') { if (!onBeach(x, z, isl)) continue; }
       else if (!(y > 2.8 && zoneAt(x, z, y) === zone && riverNear(x, z).d > 10 && clearAt(x, z) && (zone !== 'arctic' || y > 104))) continue; }
     if (test(x, z)) return new THREE.Vector3(x, height(x, z), z);
   }
@@ -445,7 +461,7 @@ for (const [zone, id, name, herds0, per0, scale, move, speed, night] of ROSTER) 
 const dolphins = [];
 for (let k = 0; k < 7; k++) {   // 두 무리
   const st = ZOO.dolphin(), g = st.root; g.scale.setScalar(1.15); const pod = k < 4 ? 0 : 1;
-  scene.add(g); dolphins.push({ g, st, phase: k * 1.6, cx: (pod ? -255 : -205) + (k % 4) * 9, cz: (pod ? 262 : 300) + (k % 2) * 12 });
+  const sp = (POOLS.get('seaswim') || [])[pod] || V.set(-90, 0, 215); scene.add(g); dolphins.push({ g, st, phase: k * 1.6, cx: sp.x + (k % 4) * 5, cz: sp.z + (k % 2) * 6 });
 }
 
 
@@ -578,8 +594,9 @@ $('#goJun').onclick = () => travelTo('🌴 정글로 가는 중', () => herdOf('
 $('#goSea').onclick = () => travelTo('🌊 바닷가로 가는 중', () => { const b = (POOLS.get('seashore') || [])[0]; return b ? b.clone() : RIVER.getPointAt(0.97).clone().add(V.set(10, 0, -10)); });
 // 지금 있는 구역의 단추는 숨겨요 (마을에선 '마을로'가 없어요). 산꼭대기에선 케이블카가 '마을로 내려가기'
 function updMoves(z) {
-  const atTop = z === 'arctic';
-  $('#home').hidden = z === 'village' || atTop; $('#goSav').hidden = z === 'savanna'; $('#goDes').hidden = z === 'desert'; $('#goJun').hidden = z === 'jungle'; $('#goSea').hidden = z === 'sea';
+  const atTop = z === 'arctic', isl = z === 'isle';   // 섬에서는 배로만 돌아가요
+  $('#home').hidden = z === 'village' || atTop || isl; $('#goSav').hidden = z === 'savanna' || isl; $('#goDes').hidden = z === 'desert' || isl; $('#goJun').hidden = z === 'jungle' || isl; $('#goSea').hidden = z === 'sea' || isl; $('#cable').hidden = isl;
+  $('#ferry small').textContent = isl ? '마을로' : '섬으로';
 }
 
 
@@ -606,7 +623,7 @@ $('#sAmb').oninput = (e) => { SET.amb = +e.target.value; snd.setVolume('amb', SE
 // ───────── 📷 사진 찍기 (아이용 동물 왕국처럼): 뷰파인더로 바꿔 움직이는 동물을 따라 조준 · 확대 · 찰칵 → 점수 · 별 · 도감 ─────────
 //  점수 = 가운데 40 + 크기 30 + 특별한 순간 30 (♥ 반가워할 때 · 나를 바라볼 때 · 돌고래가 뛰어오를 때)
 const DEX = ROSTER.map(([zone, id, name, , , , , , night]) => [id, name, zone, night]);
-const ZLAB = { village: '🏘 마을', savanna: '🦁 초원', jungle: '🌴 정글', desert: '🏜️ 사막', arctic: '🐧 북극', sea: '🌊 바다' };
+const ZLAB = { village: '🏘 마을', savanna: '🦁 초원', jungle: '🌴 정글', desert: '🏜️ 사막', arctic: '🐧 북극', sea: '🌊 마을 바닷가', isle: '🏝 섬', islesea: '🏖 섬 바닷가' };
 let dex = (() => { try { return JSON.parse(localStorage.getItem('snapzoo-island-dex') || '{}'); } catch { return {}; } })();
 const saveDex = () => { try { localStorage.setItem('snapzoo-island-dex', JSON.stringify(dex)); } catch {} };
 const starsOf = (sc) => (sc >= 85 ? 3 : sc >= 60 ? 2 : sc > 0 ? 1 : 0);
@@ -970,6 +987,7 @@ function updCtx() {
   else if (hs) { kind = hs; label = HS[hs].label; }
   else if (me.inHome) { kind = ''; }
   else if (Math.hypot(HOME.door.x - me.pos.x, HOME.door.z - me.pos.z) < 3) { kind = 'in'; label = '🏠 우리 집 들어가기'; }
+  else if (nearPier()) { kind = 'ferry'; label = curZone === 'isle' ? '🚢 배 타고 마을로' : '🚢 배 타고 섬으로'; }
   else if (st) { kind = 'cable'; label = st === STA ? '🚡 케이블카 타기 · 산꼭대기로' : '🚡 케이블카 타기 · 마을로'; }
   else if (nearSeat()) { kind = 'sit'; label = '🪑 모닥불 곁에 앉기'; }
   else { ctxA = nearAnimal(); if (ctxA) { kind = 'feed'; label = (ctxA.fedT > 0 ? '🤲 쓰다듬기 · ' : '🥕 먹이 주기 · ') + ctxA.name; } }
@@ -997,6 +1015,23 @@ function station(p, text) {
 }
 { const c = document.createElement('canvas'); c.width = 320; c.height = 112; const tex = new THREE.CanvasTexture(c), sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.scale.set(2.6, 0.9, 1); sp.position.set(VIL.x + 12.2, height(VIL.x + 12.2, VIL.z) + 3, VIL.z); scene.add(sp);
   document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => { const x = c.getContext('2d'); x.fillStyle = 'rgba(90,70,50,.92)'; x.beginPath(); x.roundRect(6, 8, 308, 96, 26); x.fill(); x.fillStyle = '#fff6e6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('🏠 우리 집', 160, 58); tex.needsUpdate = true; }); }
+// 🚢 섬 가는 배: 마을 쪽 나루 ↔ 섬 나루 (케이블카처럼 타요)
+const PIER = (() => { const dx = VIL.x - ISLE.x, dz = VIL.z - ISLE.z, L = Math.hypot(dx, dz), ux = dx / L, uz = dz / L; let a = null, b = null;
+  for (let r = 10; r < L; r += 0.5) { const x = ISLE.x + ux * r, z = ISLE.z + uz * r, y = height(x, z); if (!a && y < 1.1) a = new THREE.Vector3(x - ux * 1.5, 0, z - uz * 1.5); if (a && r > ISLE.r + 40 && y > 1.1) { b = new THREE.Vector3(x + ux * 1.5, 0, z + uz * 1.5); break; } }
+  a.y = height(a.x, a.z); b.y = height(b.x, b.z); return { isle: a, main: b, ux, uz }; })();
+const FERRY = new THREE.QuadraticBezierCurve3(PIER.main.clone().setY(0).add(V.set(-PIER.ux * 8, 0, -PIER.uz * 8)), new THREE.Vector3((PIER.main.x + PIER.isle.x) / 2 + 12, 0, (PIER.main.z + PIER.isle.z) / 2), PIER.isle.clone().setY(0).add(V.set(PIER.ux * 8, 0, PIER.uz * 8)));
+for (const [p, s, t] of [[PIER.main, -1, '🚢 섬 가는 배'], [PIER.isle, 1, '🚢 마을 가는 배']]) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 112; const tex = new THREE.CanvasTexture(c), sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.scale.set(4.6, 1, 1); sp.position.set(p.x, p.y + 3.2, p.z); scene.add(sp);
+  document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => { const x = c.getContext('2d'); x.fillStyle = 'rgba(63,115,160,.95)'; x.beginPath(); x.roundRect(6, 8, 500, 96, 28); x.fill(); x.fillStyle = '#fff6e6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(t, 256, 58); tex.needsUpdate = true; });
+  const dock = new THREE.Mesh(new RoundedBoxGeometry(2.4, 0.3, 9, 2, 0.08), toon('#9a7048')); dock.position.set(p.x + PIER.ux * s * 4, Math.max(0.5, p.y), p.z + PIER.uz * s * 4); dock.rotation.y = Math.atan2(PIER.ux, PIER.uz); dock.castShadow = true; scene.add(dock);
+}
+const nearPier = () => [PIER.main, PIER.isle].find((p) => Math.hypot(p.x - me.pos.x, p.z - me.pos.z) < 7);
+function rideFerry() {
+  if (me.riding || me.inHome) return; exitPhoto(); standUp();
+  const toIsle = curZone !== 'isle'; me.riding = { ferry: true, t: 0, dur: 14, dir: toIsle ? 1 : -1 }; me.target = null; $('#ferry').disabled = true;
+  $('#rideT').textContent = toIsle ? '🚢 섬으로 가는 중' : '🚢 마을 쪽 나루로 가는 중'; $('#rideBar').style.width = '0'; $('#ride').classList.add('on'); closeDrawer();
+}
+$('#ferry').onclick = rideFerry;
 station(STA, '🚡 케이블카 타는 곳'); station(TOPS, '🚡 마을로 내려가는 곳');
 // 🏠 우리 집: 마을 동쪽 집의 문. 안은 하늘 높이 따로 만든 방이에요 (벽은 안쪽 면만 그려서 밖에서 들여다보여요)
 const ROOM = new THREE.Vector3(0, 320, 0), room = new THREE.Group(), homeItems = new THREE.Group();
@@ -1098,7 +1133,7 @@ $('#actMenu').addEventListener('click', (e) => {
   } else { bump(k); standUp(); me.act = k; me.actT = k === 'jump' ? 0.7 : 4; }
 });
 $('#ctx').onclick = () => {
-  if (ctxKind === 'in') enterHome(); else if (ctxKind === 'out') exitHome(); else if (ctxKind === 'cable') $('#cable').onclick(); else if (HS[ctxKind]) homeDo(ctxKind);
+  if (ctxKind === 'in') enterHome(); else if (ctxKind === 'out') exitHome(); else if (ctxKind === 'cable') $('#cable').onclick(); else if (ctxKind === 'ferry') rideFerry(); else if (HS[ctxKind]) homeDo(ctxKind);
   else if (ctxKind === 'sit') sitDown(nearSeat());
   else if (ctxKind === 'stand') standUp();
   else if (ctxKind === 'feed' && ctxA) careAnimal(ctxA);
@@ -1110,7 +1145,7 @@ let emoN = 0, emoI = 0;
 function showEmo(el, ch) { el.textContent = ch; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('pop'), 2600); }
 
 // ───────── 🏅 도감 칭호: 구역 식구를 다 찍으면 칭호 + 코인 ─────────
-const TITLES = { village: '🏘 마을 산책가', savanna: '🦁 초원 사진가', jungle: '🌴 정글 탐험가', desert: '🏜️ 사막 여행자', arctic: '🐧 눈꽃 사진가', sea: '🌊 바다 친구', all: '🌏 섬 도감 박사' };
+const TITLES = { village: '🏘 마을 산책가', savanna: '🦁 초원 사진가', jungle: '🌴 정글 탐험가', desert: '🏜️ 사막 여행자', arctic: '🐧 눈꽃 사진가', sea: '🌊 바다 친구', isle: '🏝 섬 탐험가', islesea: '🐢 섬 바다 친구', all: '🌏 섬 도감 박사' };
 function checkTitles() {
   MY.titles ||= []; const got = [];
   for (const z of Object.keys(ZLAB)) { if (MY.titles.includes(z)) continue; const ids = DEX.filter((d) => d[2] === z).map((d) => d[0]); if (ids.length && ids.every((id) => dex[id])) { MY.titles.push(z); got.push(z); } }
@@ -1247,7 +1282,7 @@ function updateFriends(dt) {
 // ───────── 작은 지도 (한 번 그려 두고 내 점만 움직여요) ─────────
 const mini = $('#mini'), mg = mini.getContext('2d'), MW = mini.width;
 const miniBase = document.createElement('canvas'); miniBase.width = miniBase.height = MW;
-{ const g = miniBase.getContext('2d'), img = g.createImageData(MW, MW), cz = { sea: [74, 150, 200], arctic: [240, 245, 250], jungle: [63, 122, 58], savanna: [205, 183, 99], desert: [226, 182, 121] };
+{ const g = miniBase.getContext('2d'), img = g.createImageData(MW, MW), cz = { sea: [74, 150, 200], arctic: [240, 245, 250], jungle: [63, 122, 58], savanna: [205, 183, 99], desert: [226, 182, 121], isle: [150, 150, 96] };
   for (let j = 0; j < MW; j++) for (let i = 0; i < MW; i++) { const x = (i / MW - 0.5) * SIZE, z = (j / MW - 0.5) * SIZE, y = height(x, z); const c = riverNear(x, z).d < 4 && y > 0 ? [90, 170, 220] : cz[zoneAt(x, z, y)]; const o = (j * MW + i) * 4; img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255; }
   g.putImageData(img, 0, 0); }
 const toMini = (p) => [(p.x / SIZE + 0.5) * MW, (p.z / SIZE + 0.5) * MW];
@@ -1312,9 +1347,15 @@ function frame() {
   }
   if (me.riding) {
     const r = me.riding; r.t += dt; const k = clamp(r.t / r.dur, 0, 1), e = k * k * (3 - 2 * k), u = r.dir > 0 ? e : 1 - e;
+    if (r.ferry) {
+      const p = FERRY.getPointAt(u), tn = FERRY.getTangentAt(u); me.pos.set(p.x, waveAt(p.x, p.z) + 0.34, p.z); me.face = Math.atan2(tn.x * r.dir, tn.z * r.dir); boat.visible = true; raft.visible = false; boat.position.set(p.x, me.pos.y - 0.22, p.z); boat.rotation.set(Math.sin(T * 1.3) * 0.03, me.g.rotation.y, Math.sin(T * 1.1) * 0.04);
+      $('#rideBar').style.width = `${Math.round(k * 100)}%`; $('#rideS').textContent = k < 1 ? `${Math.ceil(r.dur * (1 - k))}초 남았어요 · ${r.dir > 0 ? '🏝 갈라파고스 섬' : '🏘 마을 쪽 나루'}` : '도착!';
+      if (k >= 1) { const end = r.dir > 0 ? PIER.isle : PIER.main, s = r.dir > 0 ? -1 : 1; me.pos.set(end.x + PIER.ux * s * 3, 0, end.z + PIER.uz * s * 3); me.pos.y = height(me.pos.x, me.pos.z); me.riding = null; boat.visible = false; $('#ferry').disabled = false; setTimeout(() => $('#ride').classList.remove('on'), 700); }
+    } else {
     const p = CABLE.getPointAt(u); gondola.position.copy(p); me.pos.set(p.x, p.y - 3.3, p.z);
     $('#rideBar').style.width = `${Math.round(k * 100)}%`; $('#rideS').textContent = k < 1 ? `${Math.ceil(r.dur * (1 - k))}초 남았어요 · ${r.dir > 0 ? '🐧 눈 덮인 꼭대기' : '🏘 강가 마을'}` : '도착!';
     if (k >= 1) { const end = r.dir > 0 ? TOPS : STA; me.pos.copy(end).add(V.set(3, 0, 3)); me.pos.y = height(me.pos.x, me.pos.z); me.riding = null; $('#cable').disabled = false; setTimeout(() => $('#ride').classList.remove('on'), 700); }
+    }
   } else {
     const wa = me.inHome ? null : waterAt(me.pos.x, me.pos.z), deck = wa ? (wa.kind === 'sea' ? 0.22 : 0.28) : 0;
     me.pos.y = lerp(me.pos.y, wa ? wa.y + deck + (wa.kind === 'sea' ? 0.12 : 0) : me.inHome ? ROOM.y : height(me.pos.x, me.pos.z), 0.3);
