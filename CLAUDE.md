@@ -66,6 +66,7 @@
 - 📊 숫자 (2026-11-06): 섬이 기기마다 하루 한 번 `/visit?kind=island`, 나갈 때 머문 초 `/tally`(sendBeacon). 서버 Stats 에 `i:` 키(days · hours · joins · staySec · stayN · peaks · best · total), 공개 `GET /public/visits`(로그인 없이, moontr.site 허브가 읽음 — ORIGINS 에 moontr.site).
 - 2026-11-07 아이패드: 터치 단추는 `any-pointer: coarse`(키보드 · 트랙패드 붙인 아이패드도 조이스틱), 😊 표현 단추 뺌(받기만 남김), 사진 결과를 저장보다 먼저 띄움 · 앨범은 ArrayBuffer 로 저장(사파리 Blob 거절 대비) · 1초에 한 번만 촬영, 산은 `terrace()` 로 계단 지형(정글 완만 30~44, 꼭대기 눈밭 108~114).
 - 2026-11-07 손질 2: 위쪽 👤 캐릭터 · 🛍 상점(같은 #closet, char/shop), 닉네임은 낱말 고르기(서버 NAMES 만 통과), 🙌 동작 #actMenu(앉기 · 쓰다듬기 · 먹이 · 춤 · 뛰기, 춤 · 뛰기는 내 화면만), 휴대폰 확대 막기, 도감은 글자만 + 📷 사진 보기 #dexView, 🏅 뱃지 BADGES(도감 탭, MY.cnt · MY.badges).
+- 2026-11-07 손질 3: 🏠 우리 집(마을 동쪽 집 문, 방은 ROOM y=320 안쪽 면만 그린 상자 · HS 가구 · drawHomeItems 산 물건 놓기, 동작 메뉴 data-v = home · village · out), 🚡 탑승장 station(곁에서 타기 단추), 마을 동작 연날리기 · 곤충잡기, 배는 깊이 -8 까지만 · 사진 찍을 땐 배 숨김, josa 없던 버그 고침.
 - **다음**: 실제 휴대폰 확인, 날씨 소리, 방명록 · 사진 전시 벽, 오늘의 미션.
 
 ### 🎨 아이콘 · 공유 미리보기 · 로딩 (2026-11-05 결정)

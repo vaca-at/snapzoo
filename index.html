@@ -266,7 +266,8 @@ html, body, button, #closet, #drawer, #finder { touch-action: manipulation; }
 #actMenu { position: fixed; left: 50%; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 96px); transform: translateX(-50%); z-index: 6; display: none; gap: 6px; padding: 8px; border-radius: 18px; background: rgba(18, 14, 12, .62); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 #actMenu.on { display: flex; } body.photo #actMenu { display: none; }
 #actMenu button { display: grid; justify-items: center; gap: 2px; width: 62px; padding: 6px 2px; border: 0; border-radius: 12px; background: rgba(255, 255, 255, .1); color: #fff6e6; font: 13px var(--hand); white-space: nowrap; cursor: pointer; }
-#actMenu button span { font-size: 24px; }
+#actMenu button span { font-size: 24px; } #actMenu button[hidden] { display: none; }
+body.inhome #moves, body.inhome #mini, body.inhome #shot, body.inhome #wave { display: none !important; }
 @media (max-width: 560px) { #shopBtn { right: calc(max(12px, env(safe-area-inset-right)) + 58px); } #charBtn { right: calc(max(12px, env(safe-area-inset-right)) + 116px); } .g.top { width: 52px; height: 52px; } }
 /* 도감: 글자 카드 · 뱃지 탭 · 사진 크게 보기 */
 #dexTabs { display: flex; gap: 6px; flex: 1; } #dexTabs button, #dexPics { font: 20px var(--hand); padding: 6px 14px; border-radius: 999px; border: 1.5px solid #d8cdb8; background: #fff; color: var(--ink); cursor: pointer; white-space: nowrap; }
@@ -333,12 +334,12 @@ html, body, button, #closet, #drawer, #finder { touch-action: manipulation; }
 <li>⚙ 설정에서 ‘빠르게 흐르기(하루 24분)’나 원하는 시간으로 고정할 수 있어요.</li></ul>
 <h3>🪙 코인 · 🛍 상점 · 👤 캐릭터</h3><ul>
 <li>섬에 머무는 1초마다 코인이 1개씩 모여요. 하루 최대 1시간(3600개)까지 모여요. 동물 사진을 찍어도 조금 더 받아요.</li>
-<li>📖 도감은 글자로만 보여요. 사진은 [📷 사진 보기]를 눌렀을 때 크게 보고 옆으로 넘겨요. 🏅 뱃지는 도감 안의 뱃지 탭에 저절로 모여요.</li><li>위쪽 👤 캐릭터에서 닉네임 · 성별 · 체형(키 순 1 · 2 · 3)과 가진 옷 · 모자를 바꾸고, 🛍 상점에서 안 가진 것을 코인으로 사요.</li><li>아래 🙌 동작을 누르면 앉기 · 쓰다듬기 · 먹이 주기 · 춤추기 · 뛰기가 펼쳐져요.</li>
+<li>📖 도감은 글자로만 보여요. 사진은 [📷 사진 보기]를 눌렀을 때 크게 보고 옆으로 넘겨요. 🏅 뱃지는 도감 안의 뱃지 탭에 저절로 모여요.</li><li>위쪽 👤 캐릭터에서 닉네임 · 성별 · 체형(키 순 1 · 2 · 3)과 가진 옷 · 모자를 바꾸고, 🛍 상점에서 안 가진 것을 코인으로 사요.</li><li>🏠 마을 동쪽 ‘우리 집’ 문 앞에서 들어가요. 집 안에서는 쉬기 · 소파 · 책 읽기 · 차 마시기를 하고, 상점에서 산 옷 · 모자 · 사진기가 방에 놓여요.</li><li>🚡 케이블카는 ‘케이블카 타는 곳’ 표지판 곁으로 가면 타기 단추가 떠요.</li><li>아래 🙌 동작을 누르면 앉기 · 쓰다듬기 · 먹이 주기가 펼쳐져요. 마을에서는 연날리기 · 곤충잡기, 다른 곳에서는 춤추기 · 뛰기를 해요.</li>
 <li>📷 사진기도 여러 가지예요: 즉석(화사하게) · 빈티지(옛날 빛깔) · 흑백 · 파스텔 · 망원(8배 확대). 사진기마다 사진 색감과 테두리가 달라요.</li>
 <li>살 때는 한 번 누르면 값이 뜨고, 한 번 더 누르면 사요.</li></ul>
 <h3>🧭 이동 · 🛶 물</h3><ul>
 <li>맨 오른쪽 단추로 마을 · 산꼭대기(🚡 케이블카) · 초원 · 사막에 바로 가요.</li>
-<li>강에 들어가면 뗏목을, 바다에 들어가면 작은 돛단배를 저절로 타요. 섬에서 너무 멀리는 못 가요.</li></ul>
+<li>강에 들어가면 뗏목을, 바다에 들어가면 작은 돛단배를 저절로 타요. 바닷가 둘레까지만 갈 수 있어요.</li></ul>
 <h3>🖼 앨범</h3><ul>
 <li>찍은 사진은 이 기기 안에만 모여요(다른 곳으로 보내지 않아요). 크게 보며 ‹ › 로 넘기고, 저장 · 📤 공유 · 지울 수 있어요.</li>
 <li>뷰파인더의 👥 를 켜면 친구도 함께 찍혀요.</li></ul>
@@ -368,7 +369,7 @@ html, body, button, #closet, #drawer, #finder { touch-action: manipulation; }
 <li>💾 내 기록 내보내기 · 📂 불러오기: 코인 · 도감 · 꾸미기 · 사진을 파일 하나로 저장해 다른 기기나 브라우저에서 이어 할 수 있어요.</li></ul>
 </div></section>
 <div id="coins" aria-label="코인"></div>
-<div id="actMenu" role="group" aria-label="동작 고르기"><button type="button" data-a="sit"><span>🪑</span>앉기</button><button type="button" data-a="pet"><span>🤲</span>쓰다듬기</button><button type="button" data-a="feed"><span>🥕</span>먹이 주기</button><button type="button" data-a="dance"><span>💃</span>춤추기</button><button type="button" data-a="jump"><span>🤸</span>뛰기</button></div>
+<div id="actMenu" role="group" aria-label="동작 고르기"><button type="button" data-a="sit" data-v="village out"><span>🪑</span>앉기</button><button type="button" data-a="pet" data-v="village out"><span>🤲</span>쓰다듬기</button><button type="button" data-a="feed" data-v="village out"><span>🥕</span>먹이 주기</button><button type="button" data-a="bed" data-v="home" hidden><span>🛏</span>쉬기</button><button type="button" data-a="sofa" data-v="home" hidden><span>🛋</span>소파</button><button type="button" data-a="book" data-v="home" hidden><span>📚</span>책 읽기</button><button type="button" data-a="tea" data-v="home" hidden><span>🍵</span>차 마시기</button><button type="button" data-a="leave" data-v="home" hidden><span>🚪</span>나가기</button><button type="button" data-a="kite" data-v="village"><span>🪁</span>연날리기</button><button type="button" data-a="bug" data-v="village"><span>🦋</span>곤충잡기</button><button type="button" data-a="dance" data-v="out"><span>💃</span>춤추기</button><button type="button" data-a="jump" data-v="out"><span>🤸</span>뛰기</button></div>
 <div id="joystick" aria-label="조이스틱 (끌어서 걷기)"><i></i></div>
 <section id="settings" aria-label="설정"><b>⚙ 설정</b>
   <label><span>🌅 시간</span><span></span><select id="sTime"><option value="auto">지금 시각 따라</option><option value="cycle">빠르게 흐르기 (하루 24분)</option><option value="morning">아침</option><option value="day">낮</option><option value="evening">저녁 노을</option><option value="night">밤</option></select></label>
