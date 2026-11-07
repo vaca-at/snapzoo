@@ -6,13 +6,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107d';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107d';
-import { IslandSound } from './sound.js?v=20261107d';
-import { ROSTER } from './fauna.js?v=20261107d';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107d';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js?v=20261107d';
-import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107d';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107e';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107e';
+import { IslandSound } from './sound.js?v=20261107e';
+import { ROSTER } from './fauna.js?v=20261107e';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107e';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js?v=20261107e';
+import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107e';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -605,8 +605,8 @@ function herdOf(zone) {
 // 마을가기: 산꼭대기에서는 케이블카, 섬에서는 배로 돌아와요
 $('#home').onclick = () => { if (curZone === 'arctic') $('#cable').onclick(); else if (curZone === 'isle') rideFerry(); else travelTo('🏘 마을로 돌아가는 중', () => VIL.clone().add(V.set(0, 0, 8))); };
 $('#goHome').onclick = () => enterHome();   // 마을에서는 '마을가기' 자리에 '집으로'
-$('#goSav').onclick = () => travelTo('🦁 초원으로 가는 중', () => herdOf('savanna'));
-$('#goDes').onclick = () => travelTo('🏜️ 사막으로 가는 중', () => herdOf('desert'));
+$('#goSav').onclick = () => travelTo('🦁 초원으로 가는 중', () => YARD.savanna.pos.clone());
+$('#goDes').onclick = () => travelTo('🏜️ 사막으로 가는 중', () => YARD.desert.pos.clone());
 // 지금 있는 구역의 단추는 숨겨요 (마을에선 '마을로'가 없어요). 산꼭대기에선 케이블카가 '마을로 내려가기'
 function updMoves(z) {
   // 다섯 단계: 마을(+마을 바닷가) → 초원 → 사막 → 산꼭대기 → 섬(+섬 바닷가). 지금 있는 곳의 단추만 숨겨요
@@ -1006,11 +1006,11 @@ function addSpot(name, p) {
 document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => {
   addSpot('강가 모닥불', VIL.clone().add(V.set(6.5, 0, -1.5)));
   addSpot('돌고래 해변', (POOLS.get('seashore') || [])[0]);
-  addSpot('노을 물웅덩이', (POOLS.get('savanna') || [])[0]);
-  addSpot('붉은 메사 언덕', (POOLS.get('desert') || [])[1]);
+  addSpot('노을 물웅덩이', YARD.savanna.spot);
+  addSpot('붉은 메사 언덕', YARD.desert.spot);
   addSpot('안개 숲 빈터', (POOLS.get('jungle') || [])[0]);
-  addSpot('산꼭대기 전망대', TOPS.clone().add(V.set(12, 0, -6)));
-  addSpot('화산 전망대', new THREE.Vector3(ISLE.x + 10, 0, ISLE.z + 8));
+  addSpot('산꼭대기 전망대', YARD.arctic.spot);
+  addSpot('화산 전망대', YARD.isle.spot);
   addSpot('거북이 바닷가', (POOLS.get('isleseashore') || [])[0]);
 });
 const spotHere = () => SPOTS.find((sp) => Math.hypot(sp.pos.x - me.pos.x, sp.pos.z - me.pos.z) < 3.2);
@@ -1090,18 +1090,30 @@ for (const [p, s, t] of [[PIER.main, -1, '🚢 섬 가는 배'], [PIER.isle, 1, 
 }
 // 🏕 모이는 곳: 마을처럼 둥근 광장 · 모닥불 · 작은 집 · 등불
 const GATHER = [{ name: '🏘 마을 광장', pos: VIL.clone().add(V.set(0, 0, 8)) }];
-function plaza(c, label) {
+function plaza(c, label, small) {
+  const PR = small ? 6.5 : 9.5;
   const y = height(c.x, c.z), g = new THREE.Group(); g.position.set(c.x, y, c.z); scene.add(g);
-  const disc = new THREE.Mesh(new THREE.CylinderGeometry(9.5, 10, 0.5, 48), toon('#b8ac96')); disc.position.y = 0; disc.receiveShadow = true; g.add(disc);
-  for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, x = Math.sin(a) * 8.6, z = Math.cos(a) * 8.6; const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.2, 8), toon('#5a4a3a')); post.position.set(x, 1.2, z); g.add(post); const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), new THREE.MeshBasicMaterial({ color: '#ffe0a0' })); lamp.position.set(x, 2.35, z); g.add(lamp); }
-  const hs = house(4.8, 4.2, 3, '#a8604a', '#f6eee0'); hs.position.set(0, 0.1, -13.5); g.add(hs);
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(PR, PR + 0.5, 0.5, 48), toon('#b8ac96')); disc.position.y = 0; disc.receiveShadow = true; g.add(disc);
+  for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, x = Math.sin(a) * (PR - 0.9), z = Math.cos(a) * (PR - 0.9); const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.2, 8), toon('#5a4a3a')); post.position.set(x, 1.2, z); g.add(post); const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), new THREE.MeshBasicMaterial({ color: '#ffe0a0' })); lamp.position.set(x, 2.35, z); g.add(lamp); }
+  if (!small) { const hs = house(4.8, 4.2, 3, '#a8604a', '#f6eee0'); hs.position.set(0, 0.1, -13.5); g.add(hs); }
   campfire(new THREE.Vector3(c.x, 0, c.z));
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 112; const tex = new THREE.CanvasTexture(cv), sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.scale.set(4.4, 1, 1); sp.position.set(0, 4.2, 0); g.add(sp);
   document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => { const x = cv.getContext('2d'); x.fillStyle = 'rgba(90,70,50,.92)'; x.beginPath(); x.roundRect(6, 8, 500, 96, 28); x.fill(); x.fillStyle = '#fff6e6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 256, 58); tex.needsUpdate = true; });
-  GATHER.push({ name: label, pos: new THREE.Vector3(c.x + 4, 0, c.z + 4) });
+  const y0 = { name: label, pos: new THREE.Vector3(c.x + 3, 0, c.z + 3), spot: new THREE.Vector3(c.x + PR * 0.62, 0, c.z - PR * 0.3) }; GATHER.push(y0); return y0;
 }
-{ let c = null; for (let r = 18; r < 46 && !c; r += 2) for (let i = 0; i < 16 && !c; i++) { const a = i / 16 * Math.PI * 2, x = TOPS.x + Math.sin(a) * r, z = TOPS.z + Math.cos(a) * r; if (height(x, z) > 106 && riverNear(x, z).d > 15) c = new THREE.Vector3(x, 0, z); } plaza(c || TOPS.clone().add(V.set(-22, 0, 18)), '🏔 꼭대기 광장'); }
-plaza(new THREE.Vector3(ISLE.x + PIER.ux * 30, 0, ISLE.z + PIER.uz * 30), '🏝 섬 광장');
+// 도착 지점 마당: 나무 · 강을 피해 평평한 빈자리를 찾아요
+function findYard(zone, base) {
+  for (let r = 4; r < 90; r += 4) for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2 + r, x = base.x + Math.sin(a) * r, z = base.z + Math.cos(a) * r, y = height(x, z);
+    if (zoneAt(x, z, y) !== zone || riverNear(x, z).d < 14) continue; let ok = true;
+    for (let k = 0; k < 8 && ok; k++) { const b = k / 8 * Math.PI * 2, px = x + Math.sin(b) * 7, pz = z + Math.cos(b) * 7, py = height(px, pz); if (Math.abs(py - y) > 1.2 || occAt(px, py + 1, pz) || occAt(x, y + 1, z) || zoneAt(px, pz, py) !== zone) ok = false; }
+    if (ok) return new THREE.Vector3(x, 0, z); }
+  return base.clone();
+}
+const YARD = {};
+YARD.savanna = plaza(findYard('savanna', (POOLS.get('savanna') || [VIL])[0]), '🦁 초원 마당', true);
+YARD.desert = plaza(findYard('desert', (POOLS.get('desert') || [VIL])[1] || (POOLS.get('desert') || [VIL])[0]), '🏜️ 사막 마당', true);
+{ let c = null; for (let r = 16; r < 46 && !c; r += 2) for (let i = 0; i < 16 && !c; i++) { const a = i / 16 * Math.PI * 2, x = TOPS.x + Math.sin(a) * r, z = TOPS.z + Math.cos(a) * r; if (height(x, z) > 106 && riverNear(x, z).d > 15) c = new THREE.Vector3(x, 0, z); } YARD.arctic = plaza(c || TOPS.clone().add(V.set(-22, 0, 18)), '🏔 꼭대기 광장'); }
+YARD.isle = plaza(new THREE.Vector3(ISLE.x + PIER.ux * 36, 0, ISLE.z + PIER.uz * 36), '🏝 섬 광장');
 // 📍 어디로 갈까: 포토 스팟 · 모이는 곳 목록, 누르면 바로 가요
 function openPlaces() {
   const row = (name, pos, done) => `<div class="dk"><span>${done ? '✅ ' : ''}${name} <small>${Math.round(Math.hypot(pos.x - me.pos.x, pos.z - me.pos.z))} m</small></span><button type="button" data-gx="${pos.x}" data-gz="${pos.z}" data-gn="${name}">가기</button></div>`;
