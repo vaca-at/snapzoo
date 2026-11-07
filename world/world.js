@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108e';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108e';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108e';
-import { IslandSound } from './sound.js?v=20261108e';
-import { ROSTER } from './fauna.js?v=20261108e';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261108e';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108e';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108e';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108f';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108f';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108f';
+import { IslandSound } from './sound.js?v=20261108f';
+import { ROSTER } from './fauna.js?v=20261108f';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261108f';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108f';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108f';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -1709,7 +1709,7 @@ function friendOf(id, d) {
   }
   return f;
 }
-function dropFriend(id) { const f = friends.get(id); if (!f) return; scene.remove(f.st.root); f.tag.remove(); friends.delete(id); }
+function dropFriend(id) { const f = friends.get(id); if (!f) return; scene.remove(f.st.root); if (f.vessel) scene.remove(f.vessel); f.tag.remove(); friends.delete(id); }
 const net = new IslandNet({
   onState(id, d) { let f = friendOf(id, d); if (d.n) f.name = d.n; if (d.ec !== undefined && d.ec !== f.ec) { if (f.ec !== undefined) { f.emoT = 2.6; f.emo = EMOS[d.e || 0]; } f.ec = d.ec; } f.st.sit = d.s ? 1 : 0; f.st.seat = 0.3;
     if (f.st.look !== (d.l || 0) || f.st.g !== (d.g ? 'm' : 'f') || f.st.hat !== (d.h || 0) || f.st.body !== (d.b ?? START_BODY) || f.st.cam !== (CAMERAS[d.c || 0]?.id) || f.st.hair !== (d.hc ?? -1) || f.st.acc !== (d.a || 0)) {   // 친구가 옷을 갈아입었어요
@@ -1740,6 +1740,10 @@ function updateFriends(dt) {
     const d = Math.hypot(g.position.x - me.pos.x, g.position.z - me.pos.z);
     g.visible = !f.d.k && d < 220;
     f.st.walk = lerp(f.st.walk, f.d.m ? 1 : 0, 0.15); if (g.visible) f.st.update(clock.elapsedTime, dt);
+    // 🛶 친구가 강 · 바다 위에 있으면 친구 화면처럼 뗏목 · 작은 배에 태워 보여요
+    { const wa = g.visible && d < 160 ? waterAt(g.position.x, g.position.z) : null, kind = wa?.kind || '';
+      if (kind !== f.vk) { if (f.vessel) { scene.remove(f.vessel); f.vessel = null; } f.vk = kind; if (kind) { f.vessel = (kind === 'river' ? raft : boat).clone(); f.vessel.visible = true; scene.add(f.vessel); } }
+      if (f.vessel) { const deck = kind === 'sea' ? 0.34 : 0.28, T2 = clock.elapsedTime; f.vessel.position.set(g.position.x, g.position.y - deck, g.position.z); f.vessel.rotation.set(Math.sin(T2 * 1.3 + 1) * 0.03, g.rotation.y, Math.sin(T2 * 1.1 + 1) * 0.04); } }
     f.snapT = Math.max(0, f.snapT - dt); f.waveT = Math.max(0, (f.waveT || 0) - dt); f.emoT = Math.max(0, (f.emoT || 0) - dt);
     const on = g.visible && d < 60; f.tag.classList.toggle('on', on);
     if (on) { V.copy(g.position); V.y += 2.1; V.project(camera); if (V.z > 1) { f.tag.classList.remove('on'); continue; } f.tag.textContent = (f.emoT > 0 ? f.emo + ' ' : f.waveT > 0 ? '' : f.snapT > 0 ? '' : '') + f.name; f.tag.style.transform = `translate(${(V.x * 0.5 + 0.5) * innerWidth}px, ${(-V.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`; }
