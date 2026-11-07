@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261107t';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107t';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261107t';
-import { IslandSound } from './sound.js?v=20261107t';
-import { ROSTER } from './fauna.js?v=20261107t';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107t';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107t';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107t';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261107v';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107v';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261107v';
+import { IslandSound } from './sound.js?v=20261107v';
+import { ROSTER } from './fauna.js?v=20261107v';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107v';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107v';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107v';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -1153,7 +1153,7 @@ function updCtx() {
   else if (nearPier()) { kind = 'ferry'; label = curZone === 'isle' ? '배 타고 마을로' : '배 타고 섬으로'; }
   else if (st) { kind = 'cable'; label = st === STA ? '케이블카 타기 · 산꼭대기로' : '케이블카 타기 · 마을로'; }
   else if (nearSeat()) { kind = 'sit'; label = '모닥불 곁에 앉기'; }
-  else { ctxA = nearAnimal(); if (ctxA) { kind = 'feed'; label = (ctxA.fedT > 0 ? '쓰다듬기 · ' : '먹이 주기 · ') + ctxA.name; } }
+  else { ctxA = null; }   // 동물 곁 '먹이 주기' 단추는 뺐어요
   ctxKind = kind; $('#ctx').hidden = !kind; if ($('#ctx').textContent !== label) $('#ctx').textContent = label;
 }
 function sitDown(seat) { bump('sit'); sitting = seat; me.target = null; me.pos.copy(seat.pos); me.face = seat.face; me.st.sit = 1; me.st.seat = 0.3; toastMsg('모닥불 곁에 앉았어요', '움직이면 일어나요 · 타닥타닥 불소리를 들어 보세요'); snd.fire = 1; }
@@ -1201,7 +1201,7 @@ function plaza(c, label) {
   campfire(new THREE.Vector3(c.x, 0, c.z));
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 112; const tex = new THREE.CanvasTexture(cv), sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.scale.set(4.4, 1, 1); sp.position.set(0, 4.2, 0); g.add(sp);
   document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => { const x = cv.getContext('2d'); x.fillStyle = 'rgba(90,70,50,.92)'; x.beginPath(); x.roundRect(6, 8, 500, 96, 28); x.fill(); x.fillStyle = '#fff6e6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 256, 58); tex.needsUpdate = true; });
-  const y0 = { name: label, pos: new THREE.Vector3(c.x - 3, 0, c.z + 3), spot: new THREE.Vector3(c.x + PR * 0.62, 0, c.z - PR * 0.3) }; GATHER.push(y0); return y0;
+  const y0 = { name: label, fire: new THREE.Vector3(c.x, 0, c.z), pos: new THREE.Vector3(c.x - 3, 0, c.z + 3), spot: new THREE.Vector3(c.x + PR * 0.62, 0, c.z - PR * 0.3) }; GATHER.push(y0); return y0;
 }
 // 도착 지점 마당: 나무 · 강을 피해 평평한 빈자리를 찾아요
 function findYard(zone, base) {
@@ -1219,6 +1219,8 @@ YARD.jungle = plaza(findYard('jungle', (POOLS.get('jungle') || [VIL])[1] || (POO
 { let c = null; for (let r = 16; r < 46 && !c; r += 2) for (let i = 0; i < 16 && !c; i++) { const a = i / 16 * Math.PI * 2, x = TOPS.x + Math.sin(a) * r, z = TOPS.z + Math.cos(a) * r; if (height(x, z) > 106 && riverNear(x, z).d > 15) c = new THREE.Vector3(x, 0, z); } YARD.arctic = plaza(c || TOPS.clone().add(V.set(-22, 0, 18)), '꼭대기 광장'); }
 YARD.isle = plaza(new THREE.Vector3(ISLE.x + PIER.ux * 36, 0, ISLE.z + PIER.uz * 36), '섬 광장');
 landAt(YARD.village.pos);   // 처음 들어올 때도 마을 광장 모닥불 앞에서 시작해요
+// 첫 화면 카메라: 예전엔 마을 한가운데(우물 지붕 안)에서 나를 봐서 뿌옇게 가렸어요. 이제 모닥불 건너편 비스듬히 위에서 나와 모닥불을 함께 봐요
+if (intro && !new URLSearchParams(location.search).get('at')) { const f = YARD.village.fire, dx = f.x - me.pos.x, dz = f.z - me.pos.z, d = Math.hypot(dx, dz) || 1; intro.to = new THREE.Vector3(f.x + dx / d * 4.6 + dz / d * 1.4, me.pos.y + 4.2, f.z + dz / d * 4.6 - dx / d * 1.4); }
 // 케이블카 · 배에서 내리면 그곳 시작 마당의 모닥불 앞으로 (카메라도 같이 옮겨요)
 function landAt(p) { const old = me.pos.clone(); me.pos.set(p.x, height(p.x, p.z), p.z); V.copy(me.pos).sub(old); camera.position.add(V); controls.target.add(V); me.target = null; me.face = Math.atan2(3, -3); }   // 모닥불 쪽을 봐요
 const nearPier = () => [PIER.main, PIER.isle].find((p) => Math.hypot(p.x - me.pos.x, p.z - me.pos.z) < 7);
@@ -1394,10 +1396,10 @@ document.querySelectorAll('button').forEach((b) => { const t = b.textContent.tri
 $('#homeActs').addEventListener('click', (e) => { const k = e.target.closest('button')?.dataset.a; if (k && HS[k]) homeDo(k); });
 function closeActs() { $('#actMenu').classList.remove('on'); $('#actBtn').setAttribute('aria-expanded', 'false'); }
 // 마을: 연날리기 · 곤충잡기 / 마을 밖: 춤추기 · 뛰기
-// 모닥불 곁: 앉기 · 마시멜로 굽기 · 불꽃놀이 · 연날리기 / 동물 곁: 쓰다듬기 · 먹이 주기 · 셀카 찍기 / 그 밖: 마을은 앉기 · 연날리기 · 곤충잡기, 마을 밖은 앉기
+// 모닥불 곁: 앉기 · 마시멜로 굽기 · 불꽃놀이 · 연날리기 / 그 밖(2026-11-07 쓰다듬기 · 먹이 · 셀카는 뺐어요): 마을은 앉기 · 연날리기 · 곤충잡기, 마을 밖은 앉기
 const nearFire = () => FIRES.find((f) => Math.hypot(f.g.position.x - me.pos.x, f.g.position.z - me.pos.z) < 7);
 function paintActs() {
-  const w = new Set(); if (me.inHome) w.add('home'); else { if (nearFire()) w.add('fire'); if (nearAnimal()) w.add('ani'); if (!w.size) w.add(curZone === 'village' ? 'village' : 'out'); }
+  const w = new Set(); if (me.inHome) w.add('home'); else { if (nearFire()) w.add('fire'); if (!w.size) w.add(curZone === 'village' ? 'village' : 'out'); }
   document.querySelectorAll('#actMenu [data-v]').forEach((b) => { b.hidden = !b.dataset.v.split(' ').some((v) => w.has(v)); });
 }
 // 🔥 마시멜로: 모닥불 의자에 앉아 막대 끝 마시멜로를 노릇노릇하게 구워요 (6초)
