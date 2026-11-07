@@ -6,8 +6,8 @@ import { DurableObject } from 'cloudflare:workers';
 import { NAME_A, NAME_B, LOOKS, BODIES, ANIMALS, CAMERAS, ACTIONS, FACES, SERVER_COUNT, SERVER_CAP } from '../kids/js/data.js';
 
 const GRACE = 30e3;   // 끊긴 분 자리를 남겨 두는 시간 (다른 앱에 잠깐 다녀오기, 화면 끄기)
-const ROOM_RE = new RegExp(`^(station-([1-9]|1[0-9]|20)|island-([1-9]|1[0-2]))$`);   // island = 어른용 스냅주 섬 (world/)
-const ISLANDS = 12;
+const ROOM_RE = new RegExp(`^(station-([1-9]|1[0-9]|20)|island-([1-9]|10))$`);   // island = 어른용 스냅주 섬 (world/)
+const ISLANDS = 10, ISLAND_CAP = 20;   // 3D 섬: 방 10개 × 20명 (아이용 station 은 SERVER_COUNT × SERVER_CAP 그대로)
 const ORIGINS = ['https://moontr.site', 'https://www.moontr.site', 'https://snapzoo.site', 'https://www.snapzoo.site', 'https://vaca-at.github.io', 'https://jsun.site', 'http://localhost:8765', 'http://127.0.0.1:8765'];
 
 function cors(req) {
@@ -170,7 +170,8 @@ export class Room extends DurableObject {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
-    if (this.members().length >= SERVER_CAP) {
+    const capOf = String(url.searchParams.get('room') || '').startsWith('island') ? ISLAND_CAP : SERVER_CAP;
+    if (this.members().length >= capOf) {
       server.send(JSON.stringify({ t: 'full' }));
       server.close(4001, 'full');
       return new Response(null, { status: 101, webSocket: client });

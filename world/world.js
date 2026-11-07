@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, lookIcon, hairIcon } from './icons.js?v=20261107o';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107o';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107o';
-import { IslandSound } from './sound.js?v=20261107o';
-import { ROSTER } from './fauna.js?v=20261107o';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107o';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107o';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107o';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261107q';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107q';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107q';
+import { IslandSound } from './sound.js?v=20261107q';
+import { ROSTER } from './fauna.js?v=20261107q';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107q';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107q';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107q';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -625,7 +625,7 @@ function herdOf(zone) {
   return a.home.clone();
 }
 // 마을가기: 산꼭대기에서는 케이블카, 섬에서는 배로 돌아와요
-$('#home').onclick = () => { if (curZone === 'arctic') $('#cable').onclick(); else if (curZone === 'isle') rideFerry(); else travelTo('마을로 돌아가는 중', () => VIL.clone().add(V.set(0, 0, 8))); };
+$('#home').onclick = () => { if (curZone === 'arctic') $('#cable').onclick(); else if (curZone === 'isle') rideFerry(); else travelTo('마을로 돌아가는 중', () => YARD.village.pos.clone()); };
 $('#goHome').onclick = () => enterHome();   // 어디서든 맨 위 단추로 집 안에 들어가요
 $('#goSav').onclick = () => travelTo('초원으로 가는 중', () => YARD.savanna.pos.clone());
 $('#goDes').onclick = () => travelTo('사막으로 가는 중', () => YARD.desert.pos.clone());
@@ -822,7 +822,7 @@ function shoot() {
       const t = $('#toast'); t.querySelector('img').src = src;
       const msg = sp ? `<b>${[sp.name, ...friends2.map((o) => o.name)].join(' · ')} ${starHTML(stars)} ${score}점</b><small>${badge}${earn ? ` · 🪙 +${earn}` : ''}${note}${spot ? ` · ${spot.name}` : ''}</small>` : '<b>찰칵!</b><small>동물은 안 찍혔어요</small>';
       t.querySelector('span').innerHTML = msg;
-      t.classList.add('on'); clearTimeout(shoot.tt); shoot.tt = setTimeout(() => { t.classList.remove('on'); if (src.startsWith('blob:')) URL.revokeObjectURL(src); }, 2200);
+      t.classList.add('on'); clearTimeout(shoot.tt); clearTimeout(toastMsg.tt); shoot.tt = setTimeout(() => { t.classList.remove('on'); if (src.startsWith('blob:')) URL.revokeObjectURL(src); }, 2200);
       if (isNew) snd.chime();
       let ok = !!blob;
       if (blob) {
@@ -836,23 +836,24 @@ function shoot() {
   });
 }
 // 📖 도감: 열두 식구, 종마다 가장 잘 찍은 사진 한 장
-// 사진이 무서운 어린이도 볼 수 있게 도감은 글자만. 사진은 [📷 사진 보기] 를 눌렀을 때만 (2026-11-07)
+// 도감은 처음부터 내가 찍은 사진으로 보여요. [실제 사진 보기] 에 체크하면 진짜 동물 사진으로 도감을 봐요 (2026-11-07)
 let dexTab = 'dex';
 let dexCat = 'all';
 const DCATS = [['all', '전체'], ['village', '마을'], ['sea', '마을 바닷가'], ['savanna', '초원'], ['desert', '사막'], ['jungle', '밀림'], ['arctic', '산꼭대기'], ['isle', '섬'], ['islesea', '섬 바닷가'], ['bug', '곤충']];
-let dexPic = false; try { dexPic = localStorage.getItem('snapzoo-dex-pic') === '1'; } catch {}
+let dexReal = false; try { dexReal = localStorage.getItem('snapzoo-dex-real') === '1'; } catch {}
 let dexThumbs = [];
-// 사진 보기를 켜면 동물마다 사진 칸. 내가 찍은 사진이 있으면 그것, 없으면 실제 사진
+// 동물마다 사진 칸: 기본은 내가 찍은 사진(아직 못 찍었으면 빈 칸), 실제 사진 보기는 모든 동물의 진짜 사진 (못 만난 동물은 흐리게)
 function dexChips(cat) {
   if (cat === 'bug') { const B = MY.bugs || {}; return BUG_KINDS.map(([n]) => `<div class="dchip ${B[n] ? 'got' : ''}">${n}</div>`).join(''); }
   return DEX.filter((d) => d[2] === cat).map(([id, name]) => {
-    if (!dexPic) return dex[id] ? `<button type="button" class="dchip got" data-id="${id}">${name}</button>` : `<div class="dchip">${name}</div>`;
+    const ph = DEX_PHOTOS[id];
+    if (dexReal) return `<button type="button" class="dpic ${dex[id] ? '' : 'dim'}" data-id="${id}" data-real="1"><span class="ph">${ph ? `<img alt="" src="world/${ph.src || 'dex/' + id + '.jpg'}" loading="lazy">` : ''}</span><b>${name}</b></button>`;
     if (!dex[id]) return `<div class="dpic none"><span class="ph"></span><b>${name}</b></div>`;
-    const ph = DEX_PHOTOS[id]; return `<button type="button" class="dpic" data-id="${id}"><span class="ph"><img data-pid="${id}" alt="" ${ph ? `src="world/${ph.src || 'dex/' + id + '.jpg'}"` : ''} loading="lazy"></span><b>${name}</b></button>`;
+    return `<button type="button" class="dpic" data-id="${id}"><span class="ph"><img data-pid="${id}" alt=""></span><b>${name}</b></button>`;
   }).join('');
 }
 async function fillDexPics() {
-  dexThumbs.forEach((u) => URL.revokeObjectURL(u)); dexThumbs = []; if (!dexPic) return;
+  dexThumbs.forEach((u) => URL.revokeObjectURL(u)); dexThumbs = []; if (dexReal) return;
   const all = await listPhotos();
   document.querySelectorAll('#dexGrid img[data-pid]').forEach((im) => { const id = im.dataset.pid, p = all.find((x) => x.id === `best-${id}`) || all.find((x) => x.animal === id); if (p?.blob) { const u = URL.createObjectURL(p.blob); dexThumbs.push(u); im.src = u; } });
 }
@@ -862,15 +863,15 @@ function drawDex() {
   const L = dexCat === 'all' ? [...inCat('all'), ...inCat('bug')] : inCat(dexCat);
   $('#dexN').textContent = isDex ? `${L.filter(Boolean).length} / ${L.length}` : `${bs} / ${BADGES.length}`;
   document.querySelectorAll('#dexTabs [data-t]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.t === dexTab)));
-  $('#dexPicBox').hidden = !isDex; $('#dexPicOn').checked = dexPic;
-  $('#dexGrid').className = isDex ? (dexPic ? 'text pics' : 'text') : 'badges';
+  $('#dexPicBox').hidden = !isDex; $('#dexPicOn').checked = dexReal;
+  $('#dexGrid').className = isDex ? 'text pics' : 'badges';
   const bcard = (b) => `<div class="bdg ${(MY.badges || []).includes(b.id) ? 'got' : ''}"><i>${ICON[BADGE_ICON[b.id]] || ICON.medal}</i><b>${b.name}</b><small>${b.cap}</small></div>`;
   $('#dexGrid').innerHTML = isDex
     ? `<div class="dcats">${DCATS.map(([k, l]) => `<button type="button" data-cat="${k}" class="${dexCat === k ? 'on' : ''}">${l}</button>`).join('')}</div>` + (dexCat === 'all' ? DCATS.slice(1).map(([k, l]) => `<h4 class="dsec">${l}</h4>${dexChips(k)}`).join('') : dexChips(dexCat))
     : `<h4 class="dsec">탐험</h4>${BADGES.filter((b) => b.ex).map(bcard).join('')}<h4 class="dsec">사진 · 활동</h4>${BADGES.filter((b) => !b.ex && !b.id.startsWith('tt-')).map(bcard).join('')}<h4 class="dsec">칭호</h4>${BADGES.filter((b) => b.id.startsWith('tt-')).map(bcard).join('')}`;
   fillDexPics();
 }
-$('#dexPicOn').onchange = (e) => { dexPic = e.target.checked; try { localStorage.setItem('snapzoo-dex-pic', dexPic ? '1' : '0'); } catch {} drawDex(); };
+$('#dexPicOn').onchange = (e) => { dexReal = e.target.checked; try { localStorage.setItem('snapzoo-dex-real', dexReal ? '1' : '0'); } catch {} drawDex(); };
 async function openDex() {
   closePanels(); closeDrawer(); checkBadges(); drawDex();
   $('#dex').classList.add('on'); $('#dex').setAttribute('aria-hidden', 'false'); $('#dexX').focus({ preventScroll: true });
@@ -884,14 +885,14 @@ function dvShow() {
 }
 function dvFlip(n) { dvI = (dvI + n + dvList.length) % dvList.length; dvShow(); }
 function dvClose() { $('#dexView').classList.remove('on'); dvList.forEach((x) => { if (x.src.startsWith('blob:')) URL.revokeObjectURL(x.src); }); dvList = []; }
-$('#dexGrid').addEventListener('click', (e) => { const k = e.target.closest('[data-cat]'); if (k) { dexCat = k.dataset.cat; drawDex(); return; } const c = e.target.closest('[data-id]'); if (c) openPics(c.dataset.id); });
-async function openPics(want) {
+$('#dexGrid').addEventListener('click', (e) => { const k = e.target.closest('[data-cat]'); if (k) { dexCat = k.dataset.cat; drawDex(); return; } const c = e.target.closest('[data-id]'); if (c) openPics(c.dataset.id, !!c.dataset.real); });
+async function openPics(want, real) {
   const all = await listPhotos(), out = []; let at = -1;
-  for (const [id, name] of DEX) {
+  if (real) { for (const [id, name] of DEX) { const ph = DEX_PHOTOS[id]; if (!ph) continue; if (id === want) at = out.length; out.push({ src: `world/${ph.src || 'dex/' + id + '.jpg'}`, cap: `${name} · 실제 사진 (${ph.by})` }); } }
+  else for (const [id, name] of DEX) {
     if (!dex[id]) continue; if (id === want) at = out.length;
     let mine = all.filter((p) => (p.animal === id || (p.also || []).includes(id)) && !String(p.id).startsWith('best-')); if (!mine.length) mine = all.filter((p) => p.id === `best-${id}`);
     mine.forEach((p, n) => out.push({ src: URL.createObjectURL(p.blob), cap: `${name} · 내 사진 ${n + 1}` }));
-    const ph = DEX_PHOTOS[id]; if (ph) out.push({ src: `world/${ph.src || 'dex/' + id + '.jpg'}`, cap: `${name} · 실제 사진 (${ph.by})` });
   }
   if (!out.length) { toastMsg('아직 볼 사진이 없어요', '동물을 찍으면 여기에 모여요'); return; }
   if (want && at >= out.length) at = 0;
@@ -923,7 +924,7 @@ function flip(d) { if (!albumList.length) return; viewI = (viewI + d + albumList
 $('#vPrev').onclick = () => flip(-1); $('#vNext').onclick = () => flip(1);
 addEventListener('keydown', (e) => { if (!$('#viewer').classList.contains('on')) return; if (e.code === 'ArrowLeft') { flip(-1); e.stopImmediatePropagation(); } if (e.code === 'ArrowRight') { flip(1); e.stopImmediatePropagation(); } }, true);
 let swipeX = null; $('#viewer').addEventListener('pointerdown', (e) => { swipeX = e.clientX; }); $('#viewer').addEventListener('pointerup', (e) => { if (swipeX !== null && Math.abs(e.clientX - swipeX) > 50) flip(e.clientX < swipeX ? 1 : -1); swipeX = null; });
-$('#vHang').onclick = () => { if (!viewing) return; const H = MY.home ||= { wall: 'cream', items: [], pics: [] }; if (H.pics.includes(viewing.id)) { toastMsg('이미 벽에 걸려 있어요', '집 안 꾸미기에서 내릴 수 있어요'); return; } if (H.pics.length >= PICS.length) { toastMsg('벽이 꽉 찼어요', '집 안 꾸미기에서 내린 뒤 걸어 주세요'); return; } H.pics.push(viewing.id); saveMy(); toastMsg('집 벽에 걸었어요', '우리 집에 들어가면 보여요'); };
+$('#vHang').onclick = () => { if (!viewing) return; const H = MY.home ||= { wall: 'cream', items: [], pics: [] }; if (H.pics.includes(viewing.id)) { toastMsg('이미 벽에 걸려 있어요', '집 안 액자 단추에서 내릴 수 있어요'); return; } if (H.pics.length >= PICS.length) { toastMsg('벽이 꽉 찼어요', '집 안 꾸미기에서 내린 뒤 걸어 주세요'); return; } H.pics.push(viewing.id); saveMy(); toastMsg('집 벽에 걸었어요', '우리 집에 들어가면 보여요'); };
 $('#vDel').onclick = async () => { if (!viewing) return; await removePhoto(viewing.id); $('#viewer').classList.remove('on'); openAlbum(); };
 addEventListener('keydown', (e) => { if (e.key === 'Escape') { if ($('#viewer').classList.contains('on')) $('#viewer').classList.remove('on'); else { closeAlbum(); closeDex(); $('#settings').classList.remove('on'); } } });
 
@@ -1038,8 +1039,6 @@ function campfire(c, faceTo) {
     const log = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.18, 1.1, 14), toon('#8a5e3a')); log.rotation.set(0, a, Math.PI / 2); log.position.set(x, y + 0.17, z); log.castShadow = log.receiveShadow = true; scene.add(log);
     SEATS.push({ pos: new THREE.Vector3(x, y, z), face: Math.atan2(c.x - x, c.z - z), fire: c }); }
 }
-campfire(VIL.clone().add(V.set(6.5, 0, -5)));
-campfire(TOPS.clone().add(V.set(-7, 0, 6)));
 
 // ───────── 📍 포토 스팟: 경치 좋은 곳 여덟. 둥근 빛 안에서 찍으면 보너스. 곳마다 그 구역 동물 네 종이 곁에 살아요 ─────────
 const SPOTS = [];
@@ -1063,7 +1062,7 @@ function addSpot(name, p, zone) {
   SPOTS.push({ name, pos: new THREE.Vector3(p.x, y, p.z), g, ring, sign, tex: c }); settleAt(SPOTS.at(-1), zone);
 }
 document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => {
-  addSpot('강가 모닥불', VIL.clone().add(V.set(6.5, 0, -1.5)), 'village');
+  addSpot('강가 모닥불', YARD.village.spot, 'village');
   addSpot('돌고래 해변', (POOLS.get('seashore') || [])[0], 'sea');
   addSpot('노을 물웅덩이', YARD.savanna.spot, 'savanna');
   addSpot('붉은 메사 언덕', YARD.desert.spot, 'desert');
@@ -1147,18 +1146,18 @@ for (const [p, s, t] of [[PIER.main, -1, '섬 가는 배'], [PIER.isle, 1, '마�
   document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => { const x = c.getContext('2d'); x.fillStyle = 'rgba(63,115,160,.95)'; x.beginPath(); x.roundRect(6, 8, 500, 96, 28); x.fill(); x.fillStyle = '#fff6e6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(t, 256, 58); tex.needsUpdate = true; });
   const dock = new THREE.Mesh(new RoundedBoxGeometry(2.4, 0.3, 9, 2, 0.08), toon('#9a7048')); dock.position.set(p.x + PIER.ux * s * 4, Math.max(0.5, p.y), p.z + PIER.uz * s * 4); dock.rotation.y = Math.atan2(PIER.ux, PIER.uz); dock.castShadow = true; scene.add(dock);
 }
-// 🏕 모이는 곳: 마을처럼 둥근 광장 · 모닥불 · 작은 집 · 등불
-const GATHER = [{ name: '마을 광장', pos: VIL.clone().add(V.set(0, 0, 8)) }];
-function plaza(c, label, small) {
-  const PR = small ? 6.5 : 9.5;
+// 🏕 시작하는 곳: 마을 · 초원 · 사막 · 밀림 · 산꼭대기 · 섬 모두 똑같은 모양 (둥근 마당 · 가운데 모닥불 · 통나무 의자 넷 · 등불 여섯 · 이름판)
+//  도착하면 모닥불 앞(arrive)에 서요
+const GATHER = [];
+function plaza(c, label) {
+  const PR = 6.5;
   const y = height(c.x, c.z), g = new THREE.Group(); g.position.set(c.x, y, c.z); scene.add(g);
   const disc = new THREE.Mesh(new THREE.CylinderGeometry(PR, PR + 0.5, 0.5, 48), toon('#b8ac96')); disc.position.y = 0; disc.receiveShadow = true; g.add(disc);
   for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, x = Math.sin(a) * (PR - 0.9), z = Math.cos(a) * (PR - 0.9); const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.2, 8), toon('#5a4a3a')); post.position.set(x, 1.2, z); g.add(post); const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), new THREE.MeshBasicMaterial({ color: '#ffe0a0' })); lamp.position.set(x, 2.35, z); g.add(lamp); }
-  if (!small) { const hs = house(4.8, 4.2, 3, '#a8604a', '#f6eee0'); hs.position.set(0, 0.1, -13.5); g.add(hs); }
   campfire(new THREE.Vector3(c.x, 0, c.z));
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 112; const tex = new THREE.CanvasTexture(cv), sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.scale.set(4.4, 1, 1); sp.position.set(0, 4.2, 0); g.add(sp);
   document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => { const x = cv.getContext('2d'); x.fillStyle = 'rgba(90,70,50,.92)'; x.beginPath(); x.roundRect(6, 8, 500, 96, 28); x.fill(); x.fillStyle = '#fff6e6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 256, 58); tex.needsUpdate = true; });
-  const y0 = { name: label, pos: new THREE.Vector3(c.x + 3, 0, c.z + 3), spot: new THREE.Vector3(c.x + PR * 0.62, 0, c.z - PR * 0.3) }; GATHER.push(y0); return y0;
+  const y0 = { name: label, pos: new THREE.Vector3(c.x - 3, 0, c.z + 3), spot: new THREE.Vector3(c.x + PR * 0.62, 0, c.z - PR * 0.3) }; GATHER.push(y0); return y0;
 }
 // 도착 지점 마당: 나무 · 강을 피해 평평한 빈자리를 찾아요
 function findYard(zone, base) {
@@ -1169,11 +1168,15 @@ function findYard(zone, base) {
   return base.clone();
 }
 const YARD = {};
-YARD.savanna = plaza(findYard('savanna', (POOLS.get('savanna') || [VIL])[0]), '초원 마당', true);
-YARD.desert = plaza(findYard('desert', (POOLS.get('desert') || [VIL])[1] || (POOLS.get('desert') || [VIL])[0]), '사막 마당', true);
-YARD.jungle = plaza(findYard('jungle', (POOLS.get('jungle') || [VIL])[1] || (POOLS.get('jungle') || [VIL])[0]), '밀림 마당', true);
+YARD.village = plaza(VIL.clone().add(V.set(6.5, 0, -5)), '마을 광장');
+YARD.savanna = plaza(findYard('savanna', (POOLS.get('savanna') || [VIL])[0]), '초원 마당');
+YARD.desert = plaza(findYard('desert', (POOLS.get('desert') || [VIL])[1] || (POOLS.get('desert') || [VIL])[0]), '사막 마당');
+YARD.jungle = plaza(findYard('jungle', (POOLS.get('jungle') || [VIL])[1] || (POOLS.get('jungle') || [VIL])[0]), '밀림 마당');
 { let c = null; for (let r = 16; r < 46 && !c; r += 2) for (let i = 0; i < 16 && !c; i++) { const a = i / 16 * Math.PI * 2, x = TOPS.x + Math.sin(a) * r, z = TOPS.z + Math.cos(a) * r; if (height(x, z) > 106 && riverNear(x, z).d > 15) c = new THREE.Vector3(x, 0, z); } YARD.arctic = plaza(c || TOPS.clone().add(V.set(-22, 0, 18)), '꼭대기 광장'); }
 YARD.isle = plaza(new THREE.Vector3(ISLE.x + PIER.ux * 36, 0, ISLE.z + PIER.uz * 36), '섬 광장');
+landAt(YARD.village.pos);   // 처음 들어올 때도 마을 광장 모닥불 앞에서 시작해요
+// 케이블카 · 배에서 내리면 그곳 시작 마당의 모닥불 앞으로 (카메라도 같이 옮겨요)
+function landAt(p) { const old = me.pos.clone(); me.pos.set(p.x, height(p.x, p.z), p.z); V.copy(me.pos).sub(old); camera.position.add(V); controls.target.add(V); me.target = null; me.face = Math.atan2(3, -3); }   // 모닥불 쪽을 봐요
 const nearPier = () => [PIER.main, PIER.isle].find((p) => Math.hypot(p.x - me.pos.x, p.z - me.pos.z) < 7);
 function rideFerry() {
   if (me.riding || me.inHome) return; exitPhoto(); standUp();
@@ -1242,19 +1245,29 @@ async function drawHomeItems() {
   MY.own.hats.filter((i) => HATS[i] && i !== 5).slice(-6).forEach((i, n) => { const sp = iconSprite('hat' + i); sp.position.set(4.75, 2.3, 0.1 + n * 0.6); homeItems.add(sp); });
   MY.own.cams.forEach((id, n) => { const sp = iconSprite('cam_' + id); sp.position.set(4.75, 1.5, 0.1 + n * 0.6); homeItems.add(sp); });
 }
+// 침대 · 소파 · 책장 · 찻상까지 걸어가서 해요 (순간이동하지 않아요). 가는 길에 움직이면 그만둬요
+let homeGo = null;
 function homeDo(k) {
-  const p = HS[k]; standUp(); me.target = null; me.pos.x = ROOM.x + p.x; me.pos.z = ROOM.z + p.z; me.face = p.face; sitting = { pos: me.pos.clone(), face: p.face };
-  // 가구에 가리지 않게 앞쪽에서 봐요
-  camera.position.set(me.pos.x + Math.sin(p.face) * 3.4 + (k === 'bed' ? 1.6 : 0), ROOM.y + 2.1, me.pos.z + Math.cos(p.face) * 3.4); controls.target.set(me.pos.x, ROOM.y + 0.9, me.pos.z);
+  const p = HS[k]; standUp(); const t = new THREE.Vector3(ROOM.x + p.x, ROOM.y, ROOM.z + p.z);
+  if (Math.hypot(t.x - me.pos.x, t.z - me.pos.z) > 0.7) { homeGo = k; me.target = t; showMark(t); return; }
+  homeArrive(k);
+}
+function homeTick() { if (!homeGo) return; const p = HS[homeGo]; if (Math.hypot(ROOM.x + p.x - me.pos.x, ROOM.z + p.z - me.pos.z) < 0.7) { const k = homeGo; homeGo = null; me.target = null; homeArrive(k); } else if (!me.target || !me.inHome) homeGo = null; }
+// 가구 · 벽에 가리지 않는 쪽에서 봐요 (나를 기준으로 x, 높이, z)
+const HS_CAM = { bed: [1.6, 2.1, 3.4], sofa: [0.6, 2.0, 3.2], book: [2.4, 2.0, 1.3], tea: [-2.4, 2.0, -1.0] };
+function homeArrive(k) {
+  const p = HS[k]; me.target = null; me.pos.x = ROOM.x + p.x; me.pos.z = ROOM.z + p.z; me.face = p.face; sitting = { pos: me.pos.clone(), face: p.face };
+  const c = HS_CAM[k]; camera.position.set(me.pos.x + c[0], ROOM.y + c[1], me.pos.z + c[2]); controls.target.set(me.pos.x, ROOM.y + 0.9, me.pos.z);
   if (k === 'bed') { me.lie = true; bump('rest'); const day = new Date().toDateString(), gift = MY.restDay !== day; if (gift) { MY.restDay = day; MY.coins += 20; saveMy(); updCoins(); } toastMsg('푹 쉬어요', gift ? '오늘 처음 쉬었어요 · 🪙 +20' : '움직이면 일어나요'); return; }
   me.st.sit = 1; me.st.seat = k === 'sofa' ? 0.45 : 0.42;
   toastMsg({ sofa: '소파에 앉았어요', book: '책을 읽어요', tea: '따뜻한 차를 마셔요' }[k], '움직이면 일어나요');
 }
 // 🎨 꾸미기 창: 가구 놓기 · 옮기기 · 치우기, 사진 벽
-async function openDeco() {
+async function openDeco(kind = 'furn') {
+  $('#deco').dataset.k = kind; $('#decoT').textContent = kind === 'furn' ? '가구 꾸미기' : '사진 액자';
   if (!$('#deco').classList.contains('on')) closePanels();
   const H = MY.home ||= { wall: 'cream', items: [], pics: [] }, own = MY.own.furn || [];
-  $('#decoFurn').innerHTML = own.length ? own.map((id) => { const f = FURN.find((x) => x[0] === id), on = H.items.some((i) => i.id === id); return `<div class="dk"><span class="dki">${ICON[id]}${f[2]}</span>${on ? `<button type="button" data-move="${id}">자리 옮기기</button><button type="button" data-off="${id}">치우기</button>` : `<button type="button" data-put="${id}">다시 놓기</button>`}</div>`; }).join('') : '<p class="empty">상점에서 가구를 사면 집에 저절로 놓여요</p>';
+  $('#decoFurn').innerHTML = own.length ? own.map((id) => { const f = FURN.find((x) => x[0] === id), on = H.items.some((i) => i.id === id); return `<div class="dk"><span class="dki">${ICON[id]}${f[2]}</span>${on ? `<button type="button" data-move="${id}">자리 옮기기</button><button type="button" data-off="${id}">치우기</button>` : `<button type="button" data-put="${id}">다시 놓기</button>`}</div>`; }).join('') : '<p class="empty">아직 산 가구가 없어요. 상점에서 가구를 사면 집에 저절로 놓여요</p><button type="button" class="toShop" data-shop="furn">상점에서 가구 보기</button>';
   const list = (await listPhotos()).filter((p) => !String(p.id).startsWith('best-')).slice(0, 24); decoUrls.forEach((u) => URL.revokeObjectURL(u)); decoUrls = [];
   $('#decoPics').innerHTML = list.length ? list.map((p) => { const u = URL.createObjectURL(p.blob); decoUrls.push(u); return `<button type="button" data-pic="${p.id}" class="${H.pics.includes(p.id) ? 'on' : ''}" aria-label="사진 걸기"><img src="${u}" alt=""></button>`; }).join('') : '<p class="empty">사진을 찍으면 벽에 걸 수 있어요</p>';
   $('#decoN').textContent = `${H.pics.length} / ${PICS.length}장`; $('#deco').classList.add('on');
@@ -1263,11 +1276,12 @@ let decoUrls = [];
 $('#decoX').onclick = () => $('#deco').classList.remove('on');
 $('#deco').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return; const H = MY.home, d = b.dataset;
+  if (d.shop) { $('#deco').classList.remove('on'); openCloset('shop'); document.querySelector(`#cTabs [data-tab="${d.shop}"]`)?.click(); return; }
   if (d.move) { startMove(d.move); return; }
   if (d.put) placeFurn(d.put);
   else if (d.off) H.items = H.items.filter((i) => i.id !== d.off);
   else if (d.pic) { if (H.pics.includes(d.pic)) H.pics = H.pics.filter((x) => x !== d.pic); else if (H.pics.length < PICS.length) H.pics.push(d.pic); else { toastMsg('벽이 꽉 찼어요', '걸린 사진을 눌러 내린 뒤 걸어 주세요'); return; } }
-  else return; saveMy(); drawHomeItems(); openDeco();
+  else return; saveMy(); drawHomeItems(); openDeco($('#deco').dataset.k);
 });
 // 🪑 자리 옮기기: 창을 닫고 바닥을 누른 곳으로 가구를 옮겨요
 let moveId = null;
@@ -1275,8 +1289,9 @@ function startMove(id) { moveId = id; $('#deco').classList.remove('on'); $('#mov
 function endMove() { moveId = null; document.body.classList.remove('placing'); }
 function moveTo(q) { const it = MY.home.items.find((i) => i.id === moveId); if (!it) return; it.x = clamp(q.x - ROOM.x, -4.4, 4.4); it.z = clamp(q.z - ROOM.z, -3.6, 3.6); saveMy(); drawHomeItems(); showMark(q); }
 $('#mvTurn').onclick = () => { const it = MY.home.items.find((i) => i.id === moveId); if (it) { it.r = (it.r || 0) + Math.PI / 2; saveMy(); drawHomeItems(); } };
-$('#mvDone').onclick = () => { endMove(); openDeco(); };
-$('#decoBtn').onclick = () => { endMove(); openDeco(); };
+$('#mvDone').onclick = () => { endMove(); openDeco('furn'); };
+$('#decoBtn').onclick = () => { endMove(); openDeco('furn'); };
+$('#picBtn').onclick = () => { endMove(); openDeco('pics'); };
 function enterHome() {
   travelTo('집으로 들어가는 중', () => { standUp(); me.inHome = true; room.visible = true; const H = MY.home ||= { wall: 'cream', items: [], pics: [] }; if (!H.auto) { H.auto = 1; (MY.own.furn || []).forEach((id) => { if (!H.items.some((i) => i.id === id)) placeFurn(id); }); saveMy(); } drawHomeItems(); document.body.classList.add('inhome'); controls.maxDistance = 9; me.face = Math.PI; return ROOM.clone().add(V.set(0, 0, 1.8)); });
 }
@@ -1328,15 +1343,97 @@ function updBugs(T, dt) {
   }
 }
 // 🙌 동작 단추: 누르면 다섯 가지가 펼쳐져요. 춤 · 뛰기는 내 화면에서만 보여요
-document.querySelectorAll('#actMenu button').forEach((b) => { b.querySelector('span').innerHTML = ICON[b.dataset.a] || ''; });
+document.querySelectorAll('#actMenu button, #homeActs button').forEach((b) => { b.querySelector('span').innerHTML = ICON[b.dataset.a] || ''; });
+// ✕ ➕ ➖ ‹ › 글자 단추를 직접 그린 기호로 바꿔요
+document.querySelectorAll('button').forEach((b) => { const t = b.textContent.trim(); if (SYM[t] && b.children.length === 0) b.innerHTML = SYM[t]; });
+// 집 안: 쉬기 · 소파 · 책 읽기 · 차 마시기 단추를 바로 눌러요 (걸어가서 해요)
+$('#homeActs').addEventListener('click', (e) => { const k = e.target.closest('button')?.dataset.a; if (k && HS[k]) homeDo(k); });
 function closeActs() { $('#actMenu').classList.remove('on'); $('#actBtn').setAttribute('aria-expanded', 'false'); }
 // 마을: 연날리기 · 곤충잡기 / 마을 밖: 춤추기 · 뛰기
-function paintActs() { const w = me.inHome ? 'home' : curZone === 'village' ? 'village' : 'out'; document.querySelectorAll('#actMenu [data-v]').forEach((b) => { b.hidden = !b.dataset.v.split(' ').includes(w); }); }
+// 모닥불 곁: 앉기 · 마시멜로 굽기 · 불꽃놀이 · 연날리기 / 동물 곁: 쓰다듬기 · 먹이 주기 · 셀카 찍기 / 그 밖: 마을은 앉기 · 연날리기 · 곤충잡기, 마을 밖은 앉기
+const nearFire = () => FIRES.find((f) => Math.hypot(f.g.position.x - me.pos.x, f.g.position.z - me.pos.z) < 7);
+function paintActs() {
+  const w = new Set(); if (me.inHome) w.add('home'); else { if (nearFire()) w.add('fire'); if (nearAnimal()) w.add('ani'); if (!w.size) w.add(curZone === 'village' ? 'village' : 'out'); }
+  document.querySelectorAll('#actMenu [data-v]').forEach((b) => { b.hidden = !b.dataset.v.split(' ').some((v) => w.has(v)); });
+}
+// 🔥 마시멜로: 모닥불 의자에 앉아 막대 끝 마시멜로를 노릇노릇하게 구워요 (6초)
+const marsh = { t: 0, g: new THREE.Group() };
+{ const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, 1.1, 6), toon('#8a5e3a')); stick.rotation.x = Math.PI / 2 - 0.35; stick.position.set(0, 0.19, 0.52); marsh.g.add(stick);
+  marsh.m = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.11, 14), new THREE.MeshStandardMaterial({ color: '#fbf6ec', roughness: 0.8 })); marsh.m.rotation.x = Math.PI / 2 - 0.35; marsh.m.position.set(0, 0.38, 1.04); marsh.g.add(marsh.m); marsh.g.visible = false; scene.add(marsh.g); }
+const MSW = new THREE.Color('#fbf6ec'), MSB = new THREE.Color('#d08a3a');
+function startMarsh() {
+  const f = nearFire(); if (!f) return; if (!sitting) { const seat = SEATS.filter((s) => s.pos.distanceTo(f.g.position) < 3).sort((p, q) => p.pos.distanceTo(me.pos) - q.pos.distanceTo(me.pos))[0]; if (seat) sitDown(seat); }
+  marsh.t = 6; marsh.g.visible = true; marsh.m.material.color.copy(MSW); toastMsg('마시멜로를 구워요', '노릇노릇해질 때까지 기다려요 · 움직이면 그만해요');
+}
+// 🎆 불꽃놀이: 내 앞 하늘에 여섯 번 터져요
+const fireworks = [];
+const sparkTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+function startFireworks() {
+  standUp(); bump('fwork'); toastMsg('불꽃놀이를 해요', '앞쪽 하늘을 보세요');
+  const dx = me.pos.x - camera.position.x, dz = me.pos.z - camera.position.z, dl = Math.hypot(dx, dz) || 1;
+  for (let i = 0; i < 6; i++) setTimeout(() => {
+    // 지금 보는 화면 위쪽 가운데에 터지게: 카메라 앞 D m, 화면 높이의 위쪽 1/3 쯤
+    const D = 16 + rnd() * 4, fw = camera.getWorldDirection(new THREE.Vector3()), up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion), rt = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), hh = D * Math.tan(camera.fov * Math.PI / 360);
+    const n = 110, pos = new Float32Array(n * 3), vel = [], c = camera.position.clone().addScaledVector(fw, D).addScaledVector(up, hh * (0.3 + rnd() * 0.25)).addScaledVector(rt, hh * camera.aspect * (rnd() - 0.5) * 0.9);
+    for (let k = 0; k < n; k++) { pos.set([c.x, c.y, c.z], k * 3); const u = rnd() * 2 - 1, a = rnd() * Math.PI * 2, r = Math.sqrt(1 - u * u), sp = 4 + rnd() * 1.5; vel.push(new THREE.Vector3(r * Math.cos(a) * sp, u * sp, r * Math.sin(a) * sp)); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: ['#ffd84a', '#ff6a8a', '#6ac0ff', '#8aff7a', '#ffffff', '#c89aff'][i], size: 1.1, map: sparkTex, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, fog: false }));
+    pts.frustumCulled = false; scene.add(pts); fireworks.push({ pts, vel, t: 0 }); snd.shutter();
+  }, i * 550);
+}
+function updFun(T, dt) {
+  if (marsh.t > 0) {
+    if (!sitting) { marsh.t = 0; marsh.g.visible = false; }
+    else { marsh.t -= dt; marsh.g.position.set(me.pos.x, me.pos.y + 0.42, me.pos.z); marsh.g.rotation.y = me.face; marsh.m.material.color.copy(MSW).lerp(MSB, Math.min(1, 1 - marsh.t / 6));
+      if (marsh.t <= 0) { bump('marsh'); snd.chime(); toastMsg('마시멜로가 노릇노릇 구워졌어요', '냠냠! 달콤해요'); setTimeout(() => { if (!(marsh.t > 0)) marsh.g.visible = false; }, 1600); } }
+  }
+  for (let i = fireworks.length - 1; i >= 0; i--) { const f = fireworks[i]; f.t += dt; const p = f.pts.geometry.attributes.position;
+    f.vel.forEach((v, k) => { v.y -= 3 * dt; v.multiplyScalar(1 - dt * 0.8); p.setXYZ(k, p.getX(k) + v.x * dt, p.getY(k) + v.y * dt, p.getZ(k) + v.z * dt); }); p.needsUpdate = true;
+    f.pts.material.opacity = Math.max(0, 1 - f.t / 1.9); if (f.t > 1.9) { scene.remove(f.pts); f.pts.geometry.dispose(); f.pts.material.dispose(); fireworks.splice(i, 1); } }
+}
+// 🤳 셀카: 동물을 곁으로 부르고, 내 앞에서 나와 동물을 함께 찍어 앨범에 넣어요 (도감 점수와는 따로)
+let selfieOn = false;
+// 집 · 벽 · 나무가 사이에 있는지 양쪽에서 쏘아 봐요 (벽 안쪽에 카메라가 들어가지 않게)
+const selRay = new THREE.Raycaster(); selRay.camera = camera;
+function clearLine(p, q, a) {
+  const d = p.distanceTo(q), skip = (o) => { for (let x = o; x; x = x.parent) if (x === me.g || x === a.g) return true; return o.type === 'Sprite' || o.type === 'Points' || o.isInstancedMesh; };
+  for (const [s, e] of [[p, q], [q, p]]) { selRay.set(s, e.clone().sub(s).normalize()); selRay.far = d; if (selRay.intersectObjects(scene.children, true).some((h) => !skip(h.object))) return false; }
+  return true;
+}
+async function selfie(a) {
+  if (selfieOn) return; selfieOn = true; standUp(); exitPhoto();
+  { const dx = a.pos.x - me.pos.x, dz = a.pos.z - me.pos.z, d = Math.hypot(dx, dz) || 1, stay = 1.2 + a.tagH * 0.4; a.face = Math.atan2(-dx, -dz); a.heart = 6; a.visit = true; a.wait = 7; if (a.speed && d > stay + 0.4) { a.target = me.pos.clone().add(V.set((dx / d) * stay, 0, (dz / d) * stay)); a.call = 8; } }
+  toastMsg(`${a.name}${josa(a.name) === '과' ? '이' : '가'} 곁으로 와요`, '함께 셀카를 찍어요');
+  await new Promise((r) => setTimeout(r, 1600));
+  const oldP = camera.position.clone(), oldT = controls.target.clone(), mid = me.pos.clone().add(a.pos).multiplyScalar(0.5);
+  const vx = me.pos.x - a.pos.x, vz = me.pos.z - a.pos.z, vl = Math.hypot(vx, vz) || 1, ux = vx / vl, uz = vz / vl;
+  let cam = null; const head = me.pos.clone().add(V.set(0, 1, 0)), ah = a.pos.clone(); ah.y += a.tagH * 0.5;
+  for (const r of [3, 2.3]) for (const off of [0.35, -0.35, 0.9, -0.9, 1.5, -1.5, 0]) { if (cam) break; const c2 = Math.cos(off), s2 = Math.sin(off), wx = ux * c2 - uz * s2, wz = uz * c2 + ux * s2, p = new THREE.Vector3(me.pos.x + wx * r, me.pos.y + 1.6, me.pos.z + wz * r);
+    if (!occAt(p.x, p.y, p.z) && height(p.x, p.z) < p.y - 0.4 && seenFrom(p, head) && seenFrom(p, ah) && clearLine(p, head, a) && clearLine(p, ah, a)) cam = p; }
+  cam ||= new THREE.Vector3(me.pos.x + ux * 2.3, me.pos.y + 1.6, me.pos.z + uz * 2.3);
+  controls.enabled = false; camera.position.copy(cam); controls.target.set(mid.x, Math.max(me.pos.y, a.pos.y) + 0.8, mid.z); camera.lookAt(controls.target);
+  me.face = Math.atan2(cam.x - me.pos.x, cam.z - me.pos.z); me.st.waveT = 2.4; a.face = Math.atan2(cam.x - a.pos.x, cam.z - a.pos.z);
+  await new Promise((r) => setTimeout(r, 650));
+  renderer.render(scene, camera);
+  const src = renderer.domElement, W = src.width, H = src.height, cw = Math.min(W, H * 4 / 3), ch = cw * 0.75, shot = document.createElement('canvas'); shot.width = 1080; shot.height = 1010;
+  const g = shot.getContext('2d'); g.fillStyle = camOf().frame; g.fillRect(0, 0, 1080, 1010); g.filter = camOf().filter || 'none'; g.drawImage(src, (W - cw) / 2, (H - ch) / 2, cw, ch, 40, 40, 1000, 750); g.filter = 'none';
+  const at = new Date(); g.fillStyle = '#3a2e24'; g.font = '58px OngleipUnz, sans-serif'; g.fillText(`${a.name}${josa(a.name)} 셀카`, 52, 870); g.fillStyle = '#7a6a5a'; g.font = '38px OngleipUnz, sans-serif'; g.fillText(ZONES[curZone || 'village'][0], 54, 930);
+  g.textAlign = 'right'; g.font = '32px OngleipUnz, sans-serif'; g.fillText(`${at.getFullYear()}. ${at.getMonth() + 1}. ${at.getDate()}`, 1032, 930); g.font = '24px OngleipUnz, sans-serif'; g.fillStyle = 'rgba(90,70,50,.55)'; g.fillText('Snapzoo · snapzoo.site', 1032, 985);
+  $('#flash').classList.add('on'); setTimeout(() => $('#flash').classList.remove('on'), 80); snd.shutter(); bump('selfie');
+  setTimeout(() => { camera.position.copy(oldP); controls.target.copy(oldT); controls.enabled = true; selfieOn = false; }, 900);
+  shot.toBlob(async (blob) => {
+    if (!blob) return; const url = URL.createObjectURL(blob), t = $('#toast'); t.querySelector('img').src = url; t.querySelector('span').innerHTML = `<b>${a.name}${josa(a.name)} 셀카!</b><small>앨범에 넣었어요</small>`; t.classList.add('on');
+    clearTimeout(shoot.tt); clearTimeout(toastMsg.tt); shoot.tt = setTimeout(() => { t.classList.remove('on'); URL.revokeObjectURL(url); }, 2600);
+    if (!(await addPhoto({ blob, zone: ZONES[curZone || 'village'][0], seen: [a.name], animal: '', selfie: 1, score: 0 }))) t.querySelector('span').innerHTML = '<b>셀카를 찍었어요</b><small>앨범에 저장하지 못했어요</small>';
+  }, 'image/jpeg', 0.9);
+}
 $('#actBtn').onclick = (e) => { e.stopPropagation(); paintActs(); const on = $('#actMenu').classList.toggle('on'); $('#actBtn').setAttribute('aria-expanded', String(on)); };
 addEventListener('pointerdown', (e) => { if (!e.target.closest('#actMenu, #actBtn')) closeActs(); });
 $('#actMenu').addEventListener('click', (e) => {
   const k = e.target.closest('button')?.dataset.a; if (!k) return; closeActs(); if (me.riding) return;
-  if (k === 'leave') { exitHome(); return; } if (k === 'deco') { openDeco(); return; } if (HS[k]) { homeDo(k); return; }
+  if (k === 'leave') { exitHome(); return; } if (k === 'deco') { openDeco('furn'); return; } if (k === 'frame') { openDeco('pics'); return; } if (HS[k]) { homeDo(k); return; }
+  if (k === 'marsh') { startMarsh(); return; } if (k === 'fwork') { startFireworks(); return; }
+  if (k === 'selfie') { const a = nearAnimal(); if (a) selfie(a); else toastMsg('동물 곁으로 가 보세요', '8 m 안에 있으면 함께 찍어요'); return; }
   if (k === 'sit') {
     if (sitting) { standUp(); return; }
     const seat = nearSeat(); if (seat) { sitDown(seat); return; }
@@ -1495,8 +1592,9 @@ const net = new IslandNet({
   onLeave: dropFriend,
   onReset() { [...friends.keys()].forEach(dropFriend); },
   onStatus() { showPeople(); },
+  onFull() { toastMsg('지금 방이 모두 찼어요', '혼자서 섬을 계속 둘러볼 수 있어요'); },
 });
-function showPeople() { const n = friends.size; $('#people').textContent = `${myTitle()}${myName}${net.online ? (n ? ` · 친구 ${n}명과 함께` : ' · 섬에 혼자예요') : ''}`; }
+function showPeople() { const n = friends.size; $('#people').textContent = `${myTitle()}${myName}${net.online ? (n ? ` · 친구 ${n}명과 함께` : ' · 섬에 혼자예요') : net.full ? ' · 방이 모두 찼어요' : ''}`; }
 showPeople(); setTimeout(() => net.join(), 1500);   // 첫 그림이 나온 뒤에 붙어요
 addEventListener('pagehide', () => net.close());
 function updateFriends(dt) {
@@ -1586,11 +1684,11 @@ function frame() {
     if (r.ferry) {
       const p = FERRY.getPointAt(u), tn = FERRY.getTangentAt(u); me.pos.set(p.x, waveAt(p.x, p.z) + 0.34, p.z); me.face = Math.atan2(tn.x * r.dir, tn.z * r.dir); boat.visible = true; raft.visible = false; boat.position.set(p.x, me.pos.y - 0.22, p.z); boat.rotation.set(Math.sin(T * 1.3) * 0.03, me.g.rotation.y, Math.sin(T * 1.1) * 0.04);
       $('#rideBar').style.width = `${Math.round(k * 100)}%`; $('#rideS').textContent = k < 1 ? `${Math.ceil(r.dur * (1 - k))}초 남았어요 · ${r.dir > 0 ? '갈라파고스 섬' : '마을 쪽 나루'}` : '도착!';
-      if (k >= 1) { const end = r.dir > 0 ? PIER.isle : PIER.main, s = r.dir > 0 ? -1 : 1; me.pos.set(end.x + PIER.ux * s * 3, 0, end.z + PIER.uz * s * 3); me.pos.y = height(me.pos.x, me.pos.z); me.riding = null; boat.visible = false; $('#ferry').disabled = false; setTimeout(() => { $('#ride').classList.remove('on'); bringAnimals(); }, 700); }
+      if (k >= 1) { landAt((r.dir > 0 ? YARD.isle : YARD.village).pos); me.riding = null; boat.visible = false; $('#ferry').disabled = false; setTimeout(() => { $('#ride').classList.remove('on'); bringAnimals(); }, 700); }
     } else {
     const p = CABLE.getPointAt(u); gondola.position.copy(p); me.pos.set(p.x, p.y - 3.3, p.z);
     $('#rideBar').style.width = `${Math.round(k * 100)}%`; $('#rideS').textContent = k < 1 ? `${Math.ceil(r.dur * (1 - k))}초 남았어요 · ${r.dir > 0 ? '눈 덮인 꼭대기' : '강가 마을'}` : '도착!';
-    if (k >= 1) { const end = r.dir > 0 ? TOPS : STA; me.pos.copy(end).add(V.set(3, 0, 3)); me.pos.y = height(me.pos.x, me.pos.z); me.riding = null; $('#cable').disabled = false; setTimeout(() => { $('#ride').classList.remove('on'); bringAnimals(); }, 700); }
+    if (k >= 1) { landAt((r.dir > 0 ? YARD.arctic : YARD.village).pos); me.riding = null; $('#cable').disabled = false; setTimeout(() => { $('#ride').classList.remove('on'); bringAnimals(); }, 700); }
     }
   } else {
     const wa = me.inHome ? null : waterAt(me.pos.x, me.pos.z), deck = wa ? (wa.kind === 'sea' ? 0.22 : 0.28) : 0;
@@ -1604,7 +1702,7 @@ function frame() {
   }
   me.g.position.copy(me.pos);
   me.g.rotation.y = lerp(me.g.rotation.y, me.face, 0.2);
-  updKite(T, dt); updBugs(T, dt);
+  updKite(T, dt); updBugs(T, dt); updFun(T, dt); homeTick();
   me.g.rotation.x = me.lie ? -1.5 : 0; if (me.lie) me.g.position.y += 0.62;   // 침대에 누워요
   if (me.actT > 0) {   // 🙌 춤추기 · 뛰기
     if (mv.lengthSq() > 0 && me.act === 'dance') me.actT = 0;

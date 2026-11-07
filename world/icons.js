@@ -24,6 +24,9 @@ export function lookIcon(L, skirt = true) {
 // 머리색 그림: 얼굴에 머리카락을 씌워요
 export const hairIcon = (c) => svg(`<path d="M9 42c-3-14-2-32 15-33 17 1 18 19 15 33z" fill="${c}" ${O}/><circle cx="24" cy="26" r="11" fill="#f6dcc4" ${O}/><path d="M12 24c2-9 8-12 12-12s10 3 12 12c-5-1-8-3-11-7-2 4-7 6-13 7z" fill="${c}" ${O}/><circle cx="20" cy="28" r="1.5" fill="#3a2a20"/><circle cx="28" cy="28" r="1.5" fill="#3a2a20"/>`);
 const band = (c, x) => svg(`<path d="M8 36C8 18 15 12 24 12s16 6 16 24" fill="none" stroke="#4a3424" stroke-width="7" stroke-linecap="round"/><path d="M8 36C8 18 15 12 24 12s16 6 16 24" fill="none" stroke="${c}" stroke-width="3.6" stroke-linecap="round"/>${x}`);
+// 기호 단추(닫기 · 확대 · 축소 · 넘기기): 글자 대신 둥근 굵은 선. 단추 글자색(currentColor)을 따라가요
+const sym = (d) => `<svg class="ic sym" viewBox="0 0 48 48" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+export const SYM = { '✕': sym('M14 14l20 20M34 14L14 34'), '➕': sym('M24 11v26M11 24h26'), '➖': sym('M11 24h26'), '‹': sym('M29 11L16 24l13 13'), '›': sym('M19 11l13 13-13 13') };
 export const ICON = {
   // 모자 (HATS 순서)
   hat0: hat('#e8cf8e', '#f2dfa8', '#3f7a5a'), hat1: svg(`<path d="M10 30c0-11 6-17 14-17s14 6 14 17z" fill="#4f7ac8" ${O}/><path d="M30 28c6 0 12 2 14 6-6 1-14 0-20-2z" fill="#3a5fa8" ${O}/>`),
@@ -73,6 +76,10 @@ export const ICON = {
   feed: svg(`<path d="M20 14c6-2 12 2 11 9L16 42c-2 2-5-1-4-3z" fill="#f28a3a" ${O}/><path d="M25 13c0-5 3-8 8-9 1 4 0 7-3 9 3-1 7 0 9 3-4 2-8 1-11-1z" fill="#5fa04f" ${O}/>`),
   kite: svg(`<path d="M24 4l14 18-14 14L10 22z" fill="#e8553d" ${O}/><path d="M24 4v32M10 22h28" ${O}/><path d="M24 36c-3 3 3 4 0 7" fill="none" ${O}/>`),
   bug: svg(`<path d="M24 24C18 10 4 10 6 20c1 6 10 8 18 4zM24 24c6-14 20-14 18-4-1 6-10 8-18 4z" fill="#f2a23a" ${O}/><path d="M24 24c-6 2-10 12-6 14 3 1 5-5 6-10 1 5 3 11 6 10 4-2 0-12-6-14z" fill="#f2c84a" ${O}/><path d="M24 15v18" ${O}/>`),
+  marsh: svg(`<path d="M6 42L30 18" stroke="#8a5e3a" stroke-width="3.4" ${O}/><rect x="27" y="7" width="15" height="13" rx="4" transform="rotate(45 34 13)" fill="#f6e2c0" ${O}/><path d="M31 9l8 8" stroke="#d8944a" stroke-width="3"/>`),
+  fwork: svg(`${[0, 45, 90, 135, 180, 225, 270, 315].map((d) => `<path d="M24 20l${Math.sin(d * Math.PI / 180) * 13} ${-Math.cos(d * Math.PI / 180) * 13}" stroke="${['#f2c84a', '#e85a7a', '#5aa8e8', '#7ad06a'][d / 45 % 4]}" stroke-width="3.4" stroke-linecap="round"/>`).join('')}<circle cx="24" cy="20" r="3.4" fill="#fff6c8" ${O}/><path d="M24 44V30" stroke="#8a6a4a" stroke-width="2.4" stroke-dasharray="2 3"/>`),
+  selfie: svg(`<rect x="13" y="4" width="22" height="40" rx="5" fill="#4a4e5a" ${O}/><rect x="16" y="10" width="16" height="26" rx="2" fill="#cfe6f2"/><circle cx="21" cy="21" r="4" fill="#f2c8a0" ${O}/><path d="M16 36c0-6 10-6 10 0z" fill="#e8765a"/><circle cx="29" cy="25" r="3" fill="#c8905a" ${O}/><circle cx="24" cy="40" r="1.6" fill="#fff"/>`),
+  frame: svg(`<rect x="7" y="6" width="34" height="34" rx="2" fill="#b8844e" ${O}/><rect x="12" y="11" width="24" height="24" fill="#cfe6f2" ${O}/><path d="M12 31l7-8 5 5 4-4 8 7v4H12z" fill="#7ab05a"/><circle cx="29" cy="17" r="2.6" fill="#f2c84a"/>`),
   dance: svg(`<circle cx="24" cy="10" r="5" fill="#f2c8a0" ${O}/><path d="M24 16v14l-8 12M24 30l9 11M24 20L12 13M24 20l13-3" fill="none" ${O}/>`),
   jump: svg(`<circle cx="24" cy="9" r="5" fill="#f2c8a0" ${O}/><path d="M24 15v13l-9 6M24 28l9 6M24 19L13 10M24 19l11-9" fill="none" ${O}/><path d="M10 43h28" ${O}/>`),
   bed: svg(`<path d="M6 16v26M42 26v16" ${O}/><path d="M6 32h36v6H6z" fill="#8a5e3a" ${O}/><path d="M6 22h36v10H6z" fill="#e88a7a" ${O}/><path d="M9 18h12v6H9z" fill="#fff6e6" ${O}/>`),

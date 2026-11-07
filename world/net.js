@@ -3,7 +3,7 @@
 // 서버가 없거나 닿지 않으면 조용히 혼자 산책. 끊기면 2초, 4초 … 뒤 다시 붙고, 30초 안이면 친구 화면에서는 나간 적 없는 것처럼 보여요.
 import { RELAY_URL, NAME_A, NAME_B } from '../kids/js/data.js';
 
-export const ISLANDS = 12, CAP = 100;
+export const ISLANDS = 10, CAP = 20;   // 서버(server/worker.js)의 섬 방 수 · 인원과 같아야 해요
 const RELAY = (() => {
   const q = new URLSearchParams(location.search).get('relay');   // 시험용: ?relay=http://localhost:8787
   return (q && /^https?:\/\/[\w.:-]+$/.test(q) ? q : RELAY_URL).replace(/\/$/, '');
@@ -37,8 +37,10 @@ export class IslandNet {
     try {
       const j = await fetch(`${RELAY}/counts?kind=island`, { signal: AbortSignal.timeout(15000) }).then((r) => r.json());
       let bc = -1; (j.counts || []).forEach((c, i) => { if (c < CAP && c > bc) { bc = c; n = i + 1; } });
+      if (bc < 0 && (j.counts || []).length) { this.full = true; this.h.onStatus?.(); this.h.onFull?.(); return false; }   // 방이 모두 찼어요: 접속만 그만두고 혼자 둘러봐요
+      this.full = false;
     } catch { this.h.onStatus?.(); clearTimeout(this.retry); this.retry = setTimeout(() => this.join(), 20000); return false; }   // 섬이 무거워 처음엔 늦을 수 있어요: 20초 뒤 다시
-    this.open(n); return true;
+    this.tries = 0; this.open(n); return true;
   }
   open(n, attempt = 0) {
     this.close(true); this.room = n;
@@ -49,7 +51,7 @@ export class IslandNet {
       if (m.t === 'hello') { this.online = true; this.h.onReset?.(); m.peers.forEach((p) => p.st && this.h.onState?.(p.id, p.st)); this.h.onStatus?.(); }
       else if (m.t === 'st') this.h.onState?.(m.id, m.d);
       else if (m.t === 'leave') this.h.onLeave?.(m.id);
-      else if (m.t === 'full') { ws.onclose = null; ws.close(); this.open(n % ISLANDS + 1); }
+      else if (m.t === 'full') { ws.onclose = null; ws.close(); if (++this.tries >= ISLANDS) { if (this.ws === ws) this.ws = null; this.full = true; this.online = false; this.h.onStatus?.(); this.h.onFull?.(); return; } this.open(n % ISLANDS + 1); }
     };
     ws.onopen = () => { if (this.last) ws.send(JSON.stringify({ t: 'st', d: this.last })); };
     ws.onclose = (ev) => {
