@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON } from './icons.js?v=20261107j';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107j';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107j';
-import { IslandSound } from './sound.js?v=20261107j';
-import { ROSTER } from './fauna.js?v=20261107j';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107j';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js?v=20261107j';
-import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107j';
+import { ICON, BADGE_ICON } from './icons.js?v=20261107k';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107k';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107k';
+import { IslandSound } from './sound.js?v=20261107k';
+import { ROSTER } from './fauna.js?v=20261107k';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107k';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js?v=20261107k';
+import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107k';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -570,7 +570,7 @@ $('#cable').onclick = () => {
 // 🏘 마을로 · 🦁 초원으로 · 🏜️ 사막으로: 로딩 화면처럼 노을 사진 위에 '○○로 가는 중' + 진행선이 차오른 뒤 도착
 // ☰ 메뉴 서랍: 도감 · 앨범 · 꾸미기 · 설정 · 이동. 하나를 누르면 닫혀요
 // 창은 하나만: 상점 · 캐릭터 · 도감 · 앨범 · 꾸미기 · 어디로 · 설정 · 메뉴
-function closePanels() { closeCloset(); closeDex(); closeAlbum(); ['#deco', '#places', '#settings'].forEach((q) => $(q).classList.remove('on')); closeActs(); }
+function closePanels() { closeCloset(); closeDex(); closeAlbum(); ['#deco', '#settings'].forEach((q) => $(q).classList.remove('on')); closeActs(); }
 function closeDrawer() { $('#drawer').classList.remove('on'); $('#drawer').setAttribute('aria-hidden', 'true'); $('#drawerBtn').setAttribute('aria-expanded', 'false'); }
 $('#drawerBtn').onclick = (e) => { e.stopPropagation(); const on = !$('#drawer').classList.contains('on'); if (!on) return closeDrawer(); closePanels(); $('#drawer').classList.add('on'); $('#drawer').setAttribute('aria-hidden', 'false'); $('#drawerBtn').setAttribute('aria-expanded', 'true'); };
 $('#drawer').addEventListener('click', (e) => { if (e.target.closest('button') && e.target.closest('button').id !== 'setBtn') closeDrawer(); });
@@ -1134,15 +1134,6 @@ YARD.savanna = plaza(findYard('savanna', (POOLS.get('savanna') || [VIL])[0]), '�
 YARD.desert = plaza(findYard('desert', (POOLS.get('desert') || [VIL])[1] || (POOLS.get('desert') || [VIL])[0]), '사막 마당', true);
 { let c = null; for (let r = 16; r < 46 && !c; r += 2) for (let i = 0; i < 16 && !c; i++) { const a = i / 16 * Math.PI * 2, x = TOPS.x + Math.sin(a) * r, z = TOPS.z + Math.cos(a) * r; if (height(x, z) > 106 && riverNear(x, z).d > 15) c = new THREE.Vector3(x, 0, z); } YARD.arctic = plaza(c || TOPS.clone().add(V.set(-22, 0, 18)), '꼭대기 광장'); }
 YARD.isle = plaza(new THREE.Vector3(ISLE.x + PIER.ux * 36, 0, ISLE.z + PIER.uz * 36), '섬 광장');
-// 📍 어디로 갈까: 포토 스팟 · 모이는 곳 목록, 누르면 바로 가요
-function openPlaces() {
-  const row = (name, pos, done) => `<div class="dk"><span>${done ? '' : ''}${name} <small>${Math.round(Math.hypot(pos.x - me.pos.x, pos.z - me.pos.z))} m</small></span><button type="button" data-gx="${pos.x}" data-gz="${pos.z}" data-gn="${name}">가기</button></div>`;
-  $('#placeList').innerHTML = `<h3>포토 스팟</h3><p class="note">안에서 동물을 찍으면 🪙 +30 (스팟마다 하루 한 번)</p>${SPOTS.map((sp) => row(sp.name, sp.pos, (MY.spots || {})[sp.name])).join('')}<h3>모이는 곳</h3>${GATHER.map((g) => row(g.name, g.pos)).join('')}<h3>우리 집</h3><div class="dk"><span>우리 집</span><button type="button" data-gohome="1">가기</button></div>`;
-  $('#places').classList.add('on');
-}
-$('#placeBtn').onclick = () => { if (me.inHome) { toastMsg('집에서 나간 뒤에 갈 수 있어요', '문 앞 매트로 가면 나가요'); return; } openPlaces(); };
-$('#placeX').onclick = () => $('#places').classList.remove('on');
-$('#placeList').addEventListener('click', (e) => { if (e.target.closest('[data-gohome]')) { $('#places').classList.remove('on'); enterHome(); return; } const b = e.target.closest('[data-gx]'); if (!b) return; $('#places').classList.remove('on'); const q = new THREE.Vector3(+b.dataset.gx, 0, +b.dataset.gz); travelTo(`${b.dataset.gn} 가는 중`, () => q); });
 const nearPier = () => [PIER.main, PIER.isle].find((p) => Math.hypot(p.x - me.pos.x, p.z - me.pos.z) < 7);
 function rideFerry() {
   if (me.riding || me.inHome) return; exitPhoto(); standUp();
