@@ -973,6 +973,8 @@ function addSpot(name, p) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(2.6, 3.0, 48), new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.55, depthWrite: false, fog: false })); ring.rotation.x = -Math.PI / 2; g.add(ring);
   const c = document.createElement('canvas'); c.width = 512; c.height = 128; const x = c.getContext('2d'); x.fillStyle = 'rgba(18,14,12,.6)'; x.beginPath(); x.roundRect(8, 16, 496, 96, 40); x.fill(); x.fillStyle = '#fff3d6'; x.font = '54px OngleipUnz, sans-serif'; x.textAlign = 'center'; x.fillText('📍 ' + name, 256, 84);
   const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })); sign.scale.set(4, 1, 1); sign.position.y = 3.4; g.add(sign);
+  // 멀리서도 보이는 금빛 기둥
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.5, 46, 16, 1, true), new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide, fog: false })); beam.position.y = 23; g.add(beam);
   SPOTS.push({ name, pos: new THREE.Vector3(p.x, y, p.z), g, ring, sign, tex: c });
 }
 document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => {
@@ -982,6 +984,8 @@ document.fonts.load('40px OngleipUnz').catch(() => {}).then(() => {
   addSpot('안개 숲 빈터', (POOLS.get('jungle') || [])[0]);
   addSpot('돌고래 해변', (POOLS.get('seashore') || [])[0]);
   addSpot('강가 모닥불', VIL.clone().add(V.set(6.5, 0, -1.5)));
+  addSpot('화산 전망대', new THREE.Vector3(ISLE.x + 10, 0, ISLE.z + 8));
+  addSpot('거북이 바닷가', (POOLS.get('isleseashore') || [])[0]);
 });
 const spotHere = () => SPOTS.find((sp) => Math.hypot(sp.pos.x - me.pos.x, sp.pos.z - me.pos.z) < 3.2);
 
@@ -1264,6 +1268,8 @@ const BADGES = [
   { id: 'exH', ex: 1, icon: '🏠', name: '우리 집', cap: '집에 들어가기', ok: (c) => c.seen.home },
   { id: 'exC', ex: 1, icon: '🚡', name: '케이블카 승객', cap: '케이블카 타기', ok: (c) => c.cable >= 1 },
   { id: 'exF', ex: 1, icon: '🚢', name: '뱃길 여행', cap: '배로 섬 다녀오기', ok: (c) => c.ferry >= 2 },
+  { id: 'exP1', ex: 1, icon: '📍', name: '첫 포토 스팟', cap: '포토 스팟 1곳 가기', ok: () => Object.keys(MY.spots || {}).length >= 1 },
+  { id: 'exP8', ex: 1, icon: '🗺', name: '포토 스팟 완주', cap: '포토 스팟 8곳 다 가기', ok: () => Object.keys(MY.spots || {}).length >= 8 },
   { id: 'exAll', ex: 1, icon: '🧭', name: '섬 탐험가', cap: '여덟 곳 모두 가 보기', ok: (c) => ['village', 'savanna', 'jungle', 'desert', 'arctic', 'sea', 'isle', 'home'].every((z) => c.seen[z]) },
   { id: 'rest', icon: '🛌', name: '집이 최고', cap: '침대에서 쉬기', ok: (c) => c.rest >= 1 },
   { id: 'kite', icon: '🪁', name: '바람 친구', cap: '연 날리기', ok: (c) => c.kite >= 1 },
@@ -1388,6 +1394,7 @@ function drawMini() {
   mg.drawImage(miniBase, 0, 0);
   const [vx, vz] = toMini(VIL); mg.fillStyle = '#c8553d'; mg.fillRect(vx - 5, vz - 5, 10, 10);
   for (const f of friends.values()) { if (f.d.k) continue; const [fx, fz] = toMini(f.to); mg.fillStyle = '#f2c84a'; mg.beginPath(); mg.arc(fx, fz, 5, 0, Math.PI * 2); mg.fill(); }
+  for (const sp of SPOTS) { const [sx, sz] = toMini(sp.pos), seen = (MY.spots || {})[sp.name]; mg.fillStyle = seen ? '#fff3d6' : '#ffb400'; mg.strokeStyle = '#6a3a10'; mg.lineWidth = 2; mg.beginPath(); mg.moveTo(sx, sz + 8); mg.arc(sx, sz - 3, 6, Math.PI * 0.85, Math.PI * 0.15); mg.closePath(); mg.fill(); mg.stroke(); }   // 📍 핀: 안 가 본 곳은 진한 금색
   const [px, pz] = toMini(me.pos); mg.fillStyle = '#fff'; mg.strokeStyle = '#24302a'; mg.lineWidth = 3; mg.beginPath(); mg.arc(px, pz, 7, 0, Math.PI * 2); mg.fill(); mg.stroke();
   mg.restore();
 }
@@ -1565,7 +1572,14 @@ function frame() {
   updWeather(T, dt, z0);
   scene.fog.near = lerp(scene.fog.near, fogNear * wx.fogK, 0.02); scene.fog.far = lerp(scene.fog.far, fogFar * wx.fogK, 0.02);
   FIRES.forEach((f, i) => { const k = 0.85 + Math.sin(T * 11 + i) * 0.08 + Math.sin(T * 23 + i * 2) * 0.06; f.flames.forEach((m, j) => { m.scale.set(1, k + j * 0.05, 1); m.rotation.y = T * (1 + j); }); f.light.intensity = (4 + tod.night * 10) * k; });
-  SPOTS.forEach((sp, i) => { sp.ring.material.opacity = 0.35 + Math.sin(T * 2 + i) * 0.15; sp.g.visible = Math.hypot(sp.pos.x - me.pos.x, sp.pos.z - me.pos.z) < 160; });
+  SPOTS.forEach((sp, i) => { sp.ring.material.opacity = 0.35 + Math.sin(T * 2 + i) * 0.15; sp.g.visible = !me.inHome && Math.hypot(sp.pos.x - me.pos.x, sp.pos.z - me.pos.z) < 300; });
+  // 📍 포토 스팟 알림: 가까워지면 한 번, 안에 들어오면 한 번
+  if (!me.inHome && !me.riding) for (const sp of SPOTS) {
+    const d = Math.hypot(sp.pos.x - me.pos.x, sp.pos.z - me.pos.z);
+    if (d < 3 && !sp.inIt) { sp.inIt = true; MY.spots ||= {}; if (!MY.spots[sp.name]) { MY.spots[sp.name] = 1; saveMy(); checkBadges(); } toastMsg(`📍 포토 스팟 · ${sp.name}`, '여기서 동물을 찍으면 🪙 +30 이고 사진에 장소 이름이 들어가요'); }
+    else if (d > 6) sp.inIt = false;
+    if (d < 26 && !sp.near) { sp.near = true; if (d >= 3) toastMsg(`📍 근처에 포토 스팟이 있어요`, `금빛 기둥을 찾아가 보세요 · ${sp.name}`); } else if (d > 40) sp.near = false;
+  }
   if ((frame.cx = (frame.cx || 0) + dt) > 0.2) { frame.cx = 0; updCtx(); }
   const ZL = { jungle: ['#a9bf8e', 1.75], arctic: ['#dde5ee', 1.35], desert: ['#f2d2a2', 1.1] }[z0] || [LK.fog, LK.hemi[2] * 1.4];   // 정글은 초록 안개 · 밝은 하늘빛
   V2C.copy(tod.fog).lerp(TCa.set(ZL[0]), 0.55 * (1 - tod.night)); scene.fog.color.lerp(V2C, 0.05); grassMat.uniforms.uFog.value.copy(scene.fog.color); hemi.intensity = lerp(hemi.intensity, tod.hemiI * (ZL[1] / (LK.hemi[2] * 1.4)), 0.05);
