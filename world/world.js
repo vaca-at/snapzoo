@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108g';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108g';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108g';
-import { IslandSound } from './sound.js?v=20261108g';
-import { ROSTER } from './fauna.js?v=20261108g';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261108g';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108g';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108g';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108h';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108h';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108h';
+import { IslandSound } from './sound.js?v=20261108h';
+import { ROSTER } from './fauna.js?v=20261108h';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261108h';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108h';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108h';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -1107,6 +1107,7 @@ function campfire(c) {
   const sparks = []; for (let i = 0; i < 12; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: emberTex, color: '#ffc070', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); sp.scale.setScalar(0.07); g.add(sp); sparks.push({ sp, t: rr(i + 21) * 2, sp0: 0.5 + rr(i + 23) * 0.6, a: rr(i + 25) * 6.28 }); }
   const light = new THREE.PointLight('#ff9a4a', 6, 14, 1.6); light.position.y = 1.4; g.add(light);
   FIRES.push({ g, flames, light, embers, sparks, halo });
+  SOLIDS.push({ x: c.x, z: c.z, rad: 0.95 });   // 불 속으로 걸어 들어가지 않게
   // 🪵 통나무 벤치 넷: 껍질 통나무 위에 평평하게 깎은 앉는 판, 양쪽 그루터기 받침
   for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + 0.4, x = c.x + Math.sin(a) * 1.95, z = c.z + Math.cos(a) * 1.95, y = height(x, z);
     const b = new THREE.Group(); b.position.set(x, y, z); b.rotation.y = a + Math.PI / 2; scene.add(b);
@@ -1488,11 +1489,11 @@ function updFireworks(dt) {
 }
 // 🔦 밤엔 손전등 · ☔ 비 오면 우산: 내 캐릭터를 따라다녀요 (옷을 갈아입어도 그대로)
 const gear = new THREE.Group(); scene.add(gear);
-const torch = new THREE.Group(); gear.add(torch);
+const torch = new THREE.Group();   // 손전등 몸통은 왼손에 쥐어요 (빛은 gear 에서 손 자리를 따라가요)
 { const body = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.2, 12), toon('#3a3e48')); body.rotation.x = Math.PI / 2; torch.add(body);
   const head = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.038, 0.06, 14), toon('#f2c84a')); head.rotation.x = Math.PI / 2; head.position.z = 0.12; torch.add(head);
   const glass = new THREE.Mesh(new THREE.CircleGeometry(0.045, 14), new THREE.MeshBasicMaterial({ color: '#fff6c8' })); glass.position.z = 0.152; torch.add(glass); }
-const beam = new THREE.SpotLight('#fff0c8', 0, 30, 0.55, 0.6, 1.1); beam.position.set(0, 0, 0.15); torch.add(beam); torch.add(beam.target); beam.target.position.set(0, -1.6, 9);
+const beam = new THREE.SpotLight('#fff0c8', 0, 30, 0.55, 0.6, 1.1); gear.add(beam); gear.add(beam.target); torch.rotation.x = Math.PI / 2; torch.position.set(0, -0.05, 0.02);
 const glow = new THREE.PointLight('#ffe6b0', 0, 8, 1.4); gear.add(glow);
 const umb = new THREE.Group(); gear.add(umb);
 { const top = new THREE.Mesh(new THREE.ConeGeometry(0.62, 0.26, 8, 1, true), toon('#e8553d', { side: THREE.DoubleSide })); top.position.y = 0.13; umb.add(top);
@@ -1504,7 +1505,10 @@ function updGear(dt) {
   if (gearH.g !== me.g) { const b = new THREE.Box3().setFromObject(me.g); gearH = { g: me.g, h: Math.max(0.6, (b.max.y - b.min.y) / Math.max(0.001, me.g.scale.y)) }; }
   const out = !me.inHome && me.g.visible, h = gearH.h, night = out && tod.night > 0.45 && !fwShow, rain = out && wx.rain > 0.35;
   gear.position.copy(me.g.position); gear.rotation.y = me.g.rotation.y;
-  torch.visible = night; torch.position.set(-0.2 * h, h * 0.5, 0.16 * h); torch.rotation.x = 0.12;
+  me.st.torch = night ? 1 : 0; const hand = me.st.handL;
+  if (hand && torch.parent !== hand) hand.add(torch);
+  torch.visible = night;
+  if (hand) { const hp = gear.worldToLocal(hand.getWorldPosition(new THREE.Vector3())); beam.position.copy(hp); beam.target.position.set(hp.x, hp.y - 1.6, hp.z + 9); }
   beam.intensity += ((night ? 38 : 0) - beam.intensity) * Math.min(1, dt * 4); glow.intensity += ((out && tod.night > 0.45 ? 2.4 : 0) - glow.intensity) * Math.min(1, dt * 4); glow.position.set(0, h * 0.9, 0.6);
   umb.visible = rain; umb.position.set(0.12 * h, h * 1.12, 0.05); umb.scale.setScalar(Math.max(0.75, h / 1.25)); umb.rotation.z = -0.08;
 }

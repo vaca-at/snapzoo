@@ -1,7 +1,7 @@
 // 주인공 · 친구 사람 (2026-11-05 결정): 사람 시안 A(극장판 자연형) · B(꼬마 2.5등신) 를 섞어 체형 셋.
 //  체형 1 = 키 큰(극장판) · 2 = 보통 · 3 = 꼬마(가장 작음, 처음 시작). 번호는 꾸미기 화면 순서예요. 성별 · 옷(LOOKS) · 모자(HATS) 는 꾸미기에서.
 // 돌려주는 st 는 예전 walker 와 같아요: { root, walk, rate, waveT, aim, aimK, snapT, update(t, dt), look, g, hat, body }
-import { THREE, LOOKS, J } from './zoo3d.js?v=20261108g';
+import { THREE, LOOKS, J } from './zoo3d.js?v=20261108h';
 const { sin, cos, PI, abs, max, min } = Math;
 
 // 비율 (미터). 2 는 1 과 3 의 가운데
@@ -190,7 +190,7 @@ export function person(look = 0, opts = {}) {
   // 목줄: 사진기 양옆 고리에서 어깨를 지나 목 뒤로 (사진기를 들면 같이 따라 올라가요)
   const strapM = mat('#6a4430'), strapPts = (lift) => { const yC = tl * 0.62 + lift, zC = cz, w = 0.06 * cs, nY = nTop + P.neck * 0.6; return [[-w, yC + 0.02 * cs, zC], [-P.chest * 0.55, (yC + nY) / 2 + 0.02, P.chest * 0.7], [-P.neckR * 1.25, nY, P.neckR * 0.2], [0, nY + 0.01, -P.neckR * 1.35], [P.neckR * 1.25, nY, P.neckR * 0.2], [P.chest * 0.55, (yC + nY) / 2 + 0.02, P.chest * 0.7], [w, yC + 0.02 * cs, zC]].map(([x, y, z]) => new THREE.Vector3(x, y, z)); };
   const strap = add(body, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(strapPts(0)), 40, 0.007 * cs, 6), strapM); let strapLift = 0;
-  const st = { root, walk: 0, step: 0, waveT: 0, aim: 0, aimK: 0, snapT: 0, rate: 1, sit: 0, sitK: 0, look, g: F ? 'f' : 'm', hat: HAT, body: BI, cam: CM.id, hair: opts.hair ?? -1, acc: ACC, hold: 0, handR: arms[1].h };   // hold: 오른손을 높이 들어요 (불꽃 막대)
+  const st = { root, walk: 0, step: 0, waveT: 0, aim: 0, aimK: 0, snapT: 0, rate: 1, sit: 0, sitK: 0, look, g: F ? 'f' : 'm', hat: HAT, body: BI, cam: CM.id, hair: opts.hair ?? -1, acc: ACC, hold: 0, handR: arms[1].h, torch: 0, handL: arms[0].h };   // torch: 왼손에 손전등을 들고 앞을 비춰요   // hold: 오른손을 높이 들어요 (불꽃 막대)
   st.update = (t, dt) => {
     st.step += dt * st.walk * 8.4 * P.stride * (st.rate || 1); const p = st.step, w = st.walk;
     legs.forEach(({ l, k: kn }, i) => { const q = p + i * PI; l.rotation.x = sin(q) * 0.44 * w; kn.rotation.x = max(0, -sin(q - 0.9)) * 0.7 * w; });
@@ -202,6 +202,7 @@ export function person(look = 0, opts = {}) {
     st.aimK += ((st.aim ? 1 : 0) - st.aimK) * min(1, dt * 7); const ak = st.aimK * st.aimK * (3 - 2 * st.aimK);
     if (st.snapT > 0) st.snapT = max(0, st.snapT - dt);
     if (ak > 0.01) arms.forEach(({ a, f, s }) => { a.rotation.x = a.rotation.x * (1 - ak) - 1.0 * ak; a.rotation.z = a.rotation.z * (1 - ak) - s * 0.4 * ak; f.rotation.x = f.rotation.x * (1 - ak) - 1.65 * ak; f.rotation.z = -s * 0.7 * ak; });
+    if (st.torch && ak < 0.5) { const Lf = arms[0]; Lf.a.rotation.x = -0.35 + Lf.a.rotation.x * 0.3; Lf.a.rotation.z = -0.12; Lf.f.rotation.x = -1.25; Lf.f.rotation.z = 0; }
     if (st.hold) { const R = arms[1]; R.a.rotation.x = -2.55; R.a.rotation.z = 0.16; R.f.rotation.x = -0.12; R.f.rotation.z = 0; }
     camG.position.set(0, tl * 0.62 + (P.neck + P.head * 0.9 + P.chest * 0.38) * ak, cz + P.head * 0.7 * ak);
     const lift = Math.round(ak * 6) / 6; if (lift !== strapLift) { strapLift = lift; strap.geometry.dispose(); const pts = strapPts((P.neck + P.head * 0.9 + P.chest * 0.38) * lift); pts[0].z += P.head * 0.7 * lift; pts[6].z += P.head * 0.7 * lift; strap.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.007 * cs, 6); } camG.rotation.x = sin(t * 2.2) * 0.1 * (1 - ak) - 0.1 * ak;
