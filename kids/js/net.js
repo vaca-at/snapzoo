@@ -68,10 +68,10 @@ export class Net {
       if (m.t === 'hello') {
         this.online = true; this.selfId = m.id;
         this.h.onReset?.();
-        m.peers.forEach((p) => p.st && this.h.onState?.(p.id, p.st));
+        this.peers = new Set(m.peers.filter((p) => p.st).map((p) => p.id)); m.peers.forEach((p) => p.st && this.h.onState?.(p.id, p.st));
         this.h.onStatus?.();
-      } else if (m.t === 'st') this.h.onState?.(m.id, m.d);
-      else if (m.t === 'leave') this.h.onLeave?.(m.id);
+      } else if (m.t === 'st') { if (!(this.peers ||= new Set()).has(m.id)) { this.peers.add(m.id); this.lastSent = 0; } this.h.onState?.(m.id, m.d); }
+      else if (m.t === 'leave') { this.peers?.delete(m.id); this.h.onLeave?.(m.id); }
       else if (m.t === 'full') { ws.onclose = null; ws.close(); this.open(n % SERVER_COUNT + 1); this.h.onFull?.(n); }
     };
     ws.onopen = () => { attempt = 0; if (this.last) ws.send(JSON.stringify({ t: 'st', d: this.last })); };
@@ -88,15 +88,16 @@ export class Net {
     this.pinger = setInterval(() => { if (ws.readyState === 1) ws.send('ping'); }, 25000);
   }
 
-  // 내 모습 보내기: 바뀌었을 때 1초에 8번까지, 그대로면 3초에 한 번
+  // 내 모습 보내기 (2026-11-07 무료 한도 절약): 방에 친구가 있을 때만 자주(바뀌면 0.25초, 그대로면 15초),
+  //  혼자면 아주 가끔(바뀌면 5초, 그대로면 30초), 다른 탭을 보고 있으면 안 보내요. 새 친구가 오면 바로 한 번 보내요
   send(st, now) {
     this.last = st;
-    if (!this.ws || this.ws.readyState !== 1) return;
-    const j = JSON.stringify(st);
-    if (j === this.lastJson ? now - this.lastSent < 3000 : now - this.lastSent < 125) return;
-    this.lastJson = j; this.lastSent = now;
-    this.ws.send(JSON.stringify({ t: 'st', d: st }));
+    if (!this.ws || this.ws.readyState !== 1 || document.hidden) return;
+    const j = JSON.stringify(st), alone = !this.peers?.size, same = j === this.lastJson;
+    if (now - this.lastSent < (alone ? (same ? 30000 : 5000) : (same ? 15000 : 250))) return;
+    this.lastJson = j; this.lastSent = now; this.ws.send(JSON.stringify({ t: 'st', d: st }));
   }
+
 
   // keepServer = 서버를 바꾸거나 다시 붙을 때 (잠깐 끊김). 그 밖(버스 · 배를 타고 떠날 때)은 '잘 가요'를 먼저 보내
   // 서버가 30초 기다리지 않고 친구들 화면에서 나를 바로 지우게 해요
