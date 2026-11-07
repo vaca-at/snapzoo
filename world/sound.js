@@ -34,7 +34,7 @@ export class IslandSound {
     this.waterN = loop(1400, 1.6, 'lowpass');
     this.crick = ctx.createGain(); this.crick.gain.value = 0; this.crick.connect(this.amb);
     // 풀벌레: 높은 소리를 빠르게 켰다 껐다
-    const co = ctx.createOscillator(); co.type = 'sine'; co.frequency.value = 4700; const am = ctx.createGain(); am.gain.value = 0; const lfo = ctx.createOscillator(); lfo.frequency.value = 28; const lg = ctx.createGain(); lg.gain.value = 0.05; lfo.connect(lg).connect(am.gain); co.connect(am).connect(this.crick); co.start(); lfo.start();
+    const co = ctx.createOscillator(); co.type = 'sine'; co.frequency.value = 3600; const am = ctx.createGain(); am.gain.value = 0; const lfo = ctx.createOscillator(); lfo.frequency.value = 28; const lg = ctx.createGain(); lg.gain.value = 0.05; lfo.connect(lg).connect(am.gain); co.connect(am).connect(this.crick); co.start(); lfo.start();
     this.t0 = ctx.currentTime + 0.2; this.beat = 60 / 66; this.nextBeat = 0; this.nextBird = ctx.currentTime + 2;
     this.timer = setInterval(() => this.tick(), 100);
     document.addEventListener('visibilitychange', () => { if (document.hidden) ctx.suspend(); else ctx.resume(); });
@@ -51,7 +51,7 @@ export class IslandSound {
     this.wind.f.frequency.setTargetAtTime((z === 'arctic' ? 700 : z === 'desert' ? 900 : 500) * (0.8 + Math.random() * 0.5), t, 2);
     this.waterN.g.gain.setTargetAtTime(Math.min(1, this.water + (this.rain || 0) * 1.2 + (this.fire || 0) * 0.35) * 0.5, t, k);   // 물가 · 빗소리 · 모닥불 타닥
     const nk = this.night || 0;   // 밤엔 풀벌레가 크게, 새는 잠들어요
-    this.crick.gain.setTargetAtTime((z === 'jungle' ? 0.7 : z === 'savanna' ? 0.35 : z === 'village' ? 0.2 : 0) * (1 - nk) + (z === 'arctic' || z === 'sea' ? 0 : 0.85) * nk, t, k);
+    this.crick.gain.setTargetAtTime((z === 'jungle' ? 0.25 : 0) * (1 - nk) + (z === 'arctic' || z === 'sea' ? 0 : 0.3) * nk, t, k);   // 삐~ 하는 높은 소리가 커서 낮에는 밀림에서만 작게, 밤에도 작게 (2026-11-07)
   }
   // 100ms 마다: 앞으로 0.6초 안의 음을 미리 예약
   tick() {

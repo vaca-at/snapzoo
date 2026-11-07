@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261107q';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107q';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107q';
-import { IslandSound } from './sound.js?v=20261107q';
-import { ROSTER } from './fauna.js?v=20261107q';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261107q';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107q';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107q';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261107r';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107r';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107r';
+import { IslandSound } from './sound.js?v=20261107r';
+import { ROSTER } from './fauna.js?v=20261107r';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107r';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261107r';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107r';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -95,6 +95,7 @@ const ZONES = {
   isle: ['갈라파고스 섬', '거북 · 이구아나 · 푸른발부비새가 사는 화산섬이에요'],
   home: ['우리 집', '침대 · 소파 · 책장을 써 보세요'],
   village: ['강가 마을', '강을 따라 올라가면 산꼭대기 눈밭이에요'],
+  river: ['강 · 민물', '송사리 · 붕어 · 수달이 사는 맑은 강이에요'],
 };
 function zoneAt(x, z, y = height(x, z)) {
   if (y < 1.2) return 'sea';
@@ -274,6 +275,18 @@ function gable(w, d, h, over = 0.5) {   // 박공지붕: 세모 단면을 길게
 }
 const GLASS = new THREE.MeshStandardMaterial({ color: '#7fa6c0', roughness: 0.15, metalness: 0.2, emissive: '#ffbe6a', emissiveIntensity: 0 });   // 밤엔 창에 불이 켜져요
 let villageFire = null;
+// 🧱 집 · 우물은 통과하지 못해요: 네모(hw · hd, 돌림 r) 또는 동그라미(rad). 안에 들어오면 가장 가까운 바깥으로 밀어내요
+const SOLIDS = [];
+function pushOut(p) {
+  for (const b of SOLIDS) {
+    const dx = p.x - b.x, dz = p.z - b.z;
+    if (b.rad) { const d = Math.hypot(dx, dz); if (d < b.rad) { const k = b.rad / (d || 0.01); p.x = b.x + dx * k; p.z = b.z + dz * k; } continue; }
+    const c = Math.cos(b.r), s = Math.sin(b.r); let lx = dx * c - dz * s, lz = dx * s + dz * c;
+    if (Math.abs(lx) >= b.hw || Math.abs(lz) >= b.hd) continue;
+    if (b.hw - Math.abs(lx) < b.hd - Math.abs(lz)) lx = Math.sign(lx || 1) * b.hw; else lz = Math.sign(lz || 1) * b.hd;
+    p.x = b.x + lx * c + lz * s; p.z = b.z - lx * s + lz * c;
+  }
+}
 function house(w, d, wallH, roofC, wallC) {
   const h = new THREE.Group(), wall = toon(wallC), trim = toon('#7a5a40'), glass = GLASS;
   const body = new THREE.Mesh(new RoundedBoxGeometry(w, wallH, d, 3, 0.18), wall); body.position.y = wallH / 2; h.add(body);
@@ -304,7 +317,9 @@ function house(w, d, wallH, roofC, wallC) {
     const a = (k / 6) * Math.PI * 2, r = 15, hx = Math.cos(a) * r, hz = Math.sin(a) * r, hy = height(VIL.x + hx, VIL.z + hz) - VIL.y;
     const hs = house(5 + (k % 3) * 0.8, 4.4 + (k % 2) * 0.6, 3.2 + (k % 2) * 0.4, roofs[k], walls[k]); hs.position.set(hx, hy - 0.15, hz); hs.rotation.y = -a - Math.PI / 2; g.add(hs);
     addOcc(VIL.x + hx, VIL.y + hy + 1.6, VIL.z + hz, 3.1); addOcc(VIL.x + hx, VIL.y + hy + 3.8, VIL.z + hz, 2.7);
+    SOLIDS.push({ x: VIL.x + hx, z: VIL.z + hz, hw: (5 + (k % 3) * 0.8) / 2 + 0.35, hd: (4.4 + (k % 2) * 0.6) / 2 + 0.35, r: hs.rotation.y });
   }
+  SOLIDS.push({ x: VIL.x, z: VIL.z, rad: 1.8 });   // 우물
   // 우물: 돌 둘레 · 나무 지붕
   const well = new THREE.Group(); g.add(well);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.35, 12, 28), toon('#a89a86')); ring.rotation.x = Math.PI / 2; ring.position.y = 0.7; well.add(ring);
@@ -427,7 +442,15 @@ const nearIsle = (x, z) => isleD(x, z) < ISLE.r + 36, nearVillageSea = (x, z) =>
 const onBeach = (x, z, isl) => { const y = height(x, z); return y > 0.7 && y < 2.6 && riverNear(x, z).d > 6 && (isl ? nearIsle(x, z) : nearVillageSea(x, z)); };   // 마을 쪽 바닷가 · 섬 바닷가는 살림이 달라요
 const inSea = (x, z, isl) => { const y = height(x, z); return y < -1.2 && y > -7 && riverNear(x, z).d > 4 && (isl ? nearIsle(x, z) : nearVillageSea(x, z)); };   // 바닷가에서 보이는 얕은 곳에서 살아요
 const inVillage = (x, z) => { const r = Math.hypot(x - VIL.x, z - VIL.z); return r < 27 && r > 3.5 && Math.abs(r - 15) > 4.2 && riverNear(x, z).d > 6; };
+// 🐟 강 · 민물: 강물 가운데쯤(swim) · 강 물가 모래(bank). 바다와 닿는 끝 · 샘 근처는 빼요
+const RIVER_Y = { medaka: -0.22, minnow: -0.2, crucian: -0.28, koi: -0.18, catfish: -0.4, pondturtle: -0.06, otter: 0.02 };
+// 강물 높이 (바닷물은 빼요). 강물이 아닌 곳은 null
+const riverLevel = (x, z) => { const y = height(x, z), rv = riverNear(x, z); if (y < 0.3 || rv.i < 0 || rv.d >= riverW(rv.i) * 0.6) return null; const p = RS[rv.i], wy = Math.max(height(p.x, p.z) + 1.0, 0.25); return y < wy - 0.05 ? wy : null; };
+const inRiver = (x, z) => { const rv = riverNear(x, z); if (rv.i < 30 || rv.i > RS.length - 25 || rv.d > riverW(rv.i) * 0.38) return false; return riverLevel(x, z) !== null && Math.hypot(x - VIL.x, z - VIL.z) > 26; };
+const onBank = (x, z) => { const rv = riverNear(x, z), w = riverW(Math.max(0, rv.i)); return rv.i >= 30 && rv.i < RS.length - 25 && rv.d > w * 0.62 && rv.d < w * 0.62 + 3 && height(x, z) > 1 && riverLevel(x, z) === null && Math.hypot(x - VIL.x, z - VIL.z) > 26; };
+const riverY = (a) => (riverLevel(a.pos.x, a.pos.z) ?? height(a.pos.x, a.pos.z)) + (RIVER_Y[a.id] ?? -0.2);
 function okFor(a, x, z) {
+  if (a.zone === 'river') return (a.move === 'swim' ? inRiver(x, z) : onBank(x, z)) && Math.hypot(x - a.home.x, z - a.home.z) < 26;
   if (a.zone === 'village') return inVillage(x, z);
   const isl = a.zone === 'islesea';
   if (a.move === 'swim') return inSea(x, z, isl) && Math.hypot(x - a.home.x, z - a.home.z) < 34;
@@ -439,6 +462,8 @@ function spotFor(zone, move, test) {
   for (let k = 0; k < 4000; k++) {
     let x, z;
     if (zone === 'village') { const a = rnd() * Math.PI * 2, r = 4 + rnd() * 23; x = VIL.x + Math.sin(a) * r; z = VIL.z + Math.cos(a) * r; if (!inVillage(x, z)) continue; }
+    else if (zone === 'river') { const i = 30 + Math.floor(rnd() * (RS.length - 56)), p = RS[i], q = RS[i + 1], tx = q.x - p.x, tz = q.z - p.z, tl = Math.hypot(tx, tz) || 1, side = rnd() < 0.5 ? -1 : 1, w = riverW(i), off = move === 'swim' ? (rnd() - 0.5) * w * 0.6 : side * (w * 0.62 + 0.4 + rnd() * 2.2);
+      x = p.x - tz / tl * off; z = p.z + tx / tl * off; if (move === 'swim' ? !inRiver(x, z) : !onBank(x, z)) continue; }
     else { const onI = zone === 'isle' || zone === 'islesea'; x = onI ? ISLE.x + (rnd() - 0.5) * 2 * (ISLE.r + 34) : (rnd() - 0.5) * 640; z = onI ? ISLE.z + (rnd() - 0.5) * 2 * (ISLE.r + 34) : (rnd() - 0.5) * 640; const y = height(x, z), isl = zone === 'islesea';
       if (move === 'swim') { if (!inSea(x, z, isl)) continue; }
       else if (move === 'shore') { if (!onBeach(x, z, isl)) continue; }
@@ -450,14 +475,16 @@ function spotFor(zone, move, test) {
 const animals = [], POOLS = new Map(), tagged = [];
 // 구역마다 '모이는 곳'(물웅덩이 · 풀밭 같은) 너덧 군데. 종마다 무리를 여기 나눠 놓으니 한 곳에 여러 종이 섞여 지내요
 function poolFor(zone, move) {
-  const key = zone + (move === 'swim' || move === 'shore' ? move : ''); if (POOLS.has(key)) return POOLS.get(key);
-  const n = zone === 'village' ? 6 : move === 'swim' || move === 'shore' ? 8 : 14, pool = [];
+  const key = zone + (move === 'swim' || move === 'shore' || move === 'bank' ? move : ''); if (POOLS.has(key)) return POOLS.get(key);
+  const n = zone === 'village' ? 6 : zone === 'river' ? 10 : move === 'swim' || move === 'shore' ? 10 : 12, pool = [];   // 모이는 곳: 마을 6 · 물 10 · 땅 12
   if (zone === 'arctic' && move !== 'swim' && move !== 'shore') for (let i = 0; i < 3; i++) { const a = i * 2.1 + 0.4, x = TOPS.x + Math.sin(a) * 16, z = TOPS.z + Math.cos(a) * 16; if (height(x, z) > 100) pool.push(new THREE.Vector3(x, height(x, z), z)); }   // 케이블카 내리는 곳 둘레에도 꼭 (산꼭대기에 내리자마자 만나게)
-  for (let i = 0; i < n; i++) { const p = spotFor(zone, move, (x, z) => pool.every((o) => Math.hypot(o.x - x, o.z - z) > (zone === 'village' ? 9 : 32))) || spotFor(zone, move, () => true); if (p) pool.push(p); }
+  for (let i = 0; i < n; i++) { const p = spotFor(zone, move, (x, z) => pool.every((o) => Math.hypot(o.x - x, o.z - z) > (zone === 'village' ? 9 : zone === 'river' ? 24 : 32))) || spotFor(zone, move, () => true); if (p) pool.push(p); }
   POOLS.set(key, pool); return pool;
 }
+// 구역마다 종 수 · 마릿수를 비슷하게: 낮 동물은 종마다 4마리(아주 큰 동물은 2마리), 밤 동물은 예전 그대로
+const BIG = new Set(['whale', 'sunfish', 'walrus', 'catfish']);
 for (const [zone, id, name, herds0, per0, scale, move, speed, night] of ROSTER) {
-  const herds = herds0, per = per0 >= 3 ? 2 : 1;   // 작은 무리(1~2마리) 여럿을 구역 곳곳에: 걷다 보면 1~3종씩 만나요
+  const per = per0 >= 3 ? 2 : 1, herds = night ? herds0 : Math.ceil((BIG.has(id) ? 2 : 4) / per);   // 작은 무리(1~2마리) 여럿을 구역 곳곳에: 걷다 보면 1~3종씩 만나요
   if (move === 'jump') continue;
   const pool = poolFor(zone, move), start = Math.floor(rnd() * pool.length);
   for (let h = 0; h < herds; h++) {
@@ -470,7 +497,7 @@ for (const [zone, id, name, herds0, per0, scale, move, speed, night] of ROSTER) 
       // 듬성듬성: 다른 동물과 7 m(마을 3.5 m) 넘게 떨어진 자리부터 찾아요
       const gap = zone === 'village' ? 3.5 : 7, W2 = zone === 'village' ? 8 : 26; let p = null;
       for (let i = 0; i < 80 && !p; i++) { const q = home.clone().add(V.set((rnd() - 0.5) * W2, 0, (rnd() - 0.5) * W2)); if ((okFor(a, q.x, q.z) && (i > 60 || animals.every((o) => Math.hypot(o.pos.x - q.x, o.pos.z - q.z) > gap))) || i === 79) p = q; }
-      p.y = move === 'swim' ? SEA_Y[id] ?? -0.2 : height(p.x, p.z); a.pos = p; a.g.position.copy(p); scene.add(a.g);
+      p.y = zone === 'river' && move === 'swim' ? (riverLevel(p.x, p.z) ?? height(p.x, p.z)) + (RIVER_Y[id] ?? -0.2) : move === 'swim' ? SEA_Y[id] ?? -0.2 : height(p.x, p.z); a.pos = p; a.g.position.copy(p); scene.add(a.g);
       const tag = document.createElement('div'); tag.className = 'tag'; tag.textContent = name; document.body.append(tag); a.tag = tag;
       { const bs = new THREE.Box3().setFromObject(a.g).getSize(V); a.size = Math.min(2.2, Math.max(0.12, Math.max(bs.x, bs.z) * 0.32)); a.tagH = Math.max(0.35, bs.y + 0.3); } if (move === 'swim') a.tagH = Math.min(a.tagH, 1.2);
       animals.push(a);
@@ -667,9 +694,9 @@ $('#sAmb').oninput = (e) => { SET.amb = +e.target.value; snd.setVolume('amb', SE
 // ───────── 📷 사진 찍기 (아이용 동물 왕국처럼): 뷰파인더로 바꿔 움직이는 동물을 따라 조준 · 확대 · 찰칵 → 점수 · 별 · 도감 ─────────
 //  점수 = 가운데 40 + 크기 30 + 특별한 순간 30 (♥ 반가워할 때 · 나를 바라볼 때 · 돌고래가 뛰어오를 때)
 // 도감 · 사진 순서: 마을 → 마을 바닷가 → 초원 → 사막 → 정글 → 산꼭대기 → 섬 → 섬 바닷가
-const ZORDER = ['village', 'sea', 'savanna', 'desert', 'jungle', 'arctic', 'isle', 'islesea'];
+const ZORDER = ['village', 'river', 'sea', 'savanna', 'desert', 'jungle', 'arctic', 'isle', 'islesea'];
 const DEX = ROSTER.map(([zone, id, name, , , , , , night]) => [id, name, zone, night]).sort((a, b) => ZORDER.indexOf(a[2]) - ZORDER.indexOf(b[2]));
-const ZLAB = { village: '마을', sea: '마을 바닷가', savanna: '초원', desert: '사막', jungle: '밀림', arctic: '산꼭대기', isle: '섬', islesea: '섬 바닷가' };
+const ZLAB = { village: '마을', river: '강', sea: '마을 바닷가', savanna: '초원', desert: '사막', jungle: '밀림', arctic: '산꼭대기', isle: '섬', islesea: '섬 바닷가' };
 let dex = (() => { try { return JSON.parse(localStorage.getItem('snapzoo-island-dex') || '{}'); } catch { return {}; } })();
 const saveDex = () => { try { localStorage.setItem('snapzoo-island-dex', JSON.stringify(dex)); } catch {} };
 const starsOf = (sc) => (sc >= 85 ? 3 : sc >= 60 ? 2 : sc > 0 ? 1 : 0);
@@ -839,7 +866,7 @@ function shoot() {
 // 도감은 처음부터 내가 찍은 사진으로 보여요. [실제 사진 보기] 에 체크하면 진짜 동물 사진으로 도감을 봐요 (2026-11-07)
 let dexTab = 'dex';
 let dexCat = 'all';
-const DCATS = [['all', '전체'], ['village', '마을'], ['sea', '마을 바닷가'], ['savanna', '초원'], ['desert', '사막'], ['jungle', '밀림'], ['arctic', '산꼭대기'], ['isle', '섬'], ['islesea', '섬 바닷가'], ['bug', '곤충']];
+const DCATS = [['all', '전체'], ['village', '마을'], ['river', '강'], ['sea', '마을 바닷가'], ['savanna', '초원'], ['desert', '사막'], ['jungle', '밀림'], ['arctic', '산꼭대기'], ['isle', '섬'], ['islesea', '섬 바닷가'], ['bug', '곤충']];
 let dexReal = false; try { dexReal = localStorage.getItem('snapzoo-dex-real') === '1'; } catch {}
 let dexThumbs = [];
 // 동물마다 사진 칸: 기본은 내가 찍은 사진(아직 못 찍었으면 빈 칸), 실제 사진 보기는 모든 동물의 진짜 사진 (못 만난 동물은 흐리게)
@@ -905,18 +932,31 @@ function closeDex() { $('#dex').classList.remove('on'); $('#dex').setAttribute('
 $('#dexBtn').onclick = () => ($('#dex').classList.contains('on') ? closeDex() : (closeAlbum(), openDex()));
 $('#dexX').onclick = closeDex;
 // 🖼 앨범
-let urls = [], viewing = null, albumList = [], viewI = 0;
+let urls = [], viewing = null, albumList = [], viewI = 0, albKind = 'pic';   // pic = 동물 사진(셀카 포함) · screen = 스크린샷
 async function openAlbum() {
   closePanels();
-  const list = (await listPhotos()).filter((p) => !String(p.id).startsWith('best-')); urls.forEach((u) => URL.revokeObjectURL(u)); urls = [];
+  const list = (await listPhotos()).filter((p) => !String(p.id).startsWith('best-') && (p.kind === 'screen') === (albKind === 'screen')); urls.forEach((u) => URL.revokeObjectURL(u)); urls = [];
+  document.querySelectorAll('#albTabs button').forEach((b) => b.classList.toggle('on', b.dataset.k === albKind));
   $('#albumN').textContent = list.length ? `${list.length}장` : '';
-  $('#grid').innerHTML = list.length ? '' : '<p class="empty">아직 사진이 없어요. 사진 찍기로 동물을 담아 보세요</p>';
+  $('#grid').innerHTML = list.length ? '' : albKind === 'screen' ? '<p class="empty">아직 스크린샷이 없어요. 메뉴의 스크린샷 단추로 지금 화면을 담아 보세요</p>' : '<p class="empty">아직 사진이 없어요. 사진 찍기로 동물을 담아 보세요</p>';
   albumList = list;
   list.forEach((ph, i) => { const u = URL.createObjectURL(ph.blob); urls.push(u); const b = document.createElement('button'); b.setAttribute('aria-label', `${ph.zone} 사진 크게 보기`); b.innerHTML = `<img src="${u}" alt="" style="--tilt:${((i * 37) % 7) - 3}deg">`; b.onclick = () => { viewI = i; view(ph, u); }; $('#grid').append(b); });
   $('#album').classList.add('on'); $('#album').setAttribute('aria-hidden', 'false');
 }
 function closeAlbum() { $('#album').classList.remove('on'); $('#album').setAttribute('aria-hidden', 'true'); }
 function view(ph, u) { viewing = ph; $('#viewer img').src = u; $('#vN').textContent = `${viewI + 1} / ${albumList.length}`; const d = new Date(ph.at); $('#vSave').href = u; $('#vSave').download = `스냅주-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${d.getHours()}${d.getMinutes()}.jpg`; $('#viewer').classList.add('on'); }
+$('#albTabs').addEventListener('click', (e) => { const k = e.target.closest('[data-k]')?.dataset.k; if (k && k !== albKind) { albKind = k; openAlbum(); } });
+// 📸 스크린샷: 글자 · 단추 없이 지금 보이는 섬 그대로. 앨범의 '스크린샷' 칸에 따로 모여요
+$('#snapBtn').onclick = () => {
+  closeDrawer(); renderer.render(scene, camera);
+  const src = renderer.domElement, k = Math.min(1, 1600 / src.width), c = document.createElement('canvas'); c.width = Math.round(src.width * k); c.height = Math.round(src.height * k); c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+  $('#flash').classList.add('on'); setTimeout(() => $('#flash').classList.remove('on'), 80); snd.shutter(); bump('screen');
+  c.toBlob(async (blob) => {
+    if (!blob) return; const url = URL.createObjectURL(blob), t = $('#toast'); t.querySelector('img').src = url; t.querySelector('span').innerHTML = '<b>스크린샷!</b><small>앨범 › 스크린샷에 넣었어요</small>'; t.classList.add('on');
+    clearTimeout(shoot.tt); clearTimeout(toastMsg.tt); shoot.tt = setTimeout(() => { t.classList.remove('on'); URL.revokeObjectURL(url); }, 2200);
+    if (!(await addPhoto({ blob, kind: 'screen', zone: ZONES[me.inHome ? 'home' : curZone || 'village'][0], seen: [], animal: '', score: 0 }))) t.querySelector('span').innerHTML = '<b>스크린샷</b><small>앨범에 저장하지 못했어요</small>';
+  }, 'image/jpeg', 0.9);
+};
 $('#albumBtn').onclick = () => ($('#album').classList.contains('on') ? closeAlbum() : (closeDex(), openAlbum()));
 $('#albumX').onclick = closeAlbum;
 $('#vX').onclick = () => $('#viewer').classList.remove('on');
@@ -936,7 +976,8 @@ const PRICE = { look: 800, hat: [0, 1000, 800, 1500, 2000, 0, 900, 3000, 2200, 1
 const SW = ['#6f7d4c', '#4f6a8a', '#a8604a', '#d8b062', '#7a5a8a', '#3f6a5a', '#c8907a', '#5a5a62'];
 const LOOK_NAMES = ['풀빛 옷', '바다빛 옷', '벽돌빛 옷', '모래빛 옷', '포도빛 옷', '숲빛 옷', '살구빛 옷', '잿빛 옷'];
 const lookName = (i) => LOOKS[i].name || LOOK_NAMES[i], lookPrice = (i) => LOOKS[i].price || PRICE.look, lookColor = (i) => SW[i] || LOOKS[i].shirt;
-function updCoins() { const left = Math.max(0, 3600 - (MY.today?.sec || 0)); $('#coins').textContent = `🪙 ${MY.coins}${left ? '' : ' · 오늘 다 모았어요'}`; $('#ccoins').textContent = `🪙 ${MY.coins} · 오늘 ${Math.floor((MY.today?.sec || 0) / 60)}분 / 60분`; }
+// 머무는 코인을 다 모아도 사진 · 먹이 코인은 계속 모여요 ('오늘 다 모았어요' 글은 쓰지 않아요)
+function updCoins() { $('#coins').textContent = `🪙 ${MY.coins}`; $('#ccoins').textContent = `🪙 ${MY.coins} · 오늘 ${Math.floor((MY.today?.sec || 0) / 60)}분 / 60분`; }
 function remakeMe() {
   const ns = makeWalker(MY.look, myWear()); ns.root.position.copy(me.g.position); ns.root.rotation.y = me.g.rotation.y; ns.root.visible = me.g.visible;
   scene.remove(me.g); scene.add(ns.root); me.g = ns.root; me.st = ns;
@@ -1461,7 +1502,7 @@ let emoN = 0, emoI = 0;
 function showEmo(el, ch) { el.textContent = ch; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('pop'), 2600); }
 
 // ───────── 🏅 도감 칭호: 구역 식구를 다 찍으면 칭호 + 코인 ─────────
-const TITLES = { village: '🏘 마을 산책가', sea: '🌊 바다 친구', savanna: '🦁 초원 사진가', desert: '🏜️ 사막 여행자', jungle: '🌴 밀림 탐험가', arctic: '🐧 눈꽃 사진가', isle: '🏝 섬 탐험가', islesea: '🐢 섬 바다 친구', all: '🌏 섬 도감 박사' };
+const TITLES = { village: '🏘 마을 산책가', river: '🐟 강 탐험가', sea: '🌊 바다 친구', savanna: '🦁 초원 사진가', desert: '🏜️ 사막 여행자', jungle: '🌴 밀림 탐험가', arctic: '🐧 눈꽃 사진가', isle: '🏝 섬 탐험가', islesea: '🐢 섬 바다 친구', all: '🌏 섬 도감 박사' };
 function checkTitles() {
   MY.titles ||= []; const got = [];
   for (const z of Object.keys(ZLAB)) { if (MY.titles.includes(z)) continue; const ids = DEX.filter((d) => d[2] === z).map((d) => d[0]); if (ids.length && ids.every((id) => dex[id])) { MY.titles.push(z); got.push(z); } }
@@ -1676,7 +1717,7 @@ function frame() {
     const sp = (mode === 'photo' ? 1.4 : inWater ? 2.8 : 3.6) * SET.speed * dt;   // 뗏목 · 배는 조금 느리게   // ⚙ 걷는 속도
     const nx = me.pos.x + mv.x * sp, nz = me.pos.z + mv.z * sp, ny = height(nx, nz);
     if (me.inHome) { me.pos.x = clamp(nx, ROOM.x - 4.4, ROOM.x + 4.4); me.pos.z = clamp(nz, ROOM.z - 3.4, ROOM.z + 3.5); }
-    else if (ny > -8 && Math.abs(nx) < SIZE / 2 - 4 && Math.abs(nz) < SIZE / 2 - 4) { me.pos.x = nx; me.pos.z = nz; } else { me.target = null; if (!limitT) { limitT = 2.5; toastMsg('바닷가 둘레까지만 갈 수 있어요', '더 먼 바다는 못 가요'); } }   // 바닷가 둘레만
+    else if (ny > -8 && Math.abs(nx) < SIZE / 2 - 4 && Math.abs(nz) < SIZE / 2 - 4) { me.pos.x = nx; me.pos.z = nz; pushOut(me.pos); } else { me.target = null; if (!limitT) { limitT = 2.5; toastMsg('바닷가 둘레까지만 갈 수 있어요', '더 먼 바다는 못 가요'); } }   // 바닷가 둘레만
     if (mode !== 'photo') me.face = Math.atan2(mv.x, mv.z);
   }
   if (me.riding) {
@@ -1754,7 +1795,7 @@ function frame() {
     const room = mode === 'photo' ? 1.6 + a.tagH * 1.2 : Math.max(1.3, a.tagH * 0.75), dxm = a.pos.x - me.pos.x, dzm = a.pos.z - me.pos.z;
     if (dMe < room && dMe > 0.01) { const push = (room - dMe) * Math.min(1, dt * 4); a.pos.x += (dxm / dMe) * push; a.pos.z += (dzm / dMe) * push; }
     const walking = a.v > 0.05;
-    a.pos.y = a.move === 'swim' ? (SEA_Y[a.id] ?? -0.2) + Math.sin(T * 0.9 + a.t) * 0.06 : height(a.pos.x, a.pos.z) + (a.alt ? a.alt + Math.sin(T * 1.3 + a.t) * 0.6 : 0);
+    a.pos.y = a.move === 'swim' ? (a.zone === 'river' ? riverY(a) : (SEA_Y[a.id] ?? -0.2)) + Math.sin(T * 0.9 + a.t) * 0.06 : height(a.pos.x, a.pos.z) + (a.alt ? a.alt + Math.sin(T * 1.3 + a.t) * 0.6 : 0);
     a.g.position.copy(a.pos); if (a.move === 'fly') a.g.rotation.y = a.flyA + Math.PI / 2;
     if (a.st) { a.st.walk = a.speed ? Math.min(1, a.v / a.speed) : 0; if (a.g.visible) a.st.update(T, dt); }
     if (a.heart > 0) a.heart -= dt;

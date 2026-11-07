@@ -1,7 +1,7 @@
 // 섬 식구 늘리기 (2026-11-05): 구역마다 10종. 사람을 해치는 동물(곰 · 사자 · 하마 · 뱀 · 해파리 · 가오리 …)은 넣지 않아요.
 // zoo3d.js 의 그림 도구를 그대로 써요: 네 발 동물은 quad(), 작은 동물 · 새 · 거북 · 바다 친구는 여기서 새 틀로 빚어요.
 // 모든 동물은 +z 를 보고 발이 y=0. 돌려주는 st = { root, walk(0~1), update(t, dt) }.
-import { THREE, COATS, quad, eye, plain, tube, ell, M, J, V, SPECIES } from './zoo3d.js?v=20261107q';
+import { THREE, COATS, quad, eye, plain, tube, ell, M, J, V, SPECIES } from './zoo3d.js?v=20261107r';
 const { sin, cos, PI, abs, min, max, pow } = Math;
 
 // ───────── 네 발 동물: 몸길이 L · 어깨 높이 H 만 주면 나머지 비율은 알맞게, 다른 곳만 o 로 ─────────
@@ -376,6 +376,27 @@ ROSTER.push(
   ['islesea', 'marineiguana', '바다이구아나', 3, 3, 1, 'shore', 0.4], ['islesea', 'sealion', '바다사자', 3, 2, 1, 'shore', 0.3], ['islesea', 'galpenguin', '갈라파고스펭귄', 2, 3, 0.7, 'shore', 0.5], ['islesea', 'redcrab', '붉은바위게', 3, 3, 1, 'shore', 0.8],
   ['islesea', 'cushionstar', '쿠션불가사리', 2, 2, 1, 'shore', 0], ['islesea', 'greenturtle', '초록바다거북', 3, 1, 1, 'swim', 0.7], ['islesea', 'parrotfish', '앵무고기 떼', 3, 1, 1, 'swim', 0.8], ['islesea', 'butterflyfish', '나비고기 떼', 3, 1, 1, 'swim', 0.8],
   ['islesea', 'pufferfish', '복어', 2, 2, 1, 'swim', 0.5], ['islesea', 'sunfish', '개복치', 2, 1, 1, 'swim', 0.4],
+);
+// 🐟 강 · 민물 식구 (river): 강물 속(swim) · 강가(bank). 바다 물고기와 다른 민물 물고기예요
+Object.assign(SPECIES, {
+  medaka: () => fishSchool({ cols: ['#c8ccc0', '#b8beb2'], n: 12, fin: '#e8ecdc', stripe: '#8a9a8a' }),
+  minnow: () => fishSchool({ cols: ['#b8c4c8', '#c8d0d0'], n: 9, fin: '#f2b8b0', stripe: '#e87a7a' }),
+  crucian: () => swimBody({ size: 0.28, c: '#9a8a4a', belly: '#d8c88a' }),
+  koi: () => swimBody({ size: 0.4, c: '#e8743a', belly: '#fbf2e4' }),
+  catfish: () => swimBody({ size: 0.45, c: '#4a4a40', belly: '#8a8a78', whiskers: '#3a3a30' }),
+  pondturtle: () => turtle({ size: 0.32, shell: '#4a4a32', plate: '#6a6a42', skin: '#5a6a4a', sea: true }),
+  otter: () => swimBody({ size: 0.5, c: '#5a4030', lie: false, otter: true, whiskers: '#b8906a' }),
+  egret: () => bird({ size: 0.3, legL: 0.3, c: '#fbfaf4', wing: '#ecebe2', neckL: 0.16, beak: 'cone', beakC: '#e8b83a', legC: '#2a2a2a', peck: true }),
+  kingfisher: () => bird({ size: 0.13, legL: 0.03, c: '#2a8ac8', belly: '#e8843a', wing: '#1a6aa8', beak: 'cone', beakC: '#2a2622', neckL: 0.02, legC: '#e85a3a', legR: 0.05 }),
+  crayfish: () => crab({ size: 0.16, c: '#8a4a32' }),
+  lavagull: () => bird({ size: 0.22, legL: 0.07, c: '#5a5a60', belly: '#8a8a90', wing: '#3a3a40', beak: 'cone', beakC: '#2a2a2a', neckL: 0.04, peck: true, legC: '#2a2a2a' }),
+  cormorant: () => bird({ size: 0.34, legL: 0.07, c: '#2e2a26', belly: '#4a4238', wing: '#1e1a18', neckL: 0.12, beak: 'hook', beakC: '#5a5048', legC: '#2a2622', peck: true }),
+});
+ROSTER.push(
+  ['river', 'medaka', '송사리 떼', 2, 1, 1, 'swim', 0.7], ['river', 'minnow', '피라미 떼', 2, 1, 1, 'swim', 0.9], ['river', 'crucian', '붕어', 2, 2, 1, 'swim', 0.6], ['river', 'koi', '비단잉어', 2, 2, 1, 'swim', 0.5],
+  ['river', 'catfish', '메기', 2, 1, 1, 'swim', 0.3], ['river', 'pondturtle', '남생이', 2, 2, 1, 'swim', 0.3], ['river', 'otter', '수달', 2, 2, 1, 'swim', 0.8],
+  ['river', 'egret', '백로', 2, 2, 1, 'bank', 0.5], ['river', 'kingfisher', '물총새', 2, 2, 1, 'bank', 0], ['river', 'crayfish', '가재', 2, 3, 1, 'bank', 0.5],
+  ['isle', 'lavagull', '용암갈매기', 2, 2, 1, 'walk', 0.8], ['isle', 'cormorant', '갈라파고스가마우지', 2, 2, 1, 'walk', 0.4],
 );
 // 밤에만 나오는 친구 (구역 · id · 이름 · 무리 · 마리 · 크기 · 움직임 · 빠르기 · 밤): fly = 하늘을 빙빙
 ROSTER.push(
