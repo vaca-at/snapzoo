@@ -6,13 +6,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js';
-import { IslandSound } from './sound.js';
-import { ROSTER } from './fauna.js';
-import { DEX_PHOTOS } from './dexphotos.js';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js';
-import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261107d';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B } from './net.js?v=20261107d';
+import { IslandSound } from './sound.js?v=20261107d';
+import { ROSTER } from './fauna.js?v=20261107d';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261107d';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS } from './person.js?v=20261107d';
+import { HATS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261107d';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -213,12 +213,19 @@ function findSpot(zone, test = () => true, tries = 400) {
 }
 const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 // parts: [geometry, material, offsetY, scale(x,y,z)] 같은 자리에 여러 부품을 겹쳐 하나의 나무로
+// 🚧 사진을 가리는 것: 집 · 나무 잎 · 바위 등을 공 모양으로 모아 둬요 (10 m 칸). 뒤에 가려진 동물은 안 찍혀요
+const OCC = new Map(), OC = 10;
+function addOcc(x, y, z, r) { const a = Math.floor((x - r) / OC), b = Math.floor((x + r) / OC), c = Math.floor((z - r) / OC), d = Math.floor((z + r) / OC); for (let i = a; i <= b; i++) for (let j = c; j <= d; j++) { const k = i + ',' + j; if (!OCC.has(k)) OCC.set(k, []); OCC.get(k).push([x, y, z, r * r]); } }
+function occAt(x, y, z) { const L = OCC.get(Math.floor(x / OC) + ',' + Math.floor(z / OC)); if (L) for (const o of L) { const a = x - o[0], b = y - o[1], c = z - o[2]; if (a * a + b * b + c * c < o[3]) return true; } return false; }
 function scatter(zone, n, parts, sMin = 0.8, sMax = 1.3, test) {
   const spots = []; for (let i = 0; i < n; i++) { const p = findSpot(zone, test); if (p) spots.push([p, sMin + rnd() * (sMax - sMin), rnd() * Math.PI * 2]); }
   for (const [geo, mat, oy, sx = 1, sy = 1, sz = 1] of parts) {
     const im = new THREE.InstancedMesh(geo, mat, spots.length);
     spots.forEach(([p, s, r], i) => { Q.setFromAxisAngle(UP, r); M4.compose(V.set(p.x, p.y + oy * s, p.z), Q, SC.set(sx * s, sy * s, sz * s)); im.setMatrixAt(i, M4); });
     im.castShadow = true; im.receiveShadow = true; scene.add(im); (spots.ims ||= []).push(im);
+    // 가늘고 긴 줄기는 빼고, 잎 · 덤불 · 바위만 가림으로 쳐요
+    if (!geo.boundingSphere) geo.computeBoundingSphere(); const bs = geo.boundingSphere, thin = geo.type === 'CylinderGeometry' && geo.parameters.radiusBottom < 0.6, rr = bs.radius * (sx + sy + sz) / 3 * 0.8;
+    if (!thin && rr >= 0.5) spots.forEach(([p, s2]) => addOcc(p.x + bs.center.x * s2, p.y + (oy + bs.center.y) * s2, p.z + bs.center.z * s2, rr * s2));
   }
   return spots;
 }
@@ -295,6 +302,7 @@ function house(w, d, wallH, roofC, wallC) {
   for (let k = 0; k < 6; k++) {
     const a = (k / 6) * Math.PI * 2, r = 15, hx = Math.cos(a) * r, hz = Math.sin(a) * r, hy = height(VIL.x + hx, VIL.z + hz) - VIL.y;
     const hs = house(5 + (k % 3) * 0.8, 4.4 + (k % 2) * 0.6, 3.2 + (k % 2) * 0.4, roofs[k], walls[k]); hs.position.set(hx, hy - 0.15, hz); hs.rotation.y = -a - Math.PI / 2; g.add(hs);
+    addOcc(VIL.x + hx, VIL.y + hy + 1.6, VIL.z + hz, 3.1); addOcc(VIL.x + hx, VIL.y + hy + 3.8, VIL.z + hz, 2.7);
   }
   // 우물: 돌 둘레 · 나무 지붕
   const well = new THREE.Group(); g.add(well);
@@ -680,7 +688,7 @@ addEventListener('pointerup', () => { fdrag = null; });
 // 눈에서 그 점까지 땅(언덕)이 가리는지: 1 m 씩 따라가며 땅 높이와 견줘요
 function seenFrom(eye, c) {
   const d = eye.distanceTo(c), n = Math.ceil(d);
-  for (let i = 1; i < n; i++) { const k = i / n, x = eye.x + (c.x - eye.x) * k, z = eye.z + (c.z - eye.z) * k, y = eye.y + (c.y - eye.y) * k; if (height(x, z) > y + 0.15) return false; }
+  for (let i = 1; i < n; i++) { const k = i / n, x = eye.x + (c.x - eye.x) * k, z = eye.z + (c.z - eye.z) * k, y = eye.y + (c.y - eye.y) * k; if (height(x, z) > y + 0.15) return false; if (i > 1 && n - i > 1 && occAt(x, y, z)) return false; }
   return true;
 }
 function subjects() {
@@ -1029,7 +1037,7 @@ function updWeather(T, dt, z0) {
 
 // ───────── 🥕 먹이 주기 · 🪑 앉기: 가까이 가면 한가운데 위에 단추가 떠요 ─────────
 let sitting = null, ctxKind = '', ctxA = null;
-function nearAnimal() { let best = null, bd = 3; for (const a of animals) { if (!a.g.visible || !a.speed || a.move === 'swim' || a.move === 'fly') continue; const d = Math.hypot(a.pos.x - me.pos.x, a.pos.z - me.pos.z); if (d < bd) { bd = d; best = a; } } return best; }
+function nearAnimal() { let best = null, bd = 8; for (const a of animals) { if (!a.g.visible || a.move === 'swim' || a.move === 'fly') continue; const d = Math.hypot(a.pos.x - me.pos.x, a.pos.z - me.pos.z); if (d < bd) { bd = d; best = a; } } return best; }
 function nearSeat() { return SEATS.find((s) => Math.hypot(s.pos.x - me.pos.x, s.pos.z - me.pos.z) < 2.4); }
 function updCtx() {
   if (mode === 'photo' || me.riding) { $('#ctx').hidden = true; return; }
@@ -1052,6 +1060,8 @@ function standUp() { if (!sitting) return; sitting = null; me.st.sit = 0; me.lie
 function careAnimal(a, pet = a.fedT > 0) {
   bump(pet ? 'pet' : 'feed');
   a.face = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z); a.target = null; a.v = 0; a.visit = true; a.wait = 6; a.heart = 6; a.fedT = 30;
+  // 8 m 안이면 동물이 곁으로 다가와요 (도망가지 않게)
+  { const dx = a.pos.x - me.pos.x, dz = a.pos.z - me.pos.z, d = Math.hypot(dx, dz), stay = 1.6 + a.tagH * 0.6; if (a.speed && d > stay + 0.4) { a.target = me.pos.clone().add(V.set((dx / d) * stay, 0, (dz / d) * stay)); a.call = 8; a.wait = 0; } }
     me.face = Math.atan2(a.pos.x - me.pos.x, a.pos.z - me.pos.z); me.st.waveT = 1.0;
     if (!pet && !(a.coinT > 0)) { MY.coins += 2; a.coinT = 120; saveMy(); updCoins(); }
     toastMsg(pet ? `🤲 ${a.name}${josa(a.name) === '과' ? '이' : '가'} 좋아해요` : `🥕 ${a.name}${josa(a.name) === '과' ? '이' : '가'} 맛있게 먹어요`, '6초 동안 곁에 머물러요 · 지금 찍으면 ♥ 특별한 순간!'); snd.chime();
@@ -1253,7 +1263,7 @@ $('#actMenu').addEventListener('click', (e) => {
     const seat = nearSeat(); if (seat) { sitDown(seat); return; }
     bump('sit'); sitting = { pos: me.pos.clone(), face: me.face }; me.target = null; me.st.sit = 1; me.st.seat = 0.04; toastMsg('🌿 땅에 앉았어요', '움직이면 일어나요');
   } else if (k === 'pet' || k === 'feed') {
-    const a = nearAnimal(); if (!a) { toastMsg('동물 곁으로 가 보세요', '3 m 안에 있으면 할 수 있어요'); return; }
+    const a = nearAnimal(); if (!a) { toastMsg('동물 곁으로 가 보세요', '8 m 안에 있으면 다가와요'); return; }
     careAnimal(a, k === 'pet');
   } else if (k === 'kite') {
     if (kite.t > 0) { kite.t = 0; return; }
@@ -1651,4 +1661,4 @@ drawMini();
 requestAnimationFrame(frame);
 $('#loading').classList.add('out');
 setTimeout(() => $('#loading').remove(), 900);
-window.__world = { wx, SPOTS, SEATS, sitDown, me, animals, height, zoneAt, camera, controls, VIL, TOPS, STA, net, friends, dex, SET, snd, enterPhoto, evaluate };   // 화면 점검용
+window.__world = { seenFrom, wx, SPOTS, SEATS, sitDown, me, animals, height, zoneAt, camera, controls, VIL, TOPS, STA, net, friends, dex, SET, snd, enterPhoto, evaluate };   // 화면 점검용
