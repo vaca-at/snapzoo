@@ -787,7 +787,8 @@ function drawDex() {
   $('#dexN').textContent = dexTab === 'dex' ? `${got} / ${DEX.length}` : `${bs} / ${BADGES.length}`;
   $('#dexTitles').innerHTML = Object.entries(TITLES).map(([z, t]) => `<span class="tt ${(MY.titles || []).includes(z) ? 'on' : ''}">${t}</span>`).join('');
   document.querySelectorAll('#dexTabs [data-t]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.t === dexTab)));
-  $('#dexGrid').className = dexTab === 'dex' ? 'text' : 'badges';
+  $('#dexGrid').className = dexTab === 'badge' ? 'badges' : 'text';
+  if (dexTab === 'bug') { const B = MY.bugs || {}; $('#dexN').textContent = `${BUG_KINDS.filter(([n]) => B[n]).length} / ${BUG_KINDS.length}`; $('#dexGrid').innerHTML = BUG_KINDS.map(([n, , say]) => `<div class="dcard ${B[n] ? '' : 'none'}"><b>${B[n] ? n : '???'}</b><small>${B[n] ? `${B[n]}마리 잡음 · ${say}` : `${say} · 마을에서 곤충잡기`}</small></div>`).join(''); return; }
   $('#dexGrid').innerHTML = dexTab === 'dex'
     ? DEX.map(([id, name, zone, night]) => { const d = dex[id]; return `<div class="dcard ${d ? '' : 'none'}"><b>${name}${d ? ' ' + starHTML(d.stars) : ''}</b><small>${d ? `내 사진 ${d.score}점 · ${d.shots}장` : `${ZLAB[zone]}${night ? ' · 🌙 밤에만' : ''} 어딘가`}</small></div>`; }).join('')
     : BADGES.map((b) => `<div class="bdg ${(MY.badges || []).includes(b.id) ? 'got' : ''}"><i>${b.icon}</i><b>${b.name}</b><small>${b.cap}</small></div>`).join('');
@@ -1088,7 +1089,19 @@ function updKite(T, dt) {
   kite.g.position.x = lerp(kite.g.position.x, x, 0.05); kite.g.position.z = lerp(kite.g.position.z, z, 0.05); kite.g.position.y = lerp(kite.g.position.y, y, 0.05); kite.g.rotation.z = Math.sin(T * 1.7) * 0.25; kite.g.lookAt(me.pos.x, kite.g.position.y, me.pos.z);
   const p = kite.line.geometry.attributes.position; p.setXYZ(0, me.pos.x, me.pos.y + 1, me.pos.z); p.setXYZ(1, kite.g.position.x, kite.g.position.y, kite.g.position.z); p.needsUpdate = true;
 }
-// 🦋 곤충: 마을 둘레를 날아요. 잡으면 잠깐 보고 놓아줘서 40초 뒤에 다시 나와요
+// 🥅 곤충잡기: 누르면 다섯 번 저절로 휘둘러요. 잡았어요 / 놓쳤어요, 잡은 곤충은 도감의 곤충 탭에 모여요 (잠깐 보고 놓아줘요)
+const BUG_KINDS = [['배추흰나비', 30, '흔해요'], ['메뚜기', 26, '흔해요'], ['무당벌레', 22, '흔해요'], ['밀잠자리', 20, '흔해요'], ['호랑나비', 12, '가끔'], ['고추잠자리', 12, '가끔'], ['매미', 10, '가끔'], ['사슴벌레', 5, '드물어요'], ['장수풍뎅이', 4, '드물어요'], ['반딧불이', 2, '아주 드물어요']];
+let bugRun = null;
+function bugTry() {
+  const r = bugRun; r.n--; r.t = 1.5; me.st.waveT = 1;
+  if (Math.random() < 0.6) {
+    let w = Math.random() * BUG_KINDS.reduce((n, b) => n + b[1], 0), kind = BUG_KINDS[0]; for (const b of BUG_KINDS) { w -= b[1]; if (w <= 0) { kind = b; break; } }
+    MY.bugs ||= {}; const fresh = !MY.bugs[kind[0]]; MY.bugs[kind[0]] = (MY.bugs[kind[0]] || 0) + 1; r.got++; MY.coins += fresh ? 5 : 1; saveMy(); updCoins(); bump('bug'); snd.chime();
+    toastMsg(`🥅 ${kind[0]}${josa(kind[0]) === '과' ? '을' : '를'} 잡았어요!`, fresh ? '📖 곤충 도감에 새로 올랐어요 · 🪙 +5' : '잠깐 보고 놓아줬어요 · 🪙 +1');
+  } else toastMsg('💨 놓쳤어요', '다시 휘둘러요');
+  if (r.n <= 0) { bugRun = null; setTimeout(() => toastMsg(`🥅 다섯 번 중 ${r.got}마리 잡았어요`, '도감 › 곤충 탭에서 볼 수 있어요'), 1400); }
+}
+// 🦋 날아다니는 곤충: 마을 둘레의 풍경이에요
 const BUGS = [];
 { const KINDS = [['나비', '#f2a23a'], ['흰나비', '#f6f2e4'], ['잠자리', '#4a8ac8'], ['무당벌레', '#d8402e']];
   for (let i = 0; i < 14; i++) {
@@ -1099,6 +1112,7 @@ const BUGS = [];
     BUGS.push({ g, wings, name, off: 0, hx: VIL.x + Math.sin(a) * r, hz: VIL.z + Math.cos(a) * r, ph: i * 1.7 });
   } }
 function updBugs(T, dt) {
+  if (bugRun) { if (me.target || keys.size || Math.hypot(joy.x, joy.y) > 0.15) bugRun = null; else if ((bugRun.t -= dt) <= 0) bugTry(); }
   if (Math.hypot(me.pos.x - VIL.x, me.pos.z - VIL.z) > 70) return;
   for (const b of BUGS) {
     if (b.off > 0) { b.off -= dt; if (b.off <= 0) b.g.visible = true; continue; }
@@ -1126,10 +1140,7 @@ $('#actMenu').addEventListener('click', (e) => {
     if (kite.t > 0) { kite.t = 0; return; }
     standUp(); bump('kite'); kite.t = 20; toastMsg('🪁 연을 날려요', '걸어 다녀도 따라와요 · 한 번 더 누르면 내려요');
   } else if (k === 'bug') {
-    let best = null, bd = 4; for (const b of BUGS) { if (b.off > 0) continue; const d = Math.hypot(b.g.position.x - me.pos.x, b.g.position.z - me.pos.z); if (d < bd) { bd = d; best = b; } }
-    if (!best) { toastMsg('곤충 곁으로 가 보세요', '마을 둘레를 날아다녀요 · 4 m 안에서 잡을 수 있어요'); return; }
-    standUp(); me.face = Math.atan2(best.g.position.x - me.pos.x, best.g.position.z - me.pos.z); me.st.waveT = 1; best.off = 40; best.g.visible = false; MY.coins += 1; saveMy(); updCoins(); bump('bug'); snd.chime();
-    toastMsg(`🥅 ${best.name}${josa(best.name) === '과' ? '을' : '를'} 잡았어요`, '잠깐 보고 놓아줬어요 · 🪙 +1');
+    standUp(); bugRun = { n: 5, t: 0.2, got: 0 }; me.target = null; toastMsg('🥅 곤충을 잡아 볼까요?', '다섯 번 저절로 휘둘러요 · 움직이면 그만해요');
   } else { bump(k); standUp(); me.act = k; me.actT = k === 'jump' ? 0.7 : 4; }
 });
 $('#ctx').onclick = () => {
@@ -1172,7 +1183,8 @@ const BADGES = [
   { id: 'jump', icon: '🤸', name: '폴짝폴짝', cap: '20번 뛰기', ok: (c) => c.jump >= 20 },
   { id: 'rest', icon: '🛌', name: '집이 최고', cap: '침대에서 쉬기', ok: (c) => c.rest >= 1 },
   { id: 'kite', icon: '🪁', name: '바람 친구', cap: '연 날리기', ok: (c) => c.kite >= 1 },
-  { id: 'bug', icon: '🦋', name: '곤충 박사', cap: '곤충 10마리 잡기', ok: (c) => c.bug >= 10 },
+  { id: 'bug', icon: '🦋', name: '곤충 친구', cap: '곤충 10마리 잡기', ok: (c) => c.bug >= 10 },
+  { id: 'bugAll', icon: '🪲', name: '곤충 박사', cap: '곤충 도감 다 모으기', ok: () => BUG_KINDS.every(([n]) => (MY.bugs || {})[n]) },
   { id: 'buy', icon: '🛍', name: '첫 쇼핑', cap: '상점에서 사기', ok: (c) => c.buy >= 1 },
   { id: 'rich', icon: '🪙', name: '코인 부자', cap: '코인 3000개 모으기', ok: (c) => c.coins >= 3000 },
   { id: 'title', icon: '🏅', name: '칭호 획득', cap: '구역 식구 다 모으기', ok: (c) => c.titles >= 1 },
