@@ -1,7 +1,7 @@
 // 주인공 · 친구 사람 (2026-11-05 결정): 사람 시안 A(극장판 자연형) · B(꼬마 2.5등신) 를 섞어 체형 셋.
 //  체형 1 = 키 큰(극장판) · 2 = 보통 · 3 = 꼬마(가장 작음, 처음 시작). 번호는 꾸미기 화면 순서예요. 성별 · 옷(LOOKS) · 모자(HATS) 는 꾸미기에서.
 // 돌려주는 st 는 예전 walker 와 같아요: { root, walk, rate, waveT, aim, aimK, snapT, update(t, dt), look, g, hat, body }
-import { THREE, LOOKS, J } from './zoo3d.js?v=20261108m';
+import { THREE, LOOKS, J } from './zoo3d.js?v=20261108n';
 const { sin, cos, PI, abs, max, min } = Math;
 
 // 비율 (미터). 2 는 1 과 3 의 가운데
@@ -101,9 +101,9 @@ export function person(look = 0, opts = {}) {
   const wrap = (y0, y1, th, m, k = 1.05, off = 0) => { const o = add(body, new THREE.CylinderGeometry(rAt(y1) * k, rAt(y0) * k, y1 - y0, 22, 1, true, off - th, th * 2), m, 0, (y0 + y1) / 2, 0); o.scale.z = 0.8; return o; };
   const two = (c) => mat(c, { side: THREE.DoubleSide }), fz = (y) => rAt(y) * 0.84;
   // 치마 · 우비 자락 (허리보다 높은 곳에서 시작할 수도 있어요)
-  const flare = (y0, len, wide, c) => { const r0 = rAt(Math.max(0, y0)) * 1.03, pts = []; for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push(new THREE.Vector2(r0 + wide * Math.pow(t, 1.2) + (i === 12 ? -0.006 : 0), -t * len)); } const o = add(body, new THREE.LatheGeometry(pts, 36), two(c), 0, y0, 0); o.scale.z = 0.86; return o; };
+  const flare = (y0, len, wide, c) => { const r0 = rAt(Math.max(0, y0)) * 1.03, pts = []; for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push(new THREE.Vector2(r0 + wide * Math.pow(t, 1.2) + (i === 12 ? -0.006 : 0), -t * len)); } const o = add(body, new THREE.LatheGeometry(pts, 36), two(c), 0, y0, 0); o.scale.z = 0.86; o.userData.fit = { y0, len }; return o; };
   let skirt = null; const hanbokF = KIND === 'hanbok' && SK;
-  if (hanbokF) skirt = flare(tl * 0.68, tl * 0.68 + P.leg * 0.9, P.skirtFlare * 1.5, C.low);
+  if (hanbokF) skirt = flare(tl * 0.68, tl * 0.68 + P.leg * 0.8, P.skirtFlare * 1.5, C.low);
   else if (SK) skirt = flare(P.waist * 0.45, P.skirtLen * (KIND === 'dress' ? 1.2 : 1), P.skirtFlare, C.low);
   else add(body, SPH(P.waist * 1.1, 0.62, 0.82, 22), mat(C.low), 0, 0.01, 0);
   if (KIND === 'rain') skirt = flare(P.waist * 0.5, P.leg * 0.62, P.skirtFlare * 0.9, C.top);
@@ -218,6 +218,9 @@ export function person(look = 0, opts = {}) {
     if (st.hold) { const R = arms[1]; R.a.rotation.x = -2.55; R.a.rotation.z = 0.16; R.f.rotation.x = -0.12; R.f.rotation.z = 0; }
     body.rotation.y = sin(p) * 0.05 * w;
     if (skirt) { skirt.rotation.x = sin(p * 2) * 0.04 * w + sin(t * 1.9) * 0.02; skirt.rotation.z = sin(p) * 0.04 * w; }
+    // 치마 · 한복 · 우비 자락이 바닥에 끌리지 않게: 자락 끝이 늘 바닥보다 조금 위에 오도록 길이를 줄여요. 앉으면 무릎 위로 살짝 퍼져요
+    if (skirt?.userData.fit) { const { y0, len } = skirt.userData.fit, room = hips.position.y + y0 - 0.035, k = Math.max(0.2, Math.min(1, room / len));
+      skirt.scale.y = k; skirt.scale.x = 1 + 0.3 * sk; skirt.scale.z = 0.86 * (1 + 0.45 * sk); }
     head.rotation.set(sin(t * 0.5) * 0.03 * (1 - ak) + 0.08 * ak, sin(t * 0.33) * 0.18 * (1 - w) * (1 - ak), sin(t * 0.7) * 0.02);
     rib.rotation.x = 0.3 + sin(t * 3.4) * 0.25 + w * 0.4;
     if (cape) cape.rotation.x = -(0.08 + 0.34 * w + sin(t * 2.2) * 0.04);   // 걸으면 망토가 뒤로 날려요

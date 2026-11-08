@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108m';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108m';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108m';
-import { IslandSound } from './sound.js?v=20261108m';
-import { ROSTER } from './fauna.js?v=20261108m';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261108m';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108m';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108m';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108n';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108n';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108n';
+import { IslandSound } from './sound.js?v=20261108n';
+import { ROSTER } from './fauna.js?v=20261108n';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261108n';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108n';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108n';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -1137,7 +1137,7 @@ function campfire(c) {
   SOLIDS.push({ x: c.x, z: c.z, rad: 0.95 });   // 불 속으로 걸어 들어가지 않게
   // 🪵 통나무 벤치 넷: 껍질 통나무 위에 평평하게 깎은 앉는 판, 양쪽 그루터기 받침
   for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + 0.4, x = c.x + Math.sin(a) * 1.95, z = c.z + Math.cos(a) * 1.95, y = height(x, z);
-    const b = new THREE.Group(); b.position.set(x, y, z); b.rotation.y = a + Math.PI / 2; scene.add(b);
+    const b = new THREE.Group(); b.position.set(x, y, z); b.rotation.y = a; scene.add(b);   /* 통나무는 불을 둘러 가로로 놓여요 (걸터앉아 불을 바라보게) */
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.2, 1.25, 14), toon('#7a5234')); trunk.rotation.z = Math.PI / 2; trunk.position.y = 0.2; b.add(trunk);
     for (const e of [-1, 1]) { const ring = new THREE.Mesh(new THREE.CircleGeometry(0.185, 14), toon('#d8b07a')); ring.position.set(e * 0.626, 0.2, 0); ring.rotation.y = e * Math.PI / 2; b.add(ring);
       const core = new THREE.Mesh(new THREE.RingGeometry(0.07, 0.085, 14), toon('#b08850')); core.position.set(e * 0.628, 0.2, 0); core.rotation.y = e * Math.PI / 2; b.add(core);
@@ -1507,7 +1507,7 @@ function updKite(T, dt) {
   const on = kite.t > 0; kite.g.visible = kite.line.visible = on; if (!on) return; kite.t -= dt;
   const x = me.pos.x - Math.sin(me.face) * 6 + Math.sin(T * 0.9) * 1.2, z = me.pos.z - Math.cos(me.face) * 6 + Math.cos(T * 0.7) * 1.2, y = me.pos.y + 7 + Math.sin(T * 1.3) * 0.7;
   kite.g.position.x = lerp(kite.g.position.x, x, 0.05); kite.g.position.z = lerp(kite.g.position.z, z, 0.05); kite.g.position.y = lerp(kite.g.position.y, y, 0.05); kite.g.rotation.z = Math.sin(T * 1.7) * 0.25; kite.g.lookAt(me.pos.x, kite.g.position.y, me.pos.z);
-  const p = kite.line.geometry.attributes.position, hp = me.st.handR ? me.st.handR.getWorldPosition(new THREE.Vector3()) : me.pos.clone().add(V.set(0, 1, 0)); p.setXYZ(0, hp.x, hp.y, hp.z);   // 연줄은 높이 든 오른손에서 p.setXYZ(1, kite.g.position.x, kite.g.position.y, kite.g.position.z); p.needsUpdate = true;
+  const p = kite.line.geometry.attributes.position, hp = me.st.handR ? me.st.handR.getWorldPosition(new THREE.Vector3()) : me.pos.clone().add(V.set(0, 1, 0)); p.setXYZ(0, hp.x, hp.y, hp.z); /* 연줄은 높이 든 오른손에서 */ p.setXYZ(1, kite.g.position.x, kite.g.position.y, kite.g.position.z); p.needsUpdate = true;
 }
 // 🥅 곤충잡기: 누르면 다섯 번 저절로 휘둘러요. 잡았어요 / 놓쳤어요, 잡은 곤충은 도감의 곤충 탭에 모여요 (잠깐 보고 놓아줘요)
 const BUG_KINDS = [['배추흰나비', 30, '흔해요'], ['메뚜기', 26, '흔해요'], ['무당벌레', 22, '흔해요'], ['밀잠자리', 20, '흔해요'], ['호랑나비', 12, '가끔'], ['고추잠자리', 12, '가끔'], ['매미', 10, '가끔'], ['사슴벌레', 5, '드물어요'], ['장수풍뎅이', 4, '드물어요'], ['반딧불이', 2, '아주 드물어요']];
@@ -1712,7 +1712,7 @@ $('#actMenu').addEventListener('click', (e) => {
     careAnimal(a, k === 'pet');
   } else if (k === 'kite') {
     if (kite.t > 0) { kite.t = 0; return; }
-    standUp(); bump('kite'); kite.t = 20; toastMsg('연을 날려요', '걸어 다녀도 따라와요 · 한 번 더 누르면 내려요');
+    bump('kite'); kite.t = 20; toastMsg('연을 날려요', sitting ? '앉은 채로 날려요 · 한 번 더 누르면 내려요' : '걸어 다녀도 따라와요 · 한 번 더 누르면 내려요');   /* 앉아 있으면 앉은 채로 */
   } else if (k === 'bug') {
     standUp(); me.target = null; bugRun = { n: 5, t: 0, got: 0, c: me.pos.clone(), swung: false }; bugNext(); toastMsg('곤충을 잡으러 가요', '잠자리채를 들고 돌아다니며 다섯 번 휘둘러요 · 움직이면 그만해요');
   } else { bump(k); standUp(); me.act = k; me.actT = k === 'jump' ? 0.7 : 4; }
