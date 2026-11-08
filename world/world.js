@@ -6,14 +6,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108n';
-import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108n';
-import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108n';
-import { IslandSound } from './sound.js?v=20261108n';
-import { ROSTER } from './fauna.js?v=20261108n';
-import { DEX_PHOTOS } from './dexphotos.js?v=20261108n';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
-import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108n';
-import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108n';
+import { ICON, BADGE_ICON, SYM, lookIcon, hairIcon } from './icons.js?v=20261108o';
+import { addPhoto, listPhotos, removePhoto, getPhoto } from './album.js?v=20261108o';
+import { IslandNet, myName, myLook, setMyName, NAME_A, NAME_B, CAP as NET_CAP } from './net.js?v=20261108o';
+import { IslandSound } from './sound.js?v=20261108o';
+import { ROSTER } from './fauna.js?v=20261108o';
+import { DEX_PHOTOS } from './dexphotos.js?v=20261108o';   // 구역마다 10종 (zoo3d.js 의 SPECIES 에 더해져요)
+import { person as makeWalker, BODIES, START_BODY, CAMERAS, HAIRS, ACCS } from './person.js?v=20261108o';
+import { HATS, LOOKS, plain, SPECIES as ZOO, skyDome, cloudTex, LOOK, acaciaGeos, NOISE } from './zoo3d.js?v=20261108o';
 const LK = LOOK.soft, SUN_DIR = new THREE.Vector3(0.7, 0.42, -0.58).normalize();   // 해 질 녘보다 조금 높은 해 (그림자가 너무 길지 않게)
 
 const $ = (s) => document.querySelector(s);
@@ -964,6 +964,39 @@ $('#snapBtn').onclick = () => {
   $('#snapPick').classList.add('on'); $('#snapPick')._a = a; $('#snapPick')._f = f;
 };
 addEventListener('pointerdown', (e) => { if (!e.target.closest('#snapPick, #snapBtn')) $('#snapPick').classList.remove('on'); });
+// ⛶ 크게 보기 (바탕화면, 2026-11-08): 단추를 모두 숨기고 카메라가 나를 천천히 돌아요 + 오른쪽 아래 시계 (소호랩 · 큰법당 · 캠핑장과 같은 코드)
+//   메뉴 '크게 보기' 또는 5분 동안 손대지 않으면 켜지고, 화면을 누르거나 아무 키나 누르면 돌아와요 (그 첫 누름은 돌아오기만, 걸어가지 않아요)
+let calm = false, calmClock = 0, calmSwallow = 0, lastInput = Date.now();
+const CALM_IDLE = 5 * 60e3;
+function tickCalmClock() {
+  const d = new Date();
+  $('#cc-time').textContent = d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  $('#cc-sub').textContent = `${d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })} · ${$('#zoneName').textContent} · ${friends.size + 1}명`;
+}
+function startCalm(full = false) {
+  if (calm || mode !== 'walk' || travelling || me.riding) return;
+  closePanels(); closeDrawer(); calm = true; keys.clear(); me.target = null;
+  document.body.classList.add('calm'); controls.autoRotate = true; controls.autoRotateSpeed = 0.4;
+  tickCalmClock(); clearInterval(calmClock); calmClock = setInterval(tickCalmClock, 1000);
+  if (full) document.documentElement.requestFullscreen?.().catch(() => {});
+}
+function stopCalm() {
+  if (!calm) return; calm = false; lastInput = Date.now();
+  document.body.classList.remove('calm'); controls.autoRotate = false; clearInterval(calmClock);
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+}
+const wakeCalm = (e) => { lastInput = Date.now(); if (!calm) return; e.stopPropagation(); e.preventDefault(); calmSwallow = Date.now() + 800; stopCalm(); };
+const eatCalm = (e) => { if (Date.now() < calmSwallow) { e.stopPropagation(); e.preventDefault(); } };
+addEventListener('pointerdown', wakeCalm, { capture: true }); addEventListener('keydown', wakeCalm, { capture: true });
+addEventListener('pointerup', eatCalm, { capture: true }); addEventListener('click', eatCalm, { capture: true });
+addEventListener('pointermove', () => { lastInput = Date.now(); }, { passive: true }); addEventListener('wheel', () => { lastInput = Date.now(); }, { passive: true });
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) stopCalm(); });
+setInterval(() => {
+  const busy = mode !== 'walk' || travelling || me.riding || document.hidden || document.activeElement?.matches?.('input, textarea')
+    || document.querySelector('#closet.on, #dex.on, #dexView.on, #album.on, #viewer.on, #deco.on, #settings.on, #servers.on, #snapPick.on, #actMenu.on, #drawer.on, #travel.on, #manual[aria-hidden="false"]');
+  if (!calm && !busy && Date.now() - lastInput > CALM_IDLE) startCalm();
+}, 5000);
+$('#calmBtn').onclick = () => startCalm(true);
 $('#snapPick').addEventListener('click', async (e) => {
   const k = e.target.closest('button')?.dataset.k; if (!k) return; const box = $('#snapPick'); box.classList.remove('on');
   if (k === 'screen') return snapScreen();
